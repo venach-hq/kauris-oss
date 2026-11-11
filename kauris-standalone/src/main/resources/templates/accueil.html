@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kauris</title>
+    <style>
+        body { margin: 0; background: #F5F5F5; font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            color: #1E1E1E; }
+        header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; background: #fff;
+            border-bottom: 3px solid #03C75A; padding: .9rem 1.5rem; }
+        header strong { font-size: 1.2rem; }
+        header form { display: flex; align-items: center; gap: .75rem; margin: 0; font-size: 14px; }
+        button { border: 1.5px solid #ccc; background: #fff; border-radius: 6px; padding: .45rem .9rem;
+            font-weight: 600; cursor: pointer; }
+        main { max-width: 760px; margin: 2rem auto; padding: 0 1.5rem; }
+        li { margin: .3rem 0; }
+        .muet { color: #767676; font-size: 13px; }
+    </style>
+</head>
+<body>
+<header>
+    <strong>Kauris</strong>
+    <form method="post" th:action="@{/logout}">
+        <span th:text="${email}">email</span>
+        <button type="submit">Se déconnecter</button>
+    </form>
+</header>
+<main>
+    <h1>Bienvenue</h1>
+    <section th:each="a : ${acces}">
+        <h2 th:text="${a.organisation()}">Organisation</h2>
+        <p class="muet">
+            <span th:text="${a.nomMembre()}">Membre</span> ·
+            <span th:each="r, etat : ${a.roles()}"
+                  th:text="${r.role().libelle() + (etat.last ? '' : ', ')}">Rôle</span>
+        </p>
+    </section>
+    <p class="muet">Modules installés :</p>
+    <ul>
+        <li th:each="m : ${modules}">
+            <span th:text="${m.nom()}">Module</span>
+            <span class="muet" th:text="${m.code() + ' ' + m.version()}"></span>
+        </li>
+    </ul>
+</main>
+</body>
+</html>

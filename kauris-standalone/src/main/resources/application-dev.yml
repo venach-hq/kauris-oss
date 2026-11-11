@@ -1,4 +1,11 @@
-# Poste de développement.
+# Poste de développement : MySQL de docker-compose.dev.yml (make dev-up).
+# Ces identifiants n'existent que dans le conteneur local : ce ne sont pas des secrets.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3308/kauris?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:kauris}
+    password: ${DB_PASSWORD:kauris_dev}
+
 logging:
   level:
     com.venach: DEBUG

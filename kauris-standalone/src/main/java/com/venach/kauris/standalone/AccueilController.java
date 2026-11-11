@@ -1,27 +1,30 @@
 package com.venach.kauris.standalone;
 
 import com.venach.kauris.kernel.module.RegistreModules;
+import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
+import com.venach.kauris.standalone.connexion.UtilisateurLocal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
-
-/** Page d'accueil provisoire (phase 0) : l'interface commune arrive en phase 1. */
-@RestController
+/** Page d'accueil provisoire : qui est connecté, dans quelle organisation, avec quels modules. */
+@Controller
 public class AccueilController {
 
     private final RegistreModules registre;
+    private final ResoudreAccesUseCase acces;
 
-    public AccueilController(RegistreModules registre) {
+    public AccueilController(RegistreModules registre, ResoudreAccesUseCase acces) {
         this.registre = registre;
+        this.acces = acces;
     }
 
     @GetMapping("/")
-    public Map<String, Object> accueil() {
-        List<Map<String, String>> modules = registre.tous().stream()
-                .map(m -> Map.of("code", m.code(), "nom", m.nom(), "version", m.version()))
-                .toList();
-        return Map.of("application", "Kauris (autonome)", "modules", modules);
+    public String accueil(@AuthenticationPrincipal UtilisateurLocal personne, Model model) {
+        model.addAttribute("email", personne.getUsername());
+        model.addAttribute("acces", acces.accesDe(personne.identite()));
+        model.addAttribute("modules", registre.tous());
+        return "accueil";
     }
 }

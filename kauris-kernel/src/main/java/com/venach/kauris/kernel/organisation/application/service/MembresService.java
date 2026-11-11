@@ -1,0 +1,138 @@
+package com.venach.kauris.kernel.organisation.application.service;
+
+import com.venach.kauris.kernel.commun.AccesRefuse;
+import com.venach.kauris.kernel.commun.ElementIntrouvable;
+import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.kernel.commun.Saisie;
+import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
+import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
+import com.venach.kauris.kernel.organisation.domain.AttributionRole;
+import com.venach.kauris.kernel.organisation.domain.Etablissement;
+import com.venach.kauris.kernel.organisation.domain.Membre;
+import com.venach.kauris.kernel.organisation.domain.Role;
+
+import java.time.Clock;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+public class MembresService implements GererMembresUseCase {
+
+    private final MembreRepository membres;
+    private final EtablissementRepository etablissements;
+    private final UniteDeTravail transaction;
+    private final Clock horloge;
+
+    public MembresService(MembreRepository membres, EtablissementRepository etablissements,
+                          UniteDeTravail transaction, Clock horloge) {
+        this.membres = membres;
+        this.etablissements = etablissements;
+        this.transaction = transaction;
+        this.horloge = horloge;
+    }
+
+    @Override
+    public List<Membre> lister(UUID tenantId) {
+        return membres.lister(tenantId).stream()
+                .sorted(Comparator.comparing(Membre::nom, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(Membre::email))
+                .toList();
+    }
+
+    @Override
+    public Membre inviter(UUID tenantId, UUID acteurId, String email, String nom, Set<AttributionRole> roles) {
+        return transaction.executer(() -> {
+            Membre acteur = Autorisations.administrateur(membres, tenantId, acteurId);
+            Membre invite = Membre.inviter(tenantId, email, nom, roles, horloge.instant());
+            exigerProprietairePourToucherAuRoleProprietaire(acteur, Set.of(), invite.roles());
+            verifierEtablissements(tenantId, invite.roles());
+            if (membres.parEmail(tenantId, Saisie.email(email)).isPresent()) {
+                throw new ErreurMetier("Cette adresse est déjà celle d'un membre de l'organisation.");
+            }
+            membres.sauvegarder(invite);
+            return invite;
+        });
+    }
+
+    @Override
+    public void definirRoles(UUID tenantId, UUID acteurId, UUID membreId, Set<AttributionRole> roles) {
+        transaction.executer(() -> {
+            Membre acteur = Autorisations.administrateur(membres, tenantId, acteurId);
+            Membre membre = trouver(tenantId, membreId);
+            Set<AttributionRole> avant = membre.roles();
+            membre.definirRoles(roles);
+            exigerProprietairePourToucherAuRoleProprietaire(acteur, avant, membre.roles());
+            verifierEtablissements(tenantId, membre.roles());
+            garderUnProprietaire(tenantId, membre);
+            membres.sauvegarder(membre);
+        });
+    }
+
+    @Override
+    public void desactiver(UUID tenantId, UUID acteurId, UUID membreId) {
+        transaction.executer(() -> {
+            Membre acteur = Autorisations.administrateur(membres, tenantId, acteurId);
+            if (acteur.id().equals(membreId)) {
+                throw new ErreurMetier("Vous ne pouvez pas vous désactiver vous-même.");
+            }
+            Membre membre = trouver(tenantId, membreId);
+            exigerProprietairePourToucherAuRoleProprietaire(acteur, membre.roles(), Set.of());
+            membre.desactiver();
+            garderUnProprietaire(tenantId, membre);
+            membres.sauvegarder(membre);
+        });
+    }
+
+    @Override
+    public void reactiver(UUID tenantId, UUID acteurId, UUID membreId) {
+        transaction.executer(() -> {
+            Membre acteur = Autorisations.administrateur(membres, tenantId, acteurId);
+            Membre membre = trouver(tenantId, membreId);
+            exigerProprietairePourToucherAuRoleProprietaire(acteur, Set.of(), membre.roles());
+            membre.reactiver();
+            membres.sauvegarder(membre);
+        });
+    }
+
+    private Membre trouver(UUID tenantId, UUID membreId) {
+        return membres.trouver(tenantId, membreId)
+                .orElseThrow(() -> new ElementIntrouvable("Membre introuvable."));
+    }
+
+    /** Donner ou retirer le rôle de propriétaire est réservé aux propriétaires. */
+    private static void exigerProprietairePourToucherAuRoleProprietaire(Membre acteur, Set<AttributionRole> avant,
+                                                                        Set<AttributionRole> apres) {
+        boolean etait = avant.stream().anyMatch(r -> r.role() == Role.PROPRIETAIRE);
+        boolean sera = apres.stream().anyMatch(r -> r.role() == Role.PROPRIETAIRE);
+        if ((etait || sera) && !acteur.estProprietaire()) {
+            throw new AccesRefuse("Seul un propriétaire peut donner, retirer ou modifier le rôle de propriétaire.");
+        }
+    }
+
+    /** Un rôle limité à un établissement doit viser un établissement ouvert de la même organisation. */
+    private void verifierEtablissements(UUID tenantId, Set<AttributionRole> roles) {
+        for (AttributionRole role : roles) {
+            if (role.etablissementId() != null) {
+                boolean ouvert = etablissements.trouver(tenantId, role.etablissementId())
+                        .filter(Etablissement::estOuvert)
+                        .isPresent();
+                if (!ouvert) {
+                    throw new ErreurMetier("Établissement inconnu ou fermé.");
+                }
+            }
+        }
+    }
+
+    /** Après la modification de ce membre, l'organisation doit garder un propriétaire actif. */
+    private void garderUnProprietaire(UUID tenantId, Membre modifie) {
+        boolean reste = membres.lister(tenantId).stream()
+                .map(m -> m.id().equals(modifie.id()) ? modifie : m)
+                .anyMatch(m -> m.estActif() && m.estProprietaire());
+        if (!reste) {
+            throw new ErreurMetier("L'organisation doit garder au moins un propriétaire actif.");
+        }
+    }
+}
