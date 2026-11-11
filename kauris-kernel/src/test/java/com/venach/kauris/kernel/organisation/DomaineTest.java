@@ -1,6 +1,7 @@
 package com.venach.kauris.kernel.organisation;
 
 import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.domain.AttributionRole;
 import com.venach.kauris.kernel.organisation.domain.Etablissement;
 import com.venach.kauris.kernel.organisation.domain.Identite;
@@ -121,5 +122,27 @@ class DomaineTest {
     void identiteRefuseLesValeursVides() {
         assertThrows(IllegalArgumentException.class, () -> new Identite("venach", " "));
         assertThrows(IllegalArgumentException.class, () -> new Identite("Pas Valide", "abc"));
+    }
+
+    @Test
+    void lesRolesSeResumentSansRepetition() {
+        UUID lome = UUID.randomUUID();
+        UUID dapaong = UUID.randomUUID();
+
+        assertEquals("Propriétaire", acces(AttributionRole.pourTouteLOrganisation(Role.PROPRIETAIRE)));
+        assertEquals("Gestionnaire (2 établissements)", acces(
+                AttributionRole.pourEtablissement(Role.GESTIONNAIRE, lome),
+                AttributionRole.pourEtablissement(Role.GESTIONNAIRE, dapaong)));
+        assertEquals("Administrateur, Lecteur (1 établissement)", acces(
+                AttributionRole.pourEtablissement(Role.LECTEUR, lome),
+                AttributionRole.pourTouteLOrganisation(Role.ADMINISTRATEUR)));
+        assertEquals("Gestionnaire", acces(
+                AttributionRole.pourTouteLOrganisation(Role.GESTIONNAIRE),
+                AttributionRole.pourEtablissement(Role.GESTIONNAIRE, lome)));
+    }
+
+    private static String acces(AttributionRole... roles) {
+        return new Acces(UUID.randomUUID(), "Organisation",
+                true, UUID.randomUUID(), "Membre", "membre@exemple.test", Set.of(roles)).resumeRoles();
     }
 }

@@ -4,9 +4,8 @@
 <body>
 <section>
     <p>
-        Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>. Vos rôles :
-        <span th:each="r, etat : ${kauris.acces().roles()}"
-              th:text="${r.role().libelle() + (etat.last ? '.' : ', ')}">Rôle</span>
+        Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>.
+        Vos rôles : <span th:text="${kauris.acces().resumeRoles()}">Rôle</span>.
     </p>
     <h2>Modules installés</h2>
     <table class="k-table">
