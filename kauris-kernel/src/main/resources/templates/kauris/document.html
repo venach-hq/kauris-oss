@@ -1,52 +1,99 @@
 <!DOCTYPE html>
 <!--
-  Habillage commun des documents que Kauris produit pour une entreprise (factures, bulletins, états) :
-  son logo, son identité, son thème, et en pied la mention légale demandée par le droit OHADA.
+  Ossature commune de tous les documents de Kauris (factures, relevés, livres, bulletins…) :
 
-  Un module l'utilise ainsi, avec « entreprise » (GererEntrepriseUseCase.consulter) dans le modèle :
+    1. en-tête de l'entreprise : logo, raison sociale, adresse, identifiants, contacts, filet épais ;
+    2. titre ;
+    3. contenu du document (souvent : cartouche, tableaux, totaux, signatures) ;
+    4. pied légal : raison sociale • capital • NIF • RCCM, coordonnées bancaires, mentions ;
+    5. bas de chaque page : « ENTREPRISE — TITRE — édité le … » et « Page x / y ».
 
-  <html xmlns:th="http://www.thymeleaf.org"
-        th:replace="~{kauris/document :: page(titre='Facture F-001', entreprise=${entreprise}, contenu=~{::section})}">
-  <body><section> … le corps du document … </section></body>
+  Le modèle contient « habillage » (ProducteurDocuments.habillage). Une vue de document s'écrit :
+
+  <html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+  <body><section>
+      <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+      <table class="k-doc-tableau"> … </table>
+      <div th:replace="~{kauris/document :: signatures('Awa Mensah', ${visas})}"></div>
+  </section></body>
   </html>
 
-  Le document s'affiche seul, sans le menu de Kauris, et s'imprime tel quel (ou « Enregistrer en PDF »).
+  Pas d'adresse « @{…} » dans une vue de document : elle sert aussi au PDF, produit hors d'une requête.
 -->
-<html lang="fr" xmlns:th="http://www.thymeleaf.org" th:fragment="page(titre, entreprise, contenu)">
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" th:fragment="page(contenu)">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="${titre}">Document</title>
-    <link rel="icon" type="image/svg+xml" th:href="@{/kauris/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/kauris/document.css}">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${habillage.titre() + ' — ' + habillage.entreprise().raisonSociale()}">Document</title>
+    <style th:utext="${habillage.feuille()}"></style>
 </head>
-<body class="k-doc" th:style="${entreprise.theme().css()}">
-<div class="k-doc-outils">
-    <button type="button" onclick="window.print()">Imprimer ou enregistrer en PDF</button>
+<body class="k-doc" th:classappend="${habillage.pdf()} ? 'k-doc-pdf' : 'k-doc-ecran'">
+
+<div class="k-doc-courant" th:if="${habillage.pdf()}" th:text="${habillage.basDePage()}">Bas de page</div>
+
+<div class="k-doc-outils" th:unless="${habillage.pdf()}">
+    <a class="k-doc-bouton" th:if="${habillage.lienPdf() != null}" th:href="${habillage.lienPdf()}">Télécharger le PDF</a>
+    <button type="button" class="k-doc-bouton" onclick="window.print()">Imprimer</button>
 </div>
-<div class="k-doc-page">
-    <header class="k-doc-entete">
-        <img class="k-doc-logo" th:if="${entreprise.aUnLogo()}" th:src="@{/entreprise/logo}" alt="">
-        <div>
-            <div class="k-doc-nom" th:text="${entreprise.raisonSociale()}">Entreprise SARL</div>
-            <div th:unless="${entreprise.sigle().isEmpty()}" th:text="${entreprise.sigle()}">Sigle</div>
-            <div th:text="${entreprise.adresseComplete()}">Adresse, Ville, Pays</div>
-            <div th:unless="${entreprise.telephone().isEmpty() and entreprise.email().isEmpty()}">
-                <span th:unless="${entreprise.telephone().isEmpty()}" th:text="${'Tél. ' + entreprise.telephone()}"></span>
-                <span th:unless="${entreprise.email().isEmpty()}" th:text="${entreprise.email()}"></span>
-            </div>
-            <div class="k-doc-identifiants">
-                <span th:each="i : ${entreprise.identifiantsRemplis()}" th:text="${i.sigle() + ' : ' + i.valeur()}">NIF : 123</span>
-            </div>
-        </div>
-    </header>
-    <main class="k-doc-corps">
+
+<div class="k-doc-page" th:with="e=${habillage.entreprise()}">
+    <table class="k-doc-entete">
+        <tr>
+            <td class="k-doc-logo" th:if="${habillage.logoAGauche() and habillage.logo() != null}">
+                <img th:src="${habillage.logo()}" alt=""/>
+            </td>
+            <td class="k-doc-identite" th:classappend="${habillage.logoAGauche()} ? 'k-doc-a-droite' : ''">
+                <div class="k-doc-nom" th:text="${e.raisonSociale()}">ENTREPRISE SA</div>
+                <div th:unless="${e.sigle().isEmpty()}" th:text="${e.sigle()}">Sigle</div>
+                <div th:text="${e.adresseComplete()}">Adresse, Ville, Pays</div>
+                <div th:each="i : ${e.identifiantsEnTete()}"><strong th:text="${i.sigle() + ' :'}">NIF :</strong>
+                    <span th:text="${i.valeur()}">1000000000</span></div>
+                <div th:unless="${e.telephone().isEmpty()}"><strong>Tél :</strong>
+                    <span th:text="${e.telephone()}">+228</span></div>
+                <div th:unless="${e.email().isEmpty()}"><strong>Email :</strong>
+                    <span th:text="${e.email()}">contact@</span></div>
+                <div th:unless="${e.siteWeb().isEmpty()}"><strong>Site Web :</strong>
+                    <span th:text="${e.siteWeb()}">https://</span></div>
+            </td>
+            <td class="k-doc-logo k-doc-a-droite" th:if="${!habillage.logoAGauche() and habillage.logo() != null}">
+                <img th:src="${habillage.logo()}" alt=""/>
+            </td>
+        </tr>
+    </table>
+
+    <h1 class="k-doc-titre" th:text="${habillage.titre()}">TITRE</h1>
+
+    <div class="k-doc-corps">
         <th:block th:replace="${contenu}"/>
-    </main>
-    <footer class="k-doc-pied">
-        <div th:text="${entreprise.mentionLegale()}">Entreprise SARL au capital de 1 000 000 F CFA · Siège : …</div>
-        <div th:unless="${entreprise.mentions().isEmpty()}" th:text="${entreprise.mentions()}">Autres mentions</div>
-    </footer>
+    </div>
+
+    <div class="k-doc-pied">
+        <div th:text="${e.piedLegal()}">ENTREPRISE SA • Capital social : … • NIF : … • RCCM : …</div>
+        <div th:if="${e.banque().renseignees()}"><strong>Coordonnées bancaires :</strong>
+            <span th:text="${e.banque().ligne()}">Banque - Titulaire - IBAN</span></div>
+        <div th:unless="${e.mentions().isEmpty()}" th:text="${e.mentions()}">Mentions</div>
+    </div>
+
+    <div class="k-doc-courant-ecran" th:unless="${habillage.pdf()}" th:text="${habillage.basDePage()}">Bas de page</div>
 </div>
 </body>
 </html>
+
+<!-- Cartouche : cases « ÉTIQUETTE / valeur » par lignes de quatre (document.Cartouche). -->
+<table class="k-doc-cartouche" th:fragment="cartouche(cartouche)">
+    <tr th:each="ligne : ${cartouche.lignes()}">
+        <td th:each="c : ${ligne}">
+            <div class="k-doc-etiquette" th:text="${c.libelle()}">ENTITÉ</div>
+            <div th:text="${c.libelle().isEmpty() ? '' : c.valeur()}">Valeur</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Signatures : « Établi par … le … » puis une case par visa (liste de libellés, peut être vide). -->
+<table class="k-doc-signatures" th:fragment="signatures(etabliPar, visas)">
+    <tr>
+        <td>Établi par : <strong th:text="${etabliPar}">Nom</strong><br/>
+            le <span th:text="${#strings.substringBefore(habillage.editeLe(), ' à')}">09/10/2026</span></td>
+        <td th:each="v : ${visas}" th:text="${v}">Visa du dirigeant</td>
+    </tr>
+</table>

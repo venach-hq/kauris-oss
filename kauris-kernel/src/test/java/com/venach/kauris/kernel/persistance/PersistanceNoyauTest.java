@@ -7,6 +7,7 @@ import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUs
 import com.venach.kauris.kernel.entreprise.domain.Devise;
 import com.venach.kauris.kernel.entreprise.domain.Entreprise;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
+import com.venach.kauris.kernel.entreprise.domain.ThemeDocument;
 import com.venach.kauris.kernel.module.PermissionsNoyau;
 import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
 import com.venach.kauris.kernel.notification.application.port.in.NotifierUseCase;
@@ -268,10 +269,12 @@ class PersistanceNoyauTest {
         GererEntrepriseUseCase.Saisie saisie = new GererEntrepriseUseCase.Saisie("Imprimerie du Golfe", "IDG",
                 "SA", "10 000 000", "BJ", "Cotonou", "Lot 12, Haie Vive", "", "+229 01 00 00 00", "", "",
                 Map.of("rccm", "RB/COT/24 B 12345", "ifu", "3202412345678"), "XOF", Set.of("EUR", "USD"),
-                "GEORGIA", "12", "#123456", "#000000", "");
+                "Orabank Bénin", "Imprimerie du Golfe SA", "BJ0610100100123456789000", "ORBKBJBJ", "Cotonou", "");
 
         entreprises.enregistrer(proprietaire, saisie);
         entreprises.enregistrer(proprietaire, saisie); // réécrire ne double pas les identifiants
+        entreprises.definirTheme(proprietaire, new GererEntrepriseUseCase.SaisieTheme("PERSONNALISE",
+                "PlayfairDisplay", "Lato", "12", "#123456", "#EEEEEE", "#000000", "DROITE", "NORMAL"));
         entreprises.definirLogo(proprietaire, new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2});
 
         Entreprise relue = entreprises.consulter(o.tenantId());
@@ -280,6 +283,11 @@ class PersistanceNoyauTest {
         assertEquals(Map.of("rccm", "RB/COT/24 B 12345", "ifu", "3202412345678"), relue.identifiants());
         assertEquals(Set.of(Devise.EUR, Devise.USD), relue.autresDevises());
         assertEquals(12, relue.theme().taille());
+        assertEquals("PlayfairDisplay", relue.theme().policeTitres());
+        assertEquals(ThemeDocument.PositionLogo.DROITE, relue.theme().logo());
+        assertEquals("#EEEEEE", relue.theme().couleurEntetes());
+        assertEquals("Orabank Bénin", relue.banque().banque());
+        assertEquals("ORBKBJBJ", relue.banque().bic());
         assertTrue(relue.aUnLogo());
         assertEquals(10, entreprises.logo(o.tenantId()).orElseThrow().contenu().length);
 

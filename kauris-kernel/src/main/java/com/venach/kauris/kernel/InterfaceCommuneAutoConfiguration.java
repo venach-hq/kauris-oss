@@ -1,5 +1,8 @@
 package com.venach.kauris.kernel;
 
+import com.venach.kauris.kernel.document.CataloguePolices;
+import com.venach.kauris.kernel.document.PolicesController;
+import com.venach.kauris.kernel.document.ProducteurDocuments;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.module.RegistreModules;
 import com.venach.kauris.kernel.notification.adapter.out.DiffusionLocale;
@@ -19,6 +22,12 @@ import com.venach.kauris.kernel.ui.notification.NotificationsWebSocket;
 import com.venach.kauris.kernel.ui.organisation.OrganisationController;
 import com.venach.kauris.kernel.ui.organisation.ProfilController;
 import com.venach.kauris.kernel.ui.organisation.RolesController;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration;
+import org.thymeleaf.ITemplateEngine;
+
+import java.nio.file.Path;
+import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -39,7 +48,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
  * organisation (par défaut la page du noyau, « /sans-organisation »).
  */
 @AutoConfiguration(after = {KernelAutoConfiguration.class, OrganisationAutoConfiguration.class,
-        NotificationsAutoConfiguration.class})
+        NotificationsAutoConfiguration.class, ThymeleafAutoConfiguration.class})
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnBean(SessionKauris.class)
 public class InterfaceCommuneAutoConfiguration {
@@ -78,8 +87,31 @@ public class InterfaceCommuneAutoConfiguration {
     }
 
     @Bean
-    public EntrepriseController entrepriseController(ContexteCourant contexte, GererEntrepriseUseCase entreprises) {
-        return new EntrepriseController(contexte, entreprises);
+    public EntrepriseController entrepriseController(ContexteCourant contexte, GererEntrepriseUseCase entreprises,
+                                                     ProducteurDocuments documents) {
+        return new EntrepriseController(contexte, entreprises, documents);
+    }
+
+    /**
+     * Les polices des documents : fichiers TrueType du dossier {@code kauris.documents.polices}
+     * (« Famille-Style.ttf »). Sans dossier, les polices de base du PDF.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CataloguePolices cataloguePolices(@Value("${kauris.documents.polices:}") String dossier) {
+        return dossier.isBlank() ? CataloguePolices.vide() : CataloguePolices.depuis(Path.of(dossier));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ProducteurDocuments producteurDocuments(ITemplateEngine moteur, GererEntrepriseUseCase entreprises,
+                                                   CataloguePolices polices, Clock horloge) {
+        return new ProducteurDocuments(moteur, entreprises, polices, horloge);
+    }
+
+    @Bean
+    public PolicesController policesController(CataloguePolices polices) {
+        return new PolicesController(polices);
     }
 
     @Bean

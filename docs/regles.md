@@ -75,20 +75,51 @@ et l'administrateur ont toujours toutes les permissions.
 ## Paramètres de l'entreprise et documents
 
 Le noyau garde l'identité légale de l'entreprise selon son pays (RCCM, NIF / IFU / NCC / NINEA, numéros
-sociaux…), ses monnaies, son logo et le thème de ses documents. Un module les lit avec
-`GererEntrepriseUseCase.consulter(tenantId)` et habille ses documents avec le gabarit commun :
+sociaux…), ses monnaies, son compte bancaire, son logo et le **thème de ses documents** (modèle Moderne,
+Classique ou Élégant, ou personnalisé : polices des titres et du texte, taille, trois couleurs, place du logo,
+style du titre). Un module lit l'entreprise avec `GererEntrepriseUseCase.consulter(tenantId)`.
+
+### Ossature commune des documents
+
+Tous les documents ont la même ossature (`templates/kauris/document.html`) :
+
+1. en-tête de l'entreprise : logo, raison sociale, adresse, NIF, RCCM, téléphone, email, site, filet épais ;
+2. titre ;
+3. contenu propre au document, avec les briques communes : cartouche (`kauris/document :: cartouche`),
+   tableaux `k-doc-tableau` (lignes `k-doc-groupe`, `k-doc-total`, cellules `k-doc-montant`), signatures
+   (`kauris/document :: signatures`) ;
+4. pied légal : raison sociale • capital • NIF • RCCM, coordonnées bancaires, mentions ;
+5. bas de chaque page : « ENTREPRISE — TITRE précision — édité le … » et « Page x / y ».
+
+Un module prépare l'habillage avec `ProducteurDocuments`, puis renvoie sa vue à l'écran, ou le PDF :
+
+```java
+Habillage h = documents.habillage(tenantId, "Relevé des mouvements", "du 01/10 au 31/10/2026",
+        "/tresorerie/releve.pdf?…", false);                       // à l'écran
+model.addAttribute("habillage", h);
+…
+byte[] pdf = documents.pdf("tresorerie/releve", variables);    // variables.habillage préparé avec pdf = true
+return EntrepriseController.enPdf(pdf, ProducteurDocuments.nomDeFichier("Relevé", "202610"));
+```
 
 ```html
-<html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{kauris/document :: page(titre='Facture F-001', entreprise=${entreprise}, contenu=~{::section})}">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
 <body><section> … </section></body>
 </html>
 ```
 
-En-tête (logo, identité, identifiants), police, taille et couleurs du thème, et pied de page avec la mention
-légale OHADA (`entreprise.mentionLegale()`) sont alors les mêmes partout. Les montants s'écrivent avec
-`entreprise.devise().formater(montant)` (entier) ou `formaterDecimal(montant)` (`BigDecimal`) : deux noms
-distincts, car Thymeleaf ne choisit pas entre deux méthodes du même nom.
+- Pas d'adresse `@{…}` dans une vue de document : elle sert aussi au PDF, produit hors d'une requête.
+- Mise en page en tableaux (le moteur PDF lit le CSS 2.1 : ni flex ni variables CSS).
+- Les montants s'écrivent avec `entreprise.devise().formater(montant)` (entier) ou `formaterDecimal(montant)`
+  (`BigDecimal`) : deux noms distincts, car Thymeleaf ne choisit pas entre deux méthodes du même nom.
+
+### Polices des documents
+
+Le réglage `kauris.documents.polices` (variable `KAURIS_POLICES`) donne un dossier de fichiers TrueType nommés
+« Famille-Style.ttf » (`Poppins-SemiBoldItalic.ttf`, `Lato-Regular.ttf`). Chaque famille devient un choix de
+l'éditeur de thème ; le PDF les intègre, le navigateur les charge depuis `/kauris/polices/`. Sans dossier, ou
+pour une famille absente, les documents prennent Helvetica, Times ou Courier : rien n'échoue. Les polices
+proposées par les modèles : Inter (Moderne), Merriweather et Lato (Classique), Poppins (Élégant).
 
 ## Notifications
 

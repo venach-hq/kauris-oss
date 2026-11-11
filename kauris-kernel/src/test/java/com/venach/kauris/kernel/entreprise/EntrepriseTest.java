@@ -3,6 +3,7 @@ package com.venach.kauris.kernel.entreprise;
 import com.venach.kauris.kernel.commun.AccesRefuse;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase.Saisie;
+import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase.SaisieTheme;
 import com.venach.kauris.kernel.entreprise.domain.Devise;
 import com.venach.kauris.kernel.entreprise.domain.Entreprise;
 import com.venach.kauris.kernel.entreprise.domain.FormeJuridique;
@@ -42,7 +43,8 @@ class EntrepriseTest {
         return new Saisie("Boulangerie du Port", "BDP", "SARL", "1 000 000", "TG", "Lomé",
                 "12 rue du Commerce", "1234", "+228 90 00 00 00", "Contact@Exemple.test", "",
                 Map.of("rccm", "TG-LFW-01-2024-B12-00001", "nif", "1000123456", "ninea", "ne compte pas au Togo"),
-                "XOF", Set.of("EUR", "XOF"), "SERIF", "11", "#0A5C36", "#111111", "Agrément n° 12");
+                "XOF", Set.of("EUR", "XOF"), "Ecobank Togo", "Boulangerie du Port SARL",
+                "TG42 TG90 8010 0100 4521 8730 1642", "ecoctglx", "Lomé Centre", "Agrément n° 12");
     }
 
     @Test
@@ -72,7 +74,8 @@ class EntrepriseTest {
         // seuls les champs du pays sont gardés ; la monnaie principale n'est pas répétée dans les autres
         assertEquals(Map.of("rccm", "TG-LFW-01-2024-B12-00001", "nif", "1000123456"), e.identifiants());
         assertEquals(Set.of(Devise.EUR), e.autresDevises());
-        assertEquals(11, e.theme().taille());
+        assertEquals(ThemeDocument.PAR_DEFAUT, e.theme());
+        assertEquals("Ecobank Togo", e.banque().banque());
         assertTrue(e.manques().isEmpty(), e.manques().toString());
         assertEquals("Boulangerie du Port SARL au capital de 1\u00a0000\u00a0000\u00a0F CFA"
                         + " · Siège : 12 rue du Commerce, BP 1234, Lomé, Togo"
@@ -102,8 +105,7 @@ class EntrepriseTest {
 
         monde.entreprises.enregistrer(proprietaire(o), new Saisie(s.denomination(), s.sigle(), s.forme(),
                 s.capital(), "SN", "Dakar", s.adresse(), s.boitePostale(), s.telephone(), s.email(), s.siteWeb(),
-                Map.of("ninea", "005123456", "nif", "1000123456"), s.devise(), s.autresDevises(), s.police(),
-                s.taille(), s.couleurPrincipale(), s.couleurTexte(), s.mentions()));
+                Map.of("ninea", "005123456", "nif", "1000123456"), s.devise(), s.autresDevises(), s.banque(), s.titulaireCompte(), s.numeroCompte(), s.bic(), s.agence(), s.mentions()));
 
         Entreprise e = monde.entreprises.consulter(o.tenantId());
         assertEquals(Pays.SENEGAL, e.pays());
@@ -117,19 +119,18 @@ class EntrepriseTest {
         Saisie s = togolaise();
 
         assertThrows(ErreurMetier.class, () -> monde.entreprises.enregistrer(proprietaire(o),
-                new Saisie(s.denomination(), s.sigle(), s.forme(), "un million", s.pays(), s.ville(), s.adresse(),
+                new Saisie(s.denomination(), s.sigle(), s.forme(), "1 000 000,50", s.pays(), s.ville(), s.adresse(),
                         s.boitePostale(), s.telephone(), s.email(), s.siteWeb(), s.identifiants(), s.devise(),
-                        s.autresDevises(), s.police(), s.taille(), s.couleurPrincipale(), s.couleurTexte(),
-                        s.mentions())));
+                        s.autresDevises(), s.banque(), s.titulaireCompte(), s.numeroCompte(), s.bic(), s.agence(), s.mentions())));
         assertThrows(ErreurMetier.class, () -> monde.entreprises.enregistrer(proprietaire(o),
                 new Saisie(s.denomination(), s.sigle(), s.forme(), s.capital(), s.pays(), s.ville(), s.adresse(),
                         s.boitePostale(), s.telephone(), s.email(), s.siteWeb(), s.identifiants(), s.devise(),
-                        s.autresDevises(), s.police(), "40", "rouge", s.couleurTexte(), s.mentions())));
+                        s.autresDevises(), "B".repeat(81), s.titulaireCompte(), s.numeroCompte(), s.bic(),
+                        s.agence(), s.mentions())));
         assertThrows(ErreurMetier.class, () -> monde.entreprises.enregistrer(proprietaire(o),
                 new Saisie(s.denomination(), s.sigle(), s.forme(), s.capital(), "FR", s.ville(), s.adresse(),
                         s.boitePostale(), s.telephone(), s.email(), s.siteWeb(), s.identifiants(), s.devise(),
-                        s.autresDevises(), s.police(), s.taille(), s.couleurPrincipale(), s.couleurTexte(),
-                        s.mentions())));
+                        s.autresDevises(), s.banque(), s.titulaireCompte(), s.numeroCompte(), s.bic(), s.agence(), s.mentions())));
 
         assertTrue(monde.entreprisesStockees.trouver(o.tenantId()).isEmpty());
     }
@@ -170,14 +171,66 @@ class EntrepriseTest {
     }
 
     @Test
-    void leThemeDonneLeStyleDesDocuments() {
-        ThemeDocument theme = new ThemeDocument(ThemeDocument.Police.SERIF, 12, "#0a5c36", "#111111");
+    void lesTroisModelesSontProposesEtLePersonnaliseGardeLesReglages() {
+        assertEquals("Inter", ThemeDocument.du(ThemeDocument.Modele.MODERNE).policeTexte());
+        assertEquals("Merriweather", ThemeDocument.du(ThemeDocument.Modele.CLASSIQUE).policeTitres());
+        assertEquals(ThemeDocument.PositionLogo.DROITE, ThemeDocument.du(ThemeDocument.Modele.ELEGANT).logo());
 
-        assertTrue(theme.css().contains("12pt"), theme.css());
-        assertTrue(theme.css().toUpperCase().contains("#0A5C36"), theme.css());
-        assertThrows(ErreurMetier.class, () -> new ThemeDocument(ThemeDocument.Police.SANS, 7, "#000000", "#000000"));
-        assertThrows(ErreurMetier.class,
-                () -> new ThemeDocument(ThemeDocument.Police.SANS, 10, "red; background:url(x)", "#000000"));
+        // un modèle proposé ignore les réglages envoyés avec lui
+        assertEquals(ThemeDocument.CLASSIQUE, monde.entreprises.lire(new SaisieTheme("CLASSIQUE", "Poppins",
+                "Poppins", "14", "#000000", "#000000", "#000000", "DROITE", "MAJUSCULES")));
+        ThemeDocument perso = monde.entreprises.lire(new SaisieTheme("PERSONNALISE", "PlayfairDisplay", "Lato",
+                "11", "#0a5c36", "#f1f3f4", "#111111", "DROITE", "NORMAL"));
+        assertEquals("PlayfairDisplay", perso.policeTitres());
+        assertEquals("#0A5C36", perso.couleurPrincipale());
+        // texte foncé sur un en-tête clair, blanc sur un en-tête foncé
+        assertEquals("#1F1F1F", perso.texteSurEntetes());
+        assertEquals("#FFFFFF", ThemeDocument.MODERNE.texteSurEntetes());
+    }
+
+    @Test
+    void lePersonnaliseEstControle() {
+        assertThrows(ErreurMetier.class, () -> monde.entreprises.lire(new SaisieTheme("PERSONNALISE", "Inter",
+                "Inter", "7", "#000000", "#000000", "#000000", "GAUCHE", "NORMAL")));
+        assertThrows(ErreurMetier.class, () -> monde.entreprises.lire(new SaisieTheme("PERSONNALISE", "Inter",
+                "Inter", "10", "red; background:url(x)", "#000000", "#000000", "GAUCHE", "NORMAL")));
+        // une police ne peut pas sortir de sa règle CSS
+        assertThrows(ErreurMetier.class, () -> monde.entreprises.lire(new SaisieTheme("PERSONNALISE",
+                "Inter'; } body { display:none", "Inter", "10", "#000000", "#000000", "#000000", "GAUCHE",
+                "NORMAL")));
+        assertThrows(ErreurMetier.class, () -> monde.entreprises.lire(new SaisieTheme("FLUO", "Inter", "Inter",
+                "10", "#000000", "#000000", "#000000", "GAUCHE", "NORMAL")));
+    }
+
+    @Test
+    void leThemeEnregistreSAppliqueSansToucherAuReste() {
+        OrganisationOuverte o = monde.ouvrir("Boulangerie", "awa");
+        monde.entreprises.enregistrer(proprietaire(o), togolaise());
+
+        monde.entreprises.definirTheme(proprietaire(o), new SaisieTheme("ELEGANT", "", "", "", "", "", "", "", ""));
+        // réenregistrer l'identité garde le thème
+        monde.entreprises.enregistrer(proprietaire(o), togolaise());
+
+        Entreprise e = monde.entreprises.consulter(o.tenantId());
+        assertEquals(ThemeDocument.ELEGANT, e.theme());
+        assertEquals("BDP", e.sigle());
+        String css = e.theme().feuille();
+        assertTrue(css.contains("'Poppins', Helvetica"), css);
+        assertTrue(css.contains("text-transform:uppercase"), css);
+        assertTrue(ThemeDocument.CLASSIQUE.feuille().contains("'Merriweather', Times"));
+    }
+
+    @Test
+    void lePiedLegalEtLesCoordonneesBancaires() {
+        OrganisationOuverte o = monde.ouvrir("Boulangerie", "awa");
+        monde.entreprises.enregistrer(proprietaire(o), togolaise());
+
+        Entreprise e = monde.entreprises.consulter(o.tenantId());
+        assertEquals("Boulangerie du Port SARL \u2022 Capital social : 1\u00a0000\u00a0000\u00a0F CFA"
+                + " \u2022 NIF : 1000123456 \u2022 RCCM : TG-LFW-01-2024-B12-00001", e.piedLegal());
+        assertEquals("Ecobank Togo - Titulaire : Boulangerie du Port SARL - IBAN : TG42 TG90 8010 0100 4521 8730 1642"
+                + " - BIC/SWIFT : ECOCTGLX - Agence : Lomé Centre", e.banque().ligne());
+        assertEquals("NIF", e.identifiantsEnTete().get(0).sigle());
     }
 
     @Test

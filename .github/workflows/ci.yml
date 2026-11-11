@@ -22,5 +22,14 @@ jobs:
           cache: maven
       - name: Compilation et tests
         run: make verify
+      # Les PDF d'exemple produits par les tests, pour les regarder (onglet « Artifacts » de l'exécution).
+      - name: Documents d'exemple
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documents-exemple
+          path: kauris-kernel/target/documents-exemple/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Recherche de secrets
         run: make secrets

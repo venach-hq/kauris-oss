@@ -53,3 +53,9 @@ info:
   application:
     name: '@project.name@'
     version: '@project.version@'
+
+# Documents : dossier des polices TrueType (« Famille-Style.ttf », par exemple Poppins-Bold.ttf). Vide : les
+# documents utilisent les polices de base du PDF (Helvetica, Times, Courier).
+kauris:
+  documents:
+    polices: ${KAURIS_POLICES:}

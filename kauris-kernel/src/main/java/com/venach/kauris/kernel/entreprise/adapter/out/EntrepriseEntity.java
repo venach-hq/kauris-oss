@@ -58,8 +58,14 @@ public class EntrepriseEntity {
     @Column(name = "autres_devises", length = 100, nullable = false)
     String autresDevises;
 
-    @Column(name = "police", length = 20, nullable = false)
-    String police;
+    @Column(name = "theme_modele", length = 20, nullable = false)
+    String themeModele;
+
+    @Column(name = "police_titres", length = 40, nullable = false)
+    String policeTitres;
+
+    @Column(name = "police_texte", length = 40, nullable = false)
+    String policeTexte;
 
     @Column(name = "taille_texte", nullable = false)
     int tailleTexte;
@@ -69,6 +75,30 @@ public class EntrepriseEntity {
 
     @Column(name = "couleur_texte", length = 7, nullable = false)
     String couleurTexte;
+
+    @Column(name = "couleur_entetes", length = 7, nullable = false)
+    String couleurEntetes;
+
+    @Column(name = "position_logo", length = 10, nullable = false)
+    String positionLogo;
+
+    @Column(name = "style_titre", length = 12, nullable = false)
+    String styleTitre;
+
+    @Column(name = "banque", length = 80, nullable = false)
+    String banque;
+
+    @Column(name = "banque_titulaire", length = 120, nullable = false)
+    String banqueTitulaire;
+
+    @Column(name = "banque_compte", length = 60, nullable = false)
+    String banqueCompte;
+
+    @Column(name = "banque_bic", length = 20, nullable = false)
+    String banqueBic;
+
+    @Column(name = "banque_agence", length = 120, nullable = false)
+    String banqueAgence;
 
     @Column(name = "mentions", length = 300, nullable = false)
     String mentions;
