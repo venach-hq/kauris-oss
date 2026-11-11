@@ -24,4 +24,7 @@ public interface GererMembresUseCase {
     void desactiver(UUID tenantId, UUID acteurId, UUID membreId);
 
     void reactiver(UUID tenantId, UUID acteurId, UUID membreId);
+
+    /** Un membre actif change son propre nom, tel qu'il apparaît dans cette organisation. */
+    void changerSonNom(UUID tenantId, UUID membreId, String nom);
 }

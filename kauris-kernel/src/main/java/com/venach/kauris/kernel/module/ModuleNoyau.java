@@ -29,6 +29,6 @@ public final class ModuleNoyau implements ModuleKauris {
     @Override
     public List<EntreeMenu> menu() {
         return List.of(new EntreeMenu("Accueil", "/"), new EntreeMenu("Organisation", "/organisation"),
-                new EntreeMenu("Membres", "/organisation/membres"));
+                new EntreeMenu("Membres", "/organisation/membres"), new EntreeMenu("Mon profil", "/profil"));
     }
 }

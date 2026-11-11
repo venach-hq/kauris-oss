@@ -122,6 +122,15 @@ class ParcoursLocalTest {
                 .andExpect(content().string(containsString("Mon compte")));
         mvc.perform(get("/kauris/kauris.css")).andExpect(status().isOk());
 
+        // Mon profil : chacun change son propre nom.
+        mvc.perform(get("/profil").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Awa Mensah")));
+        mvc.perform(post("/profil/nom").session(session).with(csrf()).param("nom", "Awa M. Mensah"))
+                .andExpect(redirectedUrl("/profil"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/").session(session))
+                .andExpect(content().string(containsString("Awa M. Mensah")));
+
         // Établissements.
         mvc.perform(get("/organisation").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Siège")));
