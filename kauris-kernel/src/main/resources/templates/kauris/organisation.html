@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Organisation', contenu=~{::section})}">
+<body>
+<section th:with="admin=${kauris.acces().administre()}">
+    <h2>Nom</h2>
+    <p th:unless="${admin}" th:text="${organisation.nom()}">Nom</p>
+    <form class="k-ligne" method="post" th:action="@{/organisation/nom}" th:if="${admin}">
+        <label class="k-cache" for="nom-organisation">Nom de l'organisation</label>
+        <input id="nom-organisation" name="nom" th:value="${organisation.nom()}" required maxlength="120">
+        <button type="submit" class="k-bouton">Renommer</button>
+    </form>
+
+    <h2>Établissements</h2>
+    <table class="k-table">
+        <thead><tr><th>Nom</th><th>État</th><th th:if="${admin}">Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="e : ${etablissements}">
+            <td>
+                <span th:unless="${admin}" th:text="${e.nom()}">Nom</span>
+                <form class="k-ligne" method="post" th:if="${admin}"
+                      th:action="@{/organisation/etablissements/{id}/nom(id=${e.id()})}">
+                    <input name="nom" th:value="${e.nom()}" required maxlength="120"
+                           th:attr="aria-label=${'Nom de ' + e.nom()}">
+                    <button type="submit" class="k-bouton k-secondaire">Renommer</button>
+                </form>
+            </td>
+            <td>
+                <span class="k-pastille k-ok" th:if="${e.estPrincipal()}">Principal</span>
+                <span class="k-pastille" th:if="${e.estOuvert() and !e.estPrincipal()}">Ouvert</span>
+                <span class="k-pastille k-ko" th:unless="${e.estOuvert()}">Fermé</span>
+            </td>
+            <td th:if="${admin}" class="k-actions">
+                <form method="post" th:if="${e.estOuvert() and !e.estPrincipal()}"
+                      th:action="@{/organisation/etablissements/{id}/principal(id=${e.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Rendre principal</button>
+                </form>
+                <form method="post" th:if="${e.estOuvert() and !e.estPrincipal()}"
+                      th:action="@{/organisation/etablissements/{id}/fermer(id=${e.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Fermer</button>
+                </form>
+                <form method="post" th:unless="${e.estOuvert()}"
+                      th:action="@{/organisation/etablissements/{id}/rouvrir(id=${e.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Rouvrir</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <form class="k-ligne" method="post" th:action="@{/organisation/etablissements}" th:if="${admin}">
+        <label for="nouvel-etablissement">Nouvel établissement</label>
+        <input id="nouvel-etablissement" name="nom" required maxlength="120" placeholder="Agence, boutique…">
+        <button type="submit" class="k-bouton">Ajouter</button>
+    </form>
+</section>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Accueil', contenu=~{::section})}">
+<body>
+<section>
+    <p>
+        Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>. Vos rôles :
+        <span th:each="r, etat : ${kauris.acces().roles()}"
+              th:text="${r.role().libelle() + (etat.last ? '.' : ', ')}">Rôle</span>
+    </p>
+    <h2>Modules installés</h2>
+    <table class="k-table">
+        <thead><tr><th>Module</th><th>Code</th><th>Version</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${modules}">
+            <td th:text="${m.nom()}">Module</td>
+            <td th:text="${m.code()}">code</td>
+            <td th:text="${m.version()}">1.0</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

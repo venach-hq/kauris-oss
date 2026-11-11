@@ -45,4 +45,13 @@ public final class RegistreModules {
     public boolean present(String code) {
         return modules.containsKey(code);
     }
+
+    /** Le menu complet : le noyau d'abord, puis les modules par code. */
+    public List<EntreeMenu> menu() {
+        return tous().stream()
+                .sorted(Comparator.comparing((ModuleKauris m) -> !"kernel".equals(m.code()))
+                        .thenComparing(ModuleKauris::code))
+                .flatMap(m -> m.menu().stream())
+                .toList();
+    }
 }

@@ -26,7 +26,7 @@ public class SecuriteLocaleConfig {
         http
                 .authorizeHttpRequests(regles -> regles
                         .requestMatchers(PAGE_CONNEXION, PAGE_INSTALLATION, "/error", "/favicon.ico", "/css/**",
-                                "/js/**", "/img/**")
+                                "/js/**", "/img/**", "/kauris/**")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info")
                         .permitAll()

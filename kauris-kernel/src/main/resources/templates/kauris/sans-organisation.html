@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Aucune organisation', contenu=~{::section})}">
+<body>
+<section>
+    <p>Vous êtes connecté, mais vous n'êtes membre actif d'aucune organisation.</p>
+    <p class="k-discret">Demandez à un propriétaire ou à un administrateur de vous inviter avec l'adresse
+        <strong th:if="${kauris != null}" th:text="${kauris.personne().email()}">email</strong>.</p>
+</section>
+</body>
+</html>
