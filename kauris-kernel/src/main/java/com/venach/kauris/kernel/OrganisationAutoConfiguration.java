@@ -17,6 +17,7 @@ import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisati
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.LimitesOrganisation;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.OrganisationRepository;
 import com.venach.kauris.kernel.organisation.application.service.AccesService;
@@ -95,17 +96,20 @@ public class OrganisationAutoConfiguration {
     @ConditionalOnMissingBean
     public GererEtablissementsUseCase gererEtablissements(EtablissementRepository etablissements,
                                                           MembreRepository membres, UniteDeTravail transaction,
-                                                          Clock horloge) {
-        return new EtablissementsService(etablissements, membres, transaction, horloge);
+                                                          Clock horloge, ObjectProvider<LimitesOrganisation> limites) {
+        return new EtablissementsService(etablissements, membres, transaction, horloge,
+                limites.getIfAvailable(() -> LimitesOrganisation.AUCUNE));
     }
 
     @Bean
     @ConditionalOnMissingBean
     public GererMembresUseCase gererMembres(MembreRepository membres, EtablissementRepository etablissements,
                                             UniteDeTravail transaction, Clock horloge,
-                                            ObjectProvider<AvertirMembres> avertir) {
+                                            ObjectProvider<AvertirMembres> avertir,
+                                            ObjectProvider<LimitesOrganisation> limites) {
         return new MembresService(membres, etablissements, transaction, horloge,
-                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE));
+                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE),
+                limites.getIfAvailable(() -> LimitesOrganisation.AUCUNE));
     }
 
     @Bean

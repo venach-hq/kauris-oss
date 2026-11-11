@@ -5,6 +5,7 @@ import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.LimitesOrganisation;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.domain.Etablissement;
 
@@ -19,13 +20,20 @@ public class EtablissementsService implements GererEtablissementsUseCase {
     private final MembreRepository membres;
     private final UniteDeTravail transaction;
     private final Clock horloge;
+    private final LimitesOrganisation limites;
 
     public EtablissementsService(EtablissementRepository etablissements, MembreRepository membres,
                                  UniteDeTravail transaction, Clock horloge) {
+        this(etablissements, membres, transaction, horloge, LimitesOrganisation.AUCUNE);
+    }
+
+    public EtablissementsService(EtablissementRepository etablissements, MembreRepository membres,
+                                 UniteDeTravail transaction, Clock horloge, LimitesOrganisation limites) {
         this.etablissements = etablissements;
         this.membres = membres;
         this.transaction = transaction;
         this.horloge = horloge;
+        this.limites = limites;
     }
 
     @Override
@@ -41,6 +49,7 @@ public class EtablissementsService implements GererEtablissementsUseCase {
         return transaction.executer(() -> {
             Autorisations.administrateur(membres, tenantId, acteurId);
             Etablissement nouveau = Etablissement.creer(tenantId, nom, false, horloge.instant());
+            refuserAuDelaDeLaLimite(tenantId);
             refuserDoublon(tenantId, nouveau);
             etablissements.sauvegarder(nouveau);
             return nouveau;
@@ -73,6 +82,9 @@ public class EtablissementsService implements GererEtablissementsUseCase {
         transaction.executer(() -> {
             Autorisations.administrateur(membres, tenantId, acteurId);
             Etablissement etablissement = trouver(tenantId, etablissementId);
+            if (!etablissement.estOuvert()) {
+                refuserAuDelaDeLaLimite(tenantId);
+            }
             etablissement.rouvrir();
             etablissements.sauvegarder(etablissement);
         });
@@ -97,6 +109,16 @@ public class EtablissementsService implements GererEtablissementsUseCase {
     private Etablissement trouver(UUID tenantId, UUID id) {
         return etablissements.trouver(tenantId, id)
                 .orElseThrow(() -> new ElementIntrouvable("Établissement introuvable."));
+    }
+
+    /** À appeler avant d'ouvrir un établissement de plus. */
+    private void refuserAuDelaDeLaLimite(UUID tenantId) {
+        int max = limites.de(tenantId).etablissementsOuverts();
+        long ouverts = etablissements.lister(tenantId).stream().filter(Etablissement::estOuvert).count();
+        if (ouverts >= max) {
+            throw new ErreurMetier("Votre formule permet " + max + (max > 1 ? " établissements ouverts." :
+                    " établissement ouvert.") + " Fermez-en un ou changez de formule.");
+        }
     }
 
     private void refuserDoublon(UUID tenantId, Etablissement candidat) {
