@@ -8,11 +8,13 @@ import com.venach.kauris.kernel.commun.UniteDeTravail;
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
 import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.LimitesOrganisation;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.domain.AttributionRole;
 import com.venach.kauris.kernel.organisation.domain.Etablissement;
 import com.venach.kauris.kernel.organisation.domain.Membre;
 import com.venach.kauris.kernel.organisation.domain.Role;
+import com.venach.kauris.kernel.organisation.domain.StatutMembre;
 
 import java.time.Clock;
 import java.util.Comparator;
@@ -27,6 +29,7 @@ public class MembresService implements GererMembresUseCase {
     private final UniteDeTravail transaction;
     private final Clock horloge;
     private final AvertirMembres avertir;
+    private final LimitesOrganisation limites;
 
     public MembresService(MembreRepository membres, EtablissementRepository etablissements,
                           UniteDeTravail transaction, Clock horloge) {
@@ -35,11 +38,18 @@ public class MembresService implements GererMembresUseCase {
 
     public MembresService(MembreRepository membres, EtablissementRepository etablissements,
                           UniteDeTravail transaction, Clock horloge, AvertirMembres avertir) {
+        this(membres, etablissements, transaction, horloge, avertir, LimitesOrganisation.AUCUNE);
+    }
+
+    public MembresService(MembreRepository membres, EtablissementRepository etablissements,
+                          UniteDeTravail transaction, Clock horloge, AvertirMembres avertir,
+                          LimitesOrganisation limites) {
         this.membres = membres;
         this.etablissements = etablissements;
         this.transaction = transaction;
         this.horloge = horloge;
         this.avertir = avertir;
+        this.limites = limites;
     }
 
     @Override
@@ -60,6 +70,7 @@ public class MembresService implements GererMembresUseCase {
             if (membres.parEmail(tenantId, Saisie.email(email)).isPresent()) {
                 throw new ErreurMetier("Cette adresse est déjà celle d'un membre de l'organisation.");
             }
+            refuserAuDelaDeLaLimite(tenantId);
             membres.sauvegarder(invite);
             return invite;
         });
@@ -103,6 +114,9 @@ public class MembresService implements GererMembresUseCase {
             Membre acteur = Autorisations.administrateur(membres, tenantId, acteurId);
             Membre membre = trouver(tenantId, membreId);
             exigerProprietairePourToucherAuRoleProprietaire(acteur, Set.of(), membre.roles());
+            if (membre.statut() == StatutMembre.DESACTIVE) {
+                refuserAuDelaDeLaLimite(tenantId);
+            }
             membre.reactiver();
             membres.sauvegarder(membre);
         });
@@ -118,6 +132,17 @@ public class MembresService implements GererMembresUseCase {
             membre.renommer(nom);
             membres.sauvegarder(membre);
         });
+    }
+
+    /** À appeler avant d'ajouter un membre : invités et actifs comptent, pas les désactivés. */
+    private void refuserAuDelaDeLaLimite(UUID tenantId) {
+        int max = limites.de(tenantId).membres();
+        long comptes = membres.lister(tenantId).stream()
+                .filter(m -> m.statut() != StatutMembre.DESACTIVE).count();
+        if (comptes >= max) {
+            throw new ErreurMetier("Votre formule permet " + max + (max > 1 ? " membres." : " membre.")
+                    + " Désactivez-en un ou changez de formule.");
+        }
     }
 
     private Membre trouver(UUID tenantId, UUID membreId) {
