@@ -119,7 +119,7 @@ class EntrepriseTest {
         Saisie s = togolaise();
 
         assertThrows(ErreurMetier.class, () -> monde.entreprises.enregistrer(proprietaire(o),
-                new Saisie(s.denomination(), s.sigle(), s.forme(), "un million", s.pays(), s.ville(), s.adresse(),
+                new Saisie(s.denomination(), s.sigle(), s.forme(), "1 000 000,50", s.pays(), s.ville(), s.adresse(),
                         s.boitePostale(), s.telephone(), s.email(), s.siteWeb(), s.identifiants(), s.devise(),
                         s.autresDevises(), s.banque(), s.titulaireCompte(), s.numeroCompte(), s.bic(), s.agence(), s.mentions())));
         assertThrows(ErreurMetier.class, () -> monde.entreprises.enregistrer(proprietaire(o),

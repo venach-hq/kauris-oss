@@ -126,16 +126,23 @@ public class EntrepriseService implements GererEntrepriseUseCase {
         }
     }
 
-    /** « 1 000 000 », « 1.000.000 » ou « 1000000 » ; vide = pas de capital. */
+    /** Chiffres seuls, ou groupés par trois avec des espaces ou des points. */
+    private static final java.util.regex.Pattern MONTANT =
+            java.util.regex.Pattern.compile("\\d+|\\d{1,3}( \\d{3})+|\\d{1,3}(\\.\\d{3})+");
+
+    /**
+     * « 1 000 000 », « 1.000.000 » ou « 1000000 » ; vide = pas de capital. Les séparateurs ne valent qu'entre
+     * groupes de trois chiffres : « 1 000 000,50 » est refusé, jamais lu comme 100 000 050.
+     */
     private static Long capital(String saisi) {
-        String chiffres = saisi == null ? "" : saisi.replaceAll("[\\s\\u00a0.,]", "");
-        if (chiffres.isEmpty()) {
+        String propre = saisi == null ? "" : saisi.strip().replaceAll("[\\u00a0\\u202f]", " ");
+        if (propre.isEmpty()) {
             return null;
         }
-        if (!chiffres.matches("\\d{1,15}")) {
-            throw new ErreurMetier("Capital social : un montant en chiffres, sans décimales.");
+        if (!MONTANT.matcher(propre).matches() || propre.replaceAll("[ .]", "").length() > 15) {
+            throw new ErreurMetier("Capital social : un montant en chiffres, sans décimales (par exemple 1 000 000).");
         }
-        return Long.parseLong(chiffres);
+        return Long.parseLong(propre.replaceAll("[ .]", ""));
     }
 
     private static int entier(String saisi) {
