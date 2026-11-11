@@ -12,7 +12,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
-import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DocumentsPdfTest {
 
     private final Monde monde = new Monde();
-    private final TemplateEngine moteur = new TemplateEngine();
+    private final SpringTemplateEngine moteur = new SpringTemplateEngine();
     private final ProducteurDocuments documents;
     private final OrganisationOuverte o = monde.ouvrir("Atlantis", "awa");
     private final Acces awa = monde.acces.accesDe(Identite.venach("awa")).get(0);
