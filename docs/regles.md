@@ -30,6 +30,26 @@ Un module n'est « fini » que lorsque tout ceci est fait :
 
 Chaque module déclare un bean `ModuleKauris` avec un code stable (`rh-paie-tg`, `compta-syscohada`…).
 
+## Interface commune
+
+Tous les écrans utilisent le gabarit du noyau (`templates/kauris/layout.html`) et sa feuille de style
+(`/kauris/kauris.css`, classes `k-…`), sans dépendance externe :
+
+```html
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Mon écran', contenu=~{::section})}">
+<body><section> … </section></body>
+</html>
+```
+
+- Le modèle contient toujours `kauris` : personne connectée, organisation courante (`kauris.acces()`), menu.
+- Un contrôleur obtient l'organisation courante avec `ContexteCourant.exiger(requete)` et passe son
+  `tenantId` à tous les appels : aucun identifiant d'organisation ne vient d'un formulaire ou d'une adresse.
+- Un module ajoute ses entrées au menu avec `ModuleKauris.menu()`.
+- Après une action : redirection, avec le message dans `succes` ou `erreur` (attributs flash). Les droits
+  sont contrôlés par les services, pas par l'écran : cacher un bouton ne protège rien.
+- L'application dit qui est connecté en fournissant un bean `SessionKauris`.
+
 ## Git
 
 - `main` est protégée : on y arrive par une pull request dont la CI est verte.

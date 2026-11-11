@@ -1,5 +1,7 @@
 package com.venach.kauris.kernel.module;
 
+import java.util.List;
+
 /** Le noyau se déclare lui-même : le registre n'est jamais vide et donne la version du socle. */
 public final class ModuleNoyau implements ModuleKauris {
 
@@ -22,5 +24,11 @@ public final class ModuleNoyau implements ModuleKauris {
     @Override
     public String version() {
         return version;
+    }
+
+    @Override
+    public List<EntreeMenu> menu() {
+        return List.of(new EntreeMenu("Accueil", "/"), new EntreeMenu("Organisation", "/organisation"),
+                new EntreeMenu("Membres", "/organisation/membres"));
     }
 }

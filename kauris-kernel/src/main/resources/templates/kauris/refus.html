@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Action impossible', contenu=~{::section})}">
+<body>
+<section>
+    <div class="k-message k-ko" role="alert" th:text="${message}">Refusé.</div>
+    <p><a th:href="@{/}">Revenir à l'accueil</a></p>
+</section>
+</body>
+</html>

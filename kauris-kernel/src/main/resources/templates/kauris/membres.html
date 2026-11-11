@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Membres', contenu=~{::section})}">
+<body>
+<section th:with="admin=${kauris.acces().administre()}">
+    <table class="k-table">
+        <thead><tr><th>Membre</th><th>État</th><th>Rôles</th><th th:if="${admin}">Actions</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${membres}">
+            <td>
+                <strong th:text="${m.nom()}">Nom</strong><br>
+                <span class="k-discret" th:text="${m.email()}">email</span>
+            </td>
+            <td>
+                <span class="k-pastille" th:classappend="${m.desactive() ? 'k-ko' : (m.invite() ? '' : 'k-ok')}"
+                      th:text="${m.statut()}">Actif</span>
+            </td>
+            <td th:text="${m.roles()}">Rôles</td>
+            <td th:if="${admin}" class="k-actions">
+                <details>
+                    <summary>Changer les rôles</summary>
+                    <form class="k-pile" method="post"
+                          th:action="@{/organisation/membres/{id}/roles(id=${m.id()})}">
+                        <label>Rôle
+                            <select name="role">
+                                <option th:each="r : ${roles}" th:value="${r.name()}" th:text="${r.libelle()}"
+                                        th:selected="${r == m.role()}">Rôle</option>
+                            </select>
+                        </label>
+                        <fieldset>
+                            <legend>Limiter à (gestionnaire ou lecteur ; rien de coché = toute l'organisation)</legend>
+                            <label th:each="e : ${etablissements}">
+                                <input type="checkbox" name="etablissements" th:value="${e.id()}"
+                                       th:checked="${m.etablissements().contains(e.id())}">
+                                <span th:text="${e.nom()}">Établissement</span>
+                            </label>
+                        </fieldset>
+                        <button type="submit" class="k-bouton">Enregistrer</button>
+                    </form>
+                </details>
+                <details th:if="${kauris.comptesLocaux() and m.invite()}">
+                    <summary>Créer son compte</summary>
+                    <form class="k-pile" method="post"
+                          th:action="@{/organisation/membres/{id}/compte-local(id=${m.id()})}">
+                        <label>Mot de passe initial (10 caractères au moins)
+                            <input name="motDePasse" type="password" required minlength="10" maxlength="128"
+                                   autocomplete="new-password">
+                        </label>
+                        <button type="submit" class="k-bouton">Créer le compte</button>
+                    </form>
+                </details>
+                <form method="post" th:unless="${m.desactive()}"
+                      th:action="@{/organisation/membres/{id}/desactiver(id=${m.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Désactiver</button>
+                </form>
+                <form method="post" th:if="${m.desactive()}"
+                      th:action="@{/organisation/membres/{id}/reactiver(id=${m.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Réactiver</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <th:block th:if="${admin}">
+        <h2>Inviter un membre</h2>
+        <p class="k-discret" th:unless="${kauris.comptesLocaux()}">
+            La personne rejoindra l'organisation à sa première connexion avec cette adresse.</p>
+        <p class="k-discret" th:if="${kauris.comptesLocaux()}">
+            Après l'invitation, créez son compte depuis la liste : elle se connectera avec cette adresse.</p>
+        <form class="k-pile" method="post" th:action="@{/organisation/membres}">
+            <label>Nom <input name="nom" required maxlength="120"></label>
+            <label>Adresse email <input name="email" type="email" required maxlength="190"></label>
+            <label>Rôle
+                <select name="role">
+                    <option th:each="r : ${roles}" th:value="${r.name()}" th:text="${r.libelle()}"
+                            th:selected="${r.name() == 'LECTEUR'}">Rôle</option>
+                </select>
+            </label>
+            <fieldset>
+                <legend>Limiter à (gestionnaire ou lecteur ; rien de coché = toute l'organisation)</legend>
+                <label th:each="e : ${etablissements}">
+                    <input type="checkbox" name="etablissements" th:value="${e.id()}">
+                    <span th:text="${e.nom()}">Établissement</span>
+                </label>
+            </fieldset>
+            <button type="submit" class="k-bouton">Inviter</button>
+        </form>
+    </th:block>
+</section>
+</body>
+</html>
