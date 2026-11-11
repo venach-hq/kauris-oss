@@ -15,6 +15,7 @@ import com.venach.kauris.kernel.ui.notification.NotificationsController;
 import com.venach.kauris.kernel.ui.notification.NotificationsWebSocket;
 import com.venach.kauris.kernel.ui.organisation.OrganisationController;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -28,6 +29,9 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 /**
  * Interface commune : contexte de la personne connectée, gabarit et écrans du noyau.
  * Active seulement si l'application dit qui est connecté (un bean {@link SessionKauris}).
+ * <p>
+ * {@code kauris.ui.page-sans-organisation} : où envoyer une personne connectée qui n'est membre d'aucune
+ * organisation (par défaut la page du noyau, « /sans-organisation »).
  */
 @AutoConfiguration(after = {KernelAutoConfiguration.class, OrganisationAutoConfiguration.class,
         NotificationsAutoConfiguration.class})
@@ -44,8 +48,10 @@ public class InterfaceCommuneAutoConfiguration {
     }
 
     @Bean
-    public ModeleCommun modeleCommun(ContexteCourant contexte) {
-        return new ModeleCommun(contexte);
+    public ModeleCommun modeleCommun(
+            ContexteCourant contexte,
+            @Value("${kauris.ui.page-sans-organisation:" + ModeleCommun.PAGE_SANS_ORGANISATION + "}") String page) {
+        return new ModeleCommun(contexte, page);
     }
 
     @Bean

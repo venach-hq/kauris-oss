@@ -50,6 +50,21 @@ Tous les écrans utilisent le gabarit du noyau (`templates/kauris/layout.html`) 
   sont contrôlés par les services, pas par l'écran : cacher un bouton ne protège rien.
 - L'application dit qui est connecté en fournissant un bean `SessionKauris`.
 
+## Notifications
+
+Pour prévenir un membre, un service appelle `NotifierUseCase` **dans la transaction** de son changement :
+la notification et son avis (boîte d'envoi, table `kernel_boite_envoi`) sont enregistrés avec lui, ou pas
+du tout. Un relais fait ensuite partir les avis vers les écrans ouverts (WebSocket `/ws/notifications`).
+
+| Réglage | Valeur |
+|---|---|
+| `kauris.notifications.transport` | `direct` (défaut, une seule instance) ou `rabbitmq` (échange `kauris.notifications`) |
+| `kauris.notifications.relais.intervalle` | `2s` par défaut |
+| `kauris.notifications.relais.actif` | `true` par défaut ; `false` dans les tests qui passent le relais à la main |
+
+La base fait foi : la liste et le compteur la relisent toujours. Un avis peut arriver deux fois ou se
+perdre sans que rien ne manque. Le lien d'une notification est toujours un chemin de l'application.
+
 ## Git
 
 - `main` est protégée : on y arrive par une pull request dont la CI est verte.

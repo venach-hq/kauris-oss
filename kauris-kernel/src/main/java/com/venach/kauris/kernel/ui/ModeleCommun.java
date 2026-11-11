@@ -19,9 +19,24 @@ public class ModeleCommun {
     public static final String PAGE_SANS_ORGANISATION = "/sans-organisation";
 
     private final ContexteCourant contexte;
+    private final String pageSansOrganisation;
 
     public ModeleCommun(ContexteCourant contexte) {
+        this(contexte, PAGE_SANS_ORGANISATION);
+    }
+
+    /**
+     * @param pageSansOrganisation où envoyer une personne connectée qui n'est membre d'aucune organisation :
+     *                             la page du noyau, ou celle de l'application (créer son organisation…)
+     */
+    public ModeleCommun(ContexteCourant contexte, String pageSansOrganisation) {
+        if (pageSansOrganisation == null || !pageSansOrganisation.startsWith("/")
+                || pageSansOrganisation.startsWith("//")) {
+            throw new IllegalArgumentException("kauris.ui.page-sans-organisation doit être un chemin : "
+                    + pageSansOrganisation);
+        }
         this.contexte = contexte;
+        this.pageSansOrganisation = pageSansOrganisation;
     }
 
     @ModelAttribute("kauris")
@@ -31,7 +46,7 @@ public class ModeleCommun {
 
     @ExceptionHandler(AucuneOrganisation.class)
     public String aucuneOrganisation() {
-        return "redirect:" + PAGE_SANS_ORGANISATION;
+        return "redirect:" + pageSansOrganisation;
     }
 
     @ExceptionHandler(AccesRefuse.class)
