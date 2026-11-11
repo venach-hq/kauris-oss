@@ -1,0 +1,36 @@
+# Réglages communs à tous les environnements. AUCUN secret ici : ils viennent des variables d'environnement.
+# Choix de l'environnement : SPRING_PROFILES_ACTIVE=dev (par défaut) ou prod.
+spring:
+  application:
+    name: kauris-standalone
+  profiles:
+    default: dev
+
+server:
+  port: ${SERVER_PORT:8090}
+  shutdown: graceful
+  forward-headers-strategy: native
+  error:
+    whitelabel:
+      enabled: false
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  application:
+    name: '@project.name@'
+    version: '@project.version@'

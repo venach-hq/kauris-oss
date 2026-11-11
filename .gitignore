@@ -1,0 +1,33 @@
+# Compilation
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Secrets et configuration locale : jamais dans git
+.env
+*.env
+!*.env.example
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+*.jks
+
+# Données et journaux locaux
+logs/
+*.log
+uploads/
+node/
+node_modules/
+
+# Système
+.DS_Store
+Thumbs.db

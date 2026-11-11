@@ -1,0 +1,4 @@
+# Poste de développement.
+logging:
+  level:
+    com.venach: DEBUG

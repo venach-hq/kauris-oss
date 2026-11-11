@@ -1,0 +1,26 @@
+# La CI n'appelle que le Makefile : le même contrôle tourne à l'identique sur un poste, un serveur
+# ou une autre forge (Forgejo Actions lit ce même format).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tout l'historique, pour la recherche de secrets
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Compilation et tests
+        run: make verify
+      - name: Recherche de secrets
+        run: make secrets
