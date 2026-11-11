@@ -185,4 +185,21 @@ class MembresEtAccesTest {
                 () -> monde.membres.inviter(port.tenantId(), garage.membreId(), "x@exemple.test", "Xavier", LECTEUR));
         assertEquals(1, monde.membres.lister(port.tenantId()).size());
     }
+
+    @Test
+    void unMembreChangeSonPropreNomMaisPasUnInvite() {
+        OrganisationOuverte o = monde.ouvrir("Boulangerie", "awa");
+        Membre invite = monde.membres.inviter(o.tenantId(), o.membreId(), "kofi@exemple.test", "Kofi",
+                Set.of(AttributionRole.pourTouteLOrganisation(Role.LECTEUR)));
+
+        monde.membres.changerSonNom(o.tenantId(), o.membreId(), "  Awa Mensah ");
+
+        assertEquals("Awa Mensah", monde.acces.accesDe(Identite.venach("awa")).get(0).nomMembre());
+        assertThrows(ErreurMetier.class, () -> monde.membres.changerSonNom(o.tenantId(), o.membreId(), "A"));
+        assertThrows(AccesRefuse.class, () -> monde.membres.changerSonNom(o.tenantId(), invite.id(), "Pirate"));
+        // pas dans une autre organisation
+        OrganisationOuverte autre = monde.ouvrir("Garage", "yao");
+        assertThrows(ErreurMetier.class,
+                () -> monde.membres.changerSonNom(autre.tenantId(), o.membreId(), "Pirate"));
+    }
 }

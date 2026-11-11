@@ -108,6 +108,18 @@ public class MembresService implements GererMembresUseCase {
         });
     }
 
+    @Override
+    public void changerSonNom(UUID tenantId, UUID membreId, String nom) {
+        transaction.executer(() -> {
+            Membre membre = trouver(tenantId, membreId);
+            if (!membre.estActif()) {
+                throw new AccesRefuse("Seul un membre actif peut changer son nom.");
+            }
+            membre.renommer(nom);
+            membres.sauvegarder(membre);
+        });
+    }
+
     private Membre trouver(UUID tenantId, UUID membreId) {
         return membres.trouver(tenantId, membreId)
                 .orElseThrow(() -> new ElementIntrouvable("Membre introuvable."));

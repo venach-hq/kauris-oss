@@ -14,6 +14,7 @@ import com.venach.kauris.kernel.ui.SessionKauris;
 import com.venach.kauris.kernel.ui.notification.NotificationsController;
 import com.venach.kauris.kernel.ui.notification.NotificationsWebSocket;
 import com.venach.kauris.kernel.ui.organisation.OrganisationController;
+import com.venach.kauris.kernel.ui.organisation.ProfilController;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -65,6 +66,11 @@ public class InterfaceCommuneAutoConfiguration {
                                                          GererEtablissementsUseCase etablissements,
                                                          GererMembresUseCase membres) {
         return new OrganisationController(contexte, organisations, etablissements, membres);
+    }
+
+    @Bean
+    public ProfilController profilController(ContexteCourant contexte, GererMembresUseCase membres) {
+        return new ProfilController(contexte, membres);
     }
 
     // ------------------------------------------------------------------ notifications

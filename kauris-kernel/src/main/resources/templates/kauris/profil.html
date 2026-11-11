@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Mon profil', contenu=~{::section})}">
+<body>
+<section>
+    <p>Vous êtes connecté avec <strong th:text="${kauris.acces().email()}">email</strong>
+        dans <strong th:text="${kauris.acces().organisation()}">Organisation</strong>.</p>
+    <p class="k-discret">Vos rôles : <span th:text="${kauris.acces().resumeRoles()}">Rôle</span>.</p>
+
+    <h2>Mon nom</h2>
+    <p class="k-discret">C'est le nom que les autres membres de cette organisation voient.</p>
+    <form class="k-pile" method="post" th:action="@{/profil/nom}">
+        <label>Nom
+            <input name="nom" th:value="${kauris.acces().nomMembre()}" required minlength="2" maxlength="120"
+                   autocomplete="name">
+        </label>
+        <button type="submit" class="k-bouton">Enregistrer</button>
+    </form>
+</section>
+</body>
+</html>
