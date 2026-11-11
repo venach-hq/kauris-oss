@@ -10,6 +10,7 @@ import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.LimitesOrganisation;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.RolePersonnaliseRepository;
 import com.venach.kauris.kernel.organisation.domain.AttributionRole;
 import com.venach.kauris.kernel.organisation.domain.Etablissement;
 import com.venach.kauris.kernel.organisation.domain.Membre;
@@ -30,6 +31,7 @@ public class MembresService implements GererMembresUseCase {
     private final Clock horloge;
     private final AvertirMembres avertir;
     private final LimitesOrganisation limites;
+    private final RolePersonnaliseRepository rolesPersonnalises;
 
     public MembresService(MembreRepository membres, EtablissementRepository etablissements,
                           UniteDeTravail transaction, Clock horloge) {
@@ -44,6 +46,13 @@ public class MembresService implements GererMembresUseCase {
     public MembresService(MembreRepository membres, EtablissementRepository etablissements,
                           UniteDeTravail transaction, Clock horloge, AvertirMembres avertir,
                           LimitesOrganisation limites) {
+        this(membres, etablissements, transaction, horloge, avertir, limites, RolePersonnaliseRepository.AUCUN);
+    }
+
+    public MembresService(MembreRepository membres, EtablissementRepository etablissements,
+                          UniteDeTravail transaction, Clock horloge, AvertirMembres avertir,
+                          LimitesOrganisation limites, RolePersonnaliseRepository rolesPersonnalises) {
+        this.rolesPersonnalises = rolesPersonnalises;
         this.membres = membres;
         this.etablissements = etablissements;
         this.transaction = transaction;
@@ -170,6 +179,11 @@ public class MembresService implements GererMembresUseCase {
                 if (!ouvert) {
                     throw new ErreurMetier("Établissement inconnu ou fermé.");
                 }
+            }
+            // Un rôle personnalisé doit être un rôle de cette organisation, pas d'une autre.
+            if (role.rolePersonnaliseId() != null
+                    && rolesPersonnalises.trouver(tenantId, role.rolePersonnaliseId()).isEmpty()) {
+                throw new ErreurMetier("Rôle inconnu.");
             }
         }
     }

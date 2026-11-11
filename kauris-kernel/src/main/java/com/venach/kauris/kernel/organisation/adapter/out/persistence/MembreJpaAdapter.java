@@ -100,6 +100,7 @@ public class MembreJpaAdapter implements MembreRepository {
             r.membreId = membre.id();
             r.codeRole = role.role().name();
             r.etablissementId = role.etablissementId();
+            r.rolePersonnaliseId = role.rolePersonnaliseId();
             em.persist(r);
         }
     }
@@ -113,7 +114,7 @@ public class MembreJpaAdapter implements MembreRepository {
                 .setParameter("membres", entites.stream().map(m -> m.id).toList())
                 .getResultList().stream()
                 .collect(Collectors.groupingBy(r -> r.membreId, Collectors.mapping(
-                        r -> new AttributionRole(Role.valueOf(r.codeRole), r.etablissementId),
+                        r -> new AttributionRole(Role.valueOf(r.codeRole), r.etablissementId, r.rolePersonnaliseId),
                         Collectors.toCollection(HashSet::new))));
         return entites.stream()
                 .map(m -> Membre.reconstituer(new Membre.Etat(m.id, m.tenantId,

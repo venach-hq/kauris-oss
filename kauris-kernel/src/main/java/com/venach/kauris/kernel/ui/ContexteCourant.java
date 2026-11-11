@@ -1,5 +1,7 @@
 package com.venach.kauris.kernel.ui;
 
+import com.venach.kauris.kernel.commun.AccesRefuse;
+import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.RegistreModules;
 import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
@@ -60,6 +62,20 @@ public class ContexteCourant {
         return contexte(requete).map(ContexteKauris::acces).orElseThrow(AucuneOrganisation::new);
     }
 
+    /**
+     * L'accès à l'organisation courante, s'il comporte cette permission.
+     *
+     * @throws AucuneOrganisation si la personne n'est membre actif d'aucune organisation
+     * @throws AccesRefuse        si ses rôles ne lui donnent pas la permission
+     */
+    public Acces exiger(HttpServletRequest requete, String permission) {
+        Acces courant = exiger(requete);
+        if (!courant.peut(permission)) {
+            throw new AccesRefuse("Vos rôles ne vous donnent pas accès à cette partie de l'organisation.");
+        }
+        return courant;
+    }
+
     /** Change d'organisation ; sans effet si la personne n'en est pas membre actif. */
     public void choisir(HttpServletRequest requete, UUID tenantId) {
         boolean membre = session.personne()
@@ -81,7 +97,11 @@ public class ContexteCourant {
         List<Acces> autres = tous.stream().filter(a -> a != courant).toList();
         long nonLues = courant == null || notifications == null ? 0
                 : notifications.nonLues(courant.tenantId(), courant.membreId());
-        return new ContexteKauris(personne, courant, autres, courant == null ? List.of() : modules.menu(),
+        // Le menu ne montre que ce que les rôles de la personne lui ouvrent.
+        List<EntreeMenu> menu = courant == null ? List.of() : modules.menu().stream()
+                .filter(e -> e.permission() == null || courant.peut(e.permission()))
+                .toList();
+        return new ContexteKauris(personne, courant, autres, menu,
                 session.comptesLocaux(), nonLues);
     }
 }

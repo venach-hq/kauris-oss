@@ -1,5 +1,10 @@
 package com.venach.kauris.kernel.ui.organisation;
 
+import java.util.Arrays;
+import java.util.ArrayList;
+import com.venach.kauris.kernel.organisation.domain.RolePersonnalise;
+import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
+import com.venach.kauris.kernel.module.PermissionsNoyau;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
@@ -43,17 +48,27 @@ public class OrganisationController {
     private static final String PAGE_MEMBRES = "/organisation/membres";
 
     /** Une ligne de la liste des membres, prête à afficher. */
-    public record LigneMembre(UUID id, String nom, String email, String statut, String roles, Role role,
+    public record LigneMembre(UUID id, String nom, String email, String statut, String roles, String role,
                               Set<UUID> etablissements, boolean invite, boolean desactive) {
     }
+
+    /** Un rôle proposé dans les listes : un rôle de base ou un rôle créé par le propriétaire. */
+    public record ChoixRole(String code, String libelle) {
+    }
+
+    /** Préfixe du code d'un rôle personnalisé dans les formulaires : « PERSO:&lt;identifiant&gt; ». */
+    static final String PERSO = "PERSO:";
 
     private final ContexteCourant contexte;
     private final GererOrganisationUseCase organisations;
     private final GererEtablissementsUseCase etablissements;
     private final GererMembresUseCase membres;
+    private final GererRolesUseCase roles;
 
     public OrganisationController(ContexteCourant contexte, GererOrganisationUseCase organisations,
-                                  GererEtablissementsUseCase etablissements, GererMembresUseCase membres) {
+                                  GererEtablissementsUseCase etablissements, GererMembresUseCase membres,
+                                  GererRolesUseCase roles) {
+        this.roles = roles;
         this.contexte = contexte;
         this.organisations = organisations;
         this.etablissements = etablissements;
@@ -64,7 +79,7 @@ public class OrganisationController {
 
     @GetMapping
     public String organisation(HttpServletRequest requete, Model model) {
-        Acces acces = contexte.exiger(requete);
+        Acces acces = contexte.exiger(requete, PermissionsNoyau.ORGANISATION_CONSULTER);
         model.addAttribute("organisation", organisations.consulter(acces.tenantId()));
         model.addAttribute("etablissements", etablissements.lister(acces.tenantId()));
         return "kauris/organisation";
@@ -113,13 +128,19 @@ public class OrganisationController {
 
     @GetMapping("/membres")
     public String membres(HttpServletRequest requete, Model model) {
-        Acces acces = contexte.exiger(requete);
+        Acces acces = contexte.exiger(requete, PermissionsNoyau.MEMBRES_CONSULTER);
         List<Etablissement> tous = etablissements.lister(acces.tenantId());
         Map<UUID, String> noms = tous.stream().collect(Collectors.toMap(Etablissement::id, Etablissement::nom));
+        List<RolePersonnalise> personnalises = roles.lister(acces.tenantId());
+        Map<UUID, String> nomsRoles = personnalises.stream()
+                .collect(Collectors.toMap(RolePersonnalise::id, RolePersonnalise::nom));
         model.addAttribute("membres", membres.lister(acces.tenantId()).stream()
-                .map(m -> ligne(m, noms)).toList());
+                .map(m -> ligne(m, noms, nomsRoles)).toList());
         model.addAttribute("etablissements", tous.stream().filter(Etablissement::estOuvert).toList());
-        model.addAttribute("roles", Role.values());
+        List<ChoixRole> choix = new ArrayList<>();
+        Arrays.stream(Role.values()).filter(Role::deBase).forEach(r -> choix.add(new ChoixRole(r.name(), r.libelle())));
+        personnalises.forEach(r -> choix.add(new ChoixRole(PERSO + r.id(), r.nom())));
+        model.addAttribute("roles", choix);
         return "kauris/membres";
     }
 
@@ -168,28 +189,49 @@ public class OrganisationController {
 
     /**
      * Un rôle et, pour les rôles qui peuvent l'être, les établissements auxquels il est limité
-     * (aucun = toute l'organisation).
+     * (aucun = toute l'organisation). Le rôle est un rôle de base (« LECTEUR ») ou un rôle personnalisé
+     * (« PERSO:&lt;identifiant&gt; ») ; c'est le noyau qui vérifie qu'il appartient à l'organisation.
      */
     public static Set<AttributionRole> attributions(String codeRole, List<UUID> etablissements) {
+        boolean partout = etablissements == null || etablissements.isEmpty();
+        if (codeRole != null && codeRole.startsWith(PERSO)) {
+            UUID id;
+            try {
+                id = UUID.fromString(codeRole.substring(PERSO.length()));
+            } catch (IllegalArgumentException illisible) {
+                throw new ErreurMetier("Rôle inconnu.");
+            }
+            return partout ? Set.of(AttributionRole.personnalise(id, null))
+                    : etablissements.stream().map(e -> AttributionRole.personnalise(id, e)).collect(Collectors.toSet());
+        }
         Role role;
         try {
             role = Role.valueOf(codeRole);
-        } catch (IllegalArgumentException inconnu) {
+        } catch (IllegalArgumentException | NullPointerException inconnu) {
             throw new ErreurMetier("Rôle inconnu.");
         }
-        if (role.organisationEntiere() || etablissements == null || etablissements.isEmpty()) {
+        if (!role.deBase()) {
+            throw new ErreurMetier("Rôle inconnu.");
+        }
+        if (role.organisationEntiere() || partout) {
             return Set.of(AttributionRole.pourTouteLOrganisation(role));
         }
         return etablissements.stream().map(e -> AttributionRole.pourEtablissement(role, e))
                 .collect(Collectors.toSet());
     }
 
-    static LigneMembre ligne(Membre m, Map<UUID, String> nomsEtablissements) {
+    static LigneMembre ligne(Membre m, Map<UUID, String> nomsEtablissements, Map<UUID, String> nomsRoles) {
+        Function<AttributionRole, String> nom = r -> r.rolePersonnaliseId() == null ? r.role().libelle()
+                : nomsRoles.getOrDefault(r.rolePersonnaliseId(), "Rôle supprimé");
         Function<AttributionRole, String> texte = r -> r.etablissementId() == null
-                ? r.role().libelle()
-                : r.role().libelle() + " (" + nomsEtablissements.getOrDefault(r.etablissementId(), "?") + ")";
+                ? nom.apply(r)
+                : nom.apply(r) + " (" + nomsEtablissements.getOrDefault(r.etablissementId(), "?") + ")";
         String roles = m.roles().stream().map(texte).sorted().collect(Collectors.joining(", "));
-        Role principal = m.roles().stream().map(AttributionRole::role).min(Comparator.naturalOrder()).orElseThrow();
+        // Le rôle présélectionné dans le formulaire : le plus élevé des rôles de base, sinon un personnalisé.
+        AttributionRole principal = m.roles().stream()
+                .min(Comparator.comparing(AttributionRole::role)).orElseThrow();
+        String choisi = principal.rolePersonnaliseId() == null ? principal.role().name()
+                : PERSO + principal.rolePersonnaliseId();
         Set<UUID> limites = m.roles().stream().map(AttributionRole::etablissementId)
                 .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         String statut = switch (m.statut()) {
@@ -197,7 +239,7 @@ public class OrganisationController {
             case ACTIF -> "Actif";
             case DESACTIVE -> "Désactivé";
         };
-        return new LigneMembre(m.id(), m.nom(), m.email(), statut, roles, principal, limites,
+        return new LigneMembre(m.id(), m.nom(), m.email(), statut, roles, choisi, limites,
                 m.statut() == StatutMembre.INVITE, m.statut() == StatutMembre.DESACTIVE);
     }
 }

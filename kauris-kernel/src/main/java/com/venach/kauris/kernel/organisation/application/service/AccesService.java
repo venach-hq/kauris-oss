@@ -1,5 +1,15 @@
 package com.venach.kauris.kernel.organisation.application.service;
 
+import java.util.stream.Stream;
+import java.util.Optional;
+import java.util.Objects;
+import java.util.HashSet;
+import com.venach.kauris.kernel.organisation.domain.RolePersonnalise;
+import com.venach.kauris.kernel.organisation.domain.Droit;
+import com.venach.kauris.kernel.organisation.domain.AttributionRole;
+import com.venach.kauris.kernel.organisation.application.port.out.RolePersonnaliseRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.CataloguePermissions;
+import com.venach.kauris.kernel.module.Permission;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.Saisie;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
@@ -27,6 +37,8 @@ public class AccesService implements ResoudreAccesUseCase {
     private final OrganisationRepository organisations;
     private final UniteDeTravail transaction;
     private final AvertirMembres avertir;
+    private final CataloguePermissions catalogue;
+    private final RolePersonnaliseRepository rolesPersonnalises;
 
     public AccesService(MembreRepository membres, OrganisationRepository organisations,
                         UniteDeTravail transaction) {
@@ -35,10 +47,19 @@ public class AccesService implements ResoudreAccesUseCase {
 
     public AccesService(MembreRepository membres, OrganisationRepository organisations,
                         UniteDeTravail transaction, AvertirMembres avertir) {
+        this(membres, organisations, transaction, avertir, CataloguePermissions.VIDE,
+                RolePersonnaliseRepository.AUCUN);
+    }
+
+    public AccesService(MembreRepository membres, OrganisationRepository organisations,
+                        UniteDeTravail transaction, AvertirMembres avertir, CataloguePermissions catalogue,
+                        RolePersonnaliseRepository rolesPersonnalises) {
         this.membres = membres;
         this.organisations = organisations;
         this.transaction = transaction;
         this.avertir = avertir;
+        this.catalogue = catalogue;
+        this.rolesPersonnalises = rolesPersonnalises;
     }
 
     @Override
@@ -50,13 +71,59 @@ public class AccesService implements ResoudreAccesUseCase {
         Map<UUID, Organisation> parId = organisations
                 .trouverToutes(actifs.stream().map(Membre::tenantId).collect(Collectors.toSet())).stream()
                 .collect(Collectors.toMap(Organisation::id, Function.identity()));
+        List<Permission> permissions = catalogue.toutes();
+        Map<UUID, RolePersonnalise> personnalises = rolesPersonnalises.parIds(actifs.stream()
+                        .flatMap(m -> m.roles().stream())
+                        .map(AttributionRole::rolePersonnaliseId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(RolePersonnalise::id, Function.identity()));
         return actifs.stream()
                 .filter(m -> parId.containsKey(m.tenantId()))
                 .map(m -> {
                     Organisation o = parId.get(m.tenantId());
-                    return new Acces(o.id(), o.nom(), o.estActive(), m.id(), m.nom(), m.email(), m.roles());
+                    return new Acces(o.id(), o.nom(), o.estActive(), m.id(), m.nom(), m.email(), m.roles(),
+                            droits(m, permissions, personnalises), noms(m, personnalises));
                 })
                 .sorted(Comparator.comparing(Acces::organisation, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    /**
+     * Les permissions que ses rôles donnent au membre. Un rôle de base donne celles de son niveau ; un rôle
+     * personnalisé, celles que le propriétaire y a cochées et qui sont encore déclarées. Un rôle personnalisé
+     * d'une autre organisation ne donne rien.
+     */
+    private static Set<Droit> droits(Membre membre, List<Permission> permissions,
+                                     Map<UUID, RolePersonnalise> personnalises) {
+        Set<Droit> droits = new HashSet<>();
+        Set<String> declarees = permissions.stream().map(Permission::code).collect(Collectors.toSet());
+        for (AttributionRole attribution : membre.roles()) {
+            Stream<String> codes = switch (attribution.role()) {
+                case PROPRIETAIRE, ADMINISTRATEUR -> declarees.stream();
+                case GESTIONNAIRE -> permissions.stream()
+                        .filter(p -> p.niveau() != Permission.Niveau.ADMINISTRER).map(Permission::code);
+                case LECTEUR -> permissions.stream()
+                        .filter(p -> p.niveau() == Permission.Niveau.CONSULTER).map(Permission::code);
+                case PERSONNALISE -> Optional.ofNullable(personnalises.get(attribution.rolePersonnaliseId()))
+                        .filter(r -> r.tenantId().equals(membre.tenantId()))
+                        .map(r -> r.permissions().stream().filter(declarees::contains))
+                        .orElseGet(Stream::empty);
+            };
+            codes.forEach(code -> droits.add(new Droit(code, attribution.etablissementId())));
+        }
+        return droits;
+    }
+
+    private static List<String> noms(Membre membre, Map<UUID, RolePersonnalise> personnalises) {
+        return membre.roles().stream()
+                .map(AttributionRole::rolePersonnaliseId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(personnalises::get)
+                .filter(Objects::nonNull)
+                .filter(r -> r.tenantId().equals(membre.tenantId()))
+                .map(RolePersonnalise::nom)
                 .toList();
     }
 

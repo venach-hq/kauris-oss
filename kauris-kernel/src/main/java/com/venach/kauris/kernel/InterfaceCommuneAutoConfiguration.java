@@ -1,20 +1,24 @@
 package com.venach.kauris.kernel;
 
+import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.module.RegistreModules;
 import com.venach.kauris.kernel.notification.adapter.out.DiffusionLocale;
 import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisationUseCase;
+import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.ui.ContexteController;
 import com.venach.kauris.kernel.ui.ContexteCourant;
 import com.venach.kauris.kernel.ui.ModeleCommun;
 import com.venach.kauris.kernel.ui.SessionKauris;
+import com.venach.kauris.kernel.ui.entreprise.EntrepriseController;
 import com.venach.kauris.kernel.ui.notification.NotificationsController;
 import com.venach.kauris.kernel.ui.notification.NotificationsWebSocket;
 import com.venach.kauris.kernel.ui.organisation.OrganisationController;
 import com.venach.kauris.kernel.ui.organisation.ProfilController;
+import com.venach.kauris.kernel.ui.organisation.RolesController;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -64,8 +68,18 @@ public class InterfaceCommuneAutoConfiguration {
     public OrganisationController organisationController(ContexteCourant contexte,
                                                          GererOrganisationUseCase organisations,
                                                          GererEtablissementsUseCase etablissements,
-                                                         GererMembresUseCase membres) {
-        return new OrganisationController(contexte, organisations, etablissements, membres);
+                                                         GererMembresUseCase membres, GererRolesUseCase roles) {
+        return new OrganisationController(contexte, organisations, etablissements, membres, roles);
+    }
+
+    @Bean
+    public RolesController rolesController(ContexteCourant contexte, GererRolesUseCase roles) {
+        return new RolesController(contexte, roles);
+    }
+
+    @Bean
+    public EntrepriseController entrepriseController(ContexteCourant contexte, GererEntrepriseUseCase entreprises) {
+        return new EntrepriseController(contexte, entreprises);
     }
 
     @Bean

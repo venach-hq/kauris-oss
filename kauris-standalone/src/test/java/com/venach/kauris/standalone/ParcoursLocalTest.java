@@ -3,6 +3,7 @@ package com.venach.kauris.standalone;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase;
 import com.venach.kauris.kernel.module.RegistreModules;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
+import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.organisation.domain.Identite;
@@ -12,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,6 +30,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
@@ -65,6 +68,8 @@ class ParcoursLocalTest {
     private GererMembresUseCase membres;
     @Autowired
     private GererEtablissementsUseCase etablissements;
+    @Autowired
+    private GererRolesUseCase roles;
 
     @Test
     void premierDemarragePuisConnexion() throws Exception {
@@ -201,6 +206,66 @@ class ParcoursLocalTest {
                 .andExpect(jsonPath("$.nonLues").value(0));
         // Le canal WebSocket demande d'être connecté.
         mvc.perform(get("/ws/notifications")).andExpect(status().is3xxRedirection());
+
+        // Paramètres de l'entreprise : identification selon le pays, monnaie, thème, logo, document d'exemple.
+        mvc.perform(get("/entreprise").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Identification légale (Togo)")))
+                .andExpect(content().string(containsString("identifiant.nif")));
+        mvc.perform(get("/entreprise").param("pays", "SN").session(session))
+                .andExpect(content().string(containsString("identifiant.ninea")));
+        mvc.perform(post("/entreprise").session(session).with(csrf())
+                        .param("denomination", "Boulangerie du Port").param("sigle", "BDP").param("forme", "SARL")
+                        .param("capital", "1 000 000").param("pays", "TG").param("ville", "Lomé")
+                        .param("adresse", "12 rue du Commerce").param("boitePostale", "1234")
+                        .param("telephone", "+228 90 00 00 00").param("email", "contact@exemple.test")
+                        .param("siteWeb", "").param("identifiant.rccm", "TG-LFW-01-2024-B12-00001")
+                        .param("identifiant.nif", "1000123456").param("devise", "XOF")
+                        .param("autresDevises", "EUR").param("police", "GEORGIA").param("taille", "11")
+                        .param("couleurPrincipale", "#0A5C36").param("couleurTexte", "#111111")
+                        .param("mentions", ""))
+                .andExpect(redirectedUrl("/entreprise"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(multipart("/entreprise/logo").file(new MockMultipartFile("fichier", "logo.png", "image/png",
+                        new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0}))
+                        .session(session).with(csrf()))
+                .andExpect(redirectedUrl("/entreprise"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/entreprise/logo").session(session)).andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"));
+        mvc.perform(get("/entreprise/apercu").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("NIF 1000123456")))
+                .andExpect(content().string(containsString("Georgia")))
+                .andExpect(content().string(containsString("/entreprise/logo")));
+
+        // Gestionnaire, Kofi voit l'entreprise mais ne la modifie pas.
+        mvc.perform(get("/entreprise").session(sessionKofi)).andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Envoyer le logo"))));
+        mvc.perform(post("/entreprise/logo/retirer").session(sessionKofi).with(csrf()))
+                .andExpect(flash().attributeExists("erreur"));
+
+        // Un rôle « Caissier » créé par Awa : Kofi ne voit plus que ce qui y est coché.
+        mvc.perform(post("/organisation/roles").session(session).with(csrf())
+                        .param("nom", "Caissier").param("description", "Tient la caisse")
+                        .param("permissions", "entreprise.consulter"))
+                .andExpect(redirectedUrl("/organisation/roles"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/organisation/roles").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Caissier")));
+        UUID caissier = roles.lister(tenant).get(0).id();
+        mvc.perform(post("/organisation/membres/" + kofi + "/roles").session(session).with(csrf())
+                        .param("role", "PERSO:" + caissier))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/").session(sessionKofi)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Caissier")))
+                .andExpect(content().string(containsString("/entreprise")))
+                .andExpect(content().string(not(containsString("/organisation/membres"))));
+        mvc.perform(get("/organisation/membres").session(sessionKofi)).andExpect(status().isForbidden());
+        mvc.perform(get("/entreprise").session(sessionKofi)).andExpect(status().isOk());
+        // Seul le propriétaire définit les rôles ; un rôle donné ne se supprime pas.
+        mvc.perform(post("/organisation/roles").session(sessionKofi).with(csrf()).param("nom", "Intrus"))
+                .andExpect(flash().attributeExists("erreur"));
+        mvc.perform(post("/organisation/roles/" + caissier + "/supprimer").session(session).with(csrf()))
+                .andExpect(flash().attributeExists("erreur"));
 
         // Désactivé, Kofi perd l'accès tout de suite, sans attendre la fin de sa session.
         mvc.perform(post("/organisation/membres/" + kofi + "/desactiver").session(session).with(csrf()))

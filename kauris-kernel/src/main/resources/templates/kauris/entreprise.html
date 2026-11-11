@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Entreprise', contenu=~{::section})}">
+<body>
+<section>
+    <p>Ces paramètres figurent en tête et en pied de tous les documents que Kauris produit pour vous.
+        <a th:href="@{/entreprise/apercu}" target="_blank" rel="noopener">Voir un document d'exemple</a></p>
+    <div class="k-message k-ko" th:unless="${manques.isEmpty()}">
+        Pour des documents complets, il manque :
+        <span th:each="m, etat : ${manques}" th:text="${m + (etat.last ? '.' : ', ')}">le NIF</span>
+    </div>
+
+    <form class="k-pile k-large" method="post" th:action="@{/entreprise}">
+        <fieldset th:disabled="${!peutModifier}">
+            <legend>Identité</legend>
+            <label>Dénomination sociale
+                <input name="denomination" th:value="${entreprise.denomination()}" required minlength="2" maxlength="120">
+            </label>
+            <label>Sigle ou nom commercial
+                <input name="sigle" th:value="${entreprise.sigle()}" maxlength="60">
+            </label>
+            <label>Forme juridique
+                <select name="forme">
+                    <option th:each="f : ${formes}" th:value="${f.name()}" th:selected="${f == entreprise.forme()}"
+                            th:text="${f.sigle().isEmpty() ? f.libelle() : f.sigle() + ' : ' + f.libelle()}">SARL</option>
+                </select>
+            </label>
+            <label>Capital social (dans la monnaie de l'entreprise, sans décimales)
+                <input name="capital" th:value="${entreprise.capital()}" inputmode="numeric" maxlength="20"
+                       placeholder="1 000 000">
+            </label>
+        </fieldset>
+
+        <fieldset th:disabled="${!peutModifier}">
+            <legend>Siège et contact</legend>
+            <label>Pays
+                <select name="pays" th:attr="data-recharger=@{/entreprise}"
+                        onchange="window.location = this.dataset.recharger + '?pays=' + encodeURIComponent(this.value)">
+                    <option th:each="p : ${tousLesPays}" th:value="${p.code()}" th:text="${p.nom()}"
+                            th:selected="${p == pays}">Togo</option>
+                </select>
+            </label>
+            <p class="k-discret" th:if="${paysChange}">Vous regardez les champs demandés par un autre pays que
+                celui enregistré. Les numéros ci-dessous sont à ressaisir ; rien ne change tant que vous n'avez
+                pas enregistré.</p>
+            <label>Ville <input name="ville" th:value="${entreprise.ville()}" maxlength="60"></label>
+            <label>Adresse <input name="adresse" th:value="${entreprise.adresse()}" maxlength="190"></label>
+            <label>Boîte postale <input name="boitePostale" th:value="${entreprise.boitePostale()}" maxlength="60"></label>
+            <label>Téléphone
+                <input name="telephone" th:value="${entreprise.telephone()}" maxlength="60" type="tel"
+                       th:placeholder="${pays.indicatif() + ' …'}">
+            </label>
+            <label>Adresse email <input name="email" th:value="${entreprise.email()}" maxlength="190" type="email"></label>
+            <label>Site web <input name="siteWeb" th:value="${entreprise.siteWeb()}" maxlength="190"></label>
+        </fieldset>
+
+        <fieldset th:disabled="${!peutModifier}">
+            <legend th:text="${'Identification légale (' + pays.nom() + ')'}">Identification légale (Togo)</legend>
+            <label th:each="c : ${champs}">
+                <span th:text="${c.libelle()}">NIF</span>
+                <input th:name="${'identifiant.' + c.code()}" th:value="${c.valeur()}" maxlength="60">
+                <span class="k-discret" th:unless="${c.aide().isEmpty()}" th:text="${c.aide()}">Aide</span>
+            </label>
+            <label>Autres mentions de pied de page (agrément, ordre professionnel, banque…)
+                <input name="mentions" th:value="${entreprise.mentions()}" maxlength="300">
+            </label>
+        </fieldset>
+
+        <fieldset th:disabled="${!peutModifier}">
+            <legend>Monnaies</legend>
+            <label>Monnaie de l'entreprise (comptes, prix, capital)
+                <select name="devise">
+                    <option th:each="d : ${devises}" th:value="${d.code()}" th:selected="${d == entreprise.devise()}"
+                            th:text="${d.code() + ' : ' + d.nom() + ' (' + d.symbole() + ')'}">XOF</option>
+                </select>
+            </label>
+            <span class="k-libelle">Autres monnaies utilisées</span>
+            <div class="k-grille">
+                <label th:each="d : ${devises}">
+                    <input type="checkbox" name="autresDevises" th:value="${d.code()}"
+                           th:checked="${entreprise.autresDevises().contains(d)}">
+                    <span th:text="${d.code() + ' ' + d.nom()}">EUR Euro</span>
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset th:disabled="${!peutModifier}">
+            <legend>Thème des documents</legend>
+            <label>Police
+                <select name="police">
+                    <option th:each="p : ${polices}" th:value="${p.name()}" th:text="${p.libelle()}"
+                            th:selected="${p == entreprise.theme().police()}"
+                            th:style="${'font-family:' + p.famille()}">Arial</option>
+                </select>
+            </label>
+            <label>Taille du texte (points)
+                <select name="taille">
+                    <option th:each="t : ${tailles}" th:value="${t}" th:text="${t}"
+                            th:selected="${t == entreprise.theme().taille()}">10</option>
+                </select>
+            </label>
+            <label>Couleur principale (titres, filets)
+                <input name="couleurPrincipale" type="color" th:value="${entreprise.theme().couleurPrincipale()}">
+            </label>
+            <label>Couleur du texte
+                <input name="couleurTexte" type="color" th:value="${entreprise.theme().couleurTexte()}">
+            </label>
+        </fieldset>
+
+        <button type="submit" class="k-bouton" th:if="${peutModifier}">Enregistrer</button>
+    </form>
+
+    <h2>Logo</h2>
+    <p th:if="${entreprise.aUnLogo()}"><img class="k-logo" th:src="@{/entreprise/logo}" alt="Logo de l'entreprise"></p>
+    <p class="k-discret" th:unless="${entreprise.aUnLogo()}">Aucun logo pour le moment.</p>
+    <th:block th:if="${peutModifier}">
+        <form class="k-ligne" method="post" enctype="multipart/form-data" th:action="@{/entreprise/logo}">
+            <label for="fichier-logo">Image PNG ou JPEG, 512 Ko au plus</label>
+            <input id="fichier-logo" name="fichier" type="file" accept="image/png,image/jpeg" required>
+            <button type="submit" class="k-bouton">Envoyer le logo</button>
+        </form>
+        <form method="post" th:action="@{/entreprise/logo/retirer}" th:if="${entreprise.aUnLogo()}">
+            <button type="submit" class="k-bouton k-secondaire">Retirer le logo</button>
+        </form>
+    </th:block>
+    <p class="k-discret" th:unless="${peutModifier}">Vos rôles vous permettent de consulter ces paramètres, pas de
+        les modifier.</p>
+</section>
+</body>
+</html>

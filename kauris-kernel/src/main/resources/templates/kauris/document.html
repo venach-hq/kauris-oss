@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+  Habillage commun des documents que Kauris produit pour une entreprise (factures, bulletins, états) :
+  son logo, son identité, son thème, et en pied la mention légale demandée par le droit OHADA.
+
+  Un module l'utilise ainsi, avec « entreprise » (GererEntrepriseUseCase.consulter) dans le modèle :
+
+  <html xmlns:th="http://www.thymeleaf.org"
+        th:replace="~{kauris/document :: page(titre='Facture F-001', entreprise=${entreprise}, contenu=~{::section})}">
+  <body><section> … le corps du document … </section></body>
+  </html>
+
+  Le document s'affiche seul, sans le menu de Kauris, et s'imprime tel quel (ou « Enregistrer en PDF »).
+-->
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" th:fragment="page(titre, entreprise, contenu)">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${titre}">Document</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/kauris/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/kauris/document.css}">
+</head>
+<body class="k-doc" th:style="${entreprise.theme().css()}">
+<div class="k-doc-outils">
+    <button type="button" onclick="window.print()">Imprimer ou enregistrer en PDF</button>
+</div>
+<div class="k-doc-page">
+    <header class="k-doc-entete">
+        <img class="k-doc-logo" th:if="${entreprise.aUnLogo()}" th:src="@{/entreprise/logo}" alt="">
+        <div>
+            <div class="k-doc-nom" th:text="${entreprise.raisonSociale()}">Entreprise SARL</div>
+            <div th:unless="${entreprise.sigle().isEmpty()}" th:text="${entreprise.sigle()}">Sigle</div>
+            <div th:text="${entreprise.adresseComplete()}">Adresse, Ville, Pays</div>
+            <div th:unless="${entreprise.telephone().isEmpty() and entreprise.email().isEmpty()}">
+                <span th:unless="${entreprise.telephone().isEmpty()}" th:text="${'Tél. ' + entreprise.telephone()}"></span>
+                <span th:unless="${entreprise.email().isEmpty()}" th:text="${entreprise.email()}"></span>
+            </div>
+            <div class="k-doc-identifiants">
+                <span th:each="i : ${entreprise.identifiantsRemplis()}" th:text="${i.sigle() + ' : ' + i.valeur()}">NIF : 123</span>
+            </div>
+        </div>
+    </header>
+    <main class="k-doc-corps">
+        <th:block th:replace="${contenu}"/>
+    </main>
+    <footer class="k-doc-pied">
+        <div th:text="${entreprise.mentionLegale()}">Entreprise SARL au capital de 1 000 000 F CFA · Siège : …</div>
+        <div th:unless="${entreprise.mentions().isEmpty()}" th:text="${entreprise.mentions()}">Autres mentions</div>
+    </footer>
+</div>
+</body>
+</html>

@@ -1,5 +1,16 @@
 package com.venach.kauris.kernel;
 
+import java.util.List;
+import com.venach.kauris.kernel.organisation.application.service.RolesService;
+import com.venach.kauris.kernel.organisation.application.port.out.RolePersonnaliseRepository;
+import com.venach.kauris.kernel.organisation.application.port.out.CataloguePermissions;
+import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
+import com.venach.kauris.kernel.organisation.adapter.out.persistence.RolePersonnaliseJpaAdapter;
+import com.venach.kauris.kernel.module.RegistreModules;
+import com.venach.kauris.kernel.entreprise.application.service.EntrepriseService;
+import com.venach.kauris.kernel.entreprise.application.port.out.EntrepriseRepository;
+import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
+import com.venach.kauris.kernel.entreprise.adapter.out.EntrepriseJpaAdapter;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
 import com.venach.kauris.kernel.commun.adapter.UniteDeTravailSpring;
 import com.venach.kauris.kernel.connexion.local.adapter.out.CompteLocalJpaAdapter;
@@ -106,19 +117,63 @@ public class OrganisationAutoConfiguration {
     public GererMembresUseCase gererMembres(MembreRepository membres, EtablissementRepository etablissements,
                                             UniteDeTravail transaction, Clock horloge,
                                             ObjectProvider<AvertirMembres> avertir,
-                                            ObjectProvider<LimitesOrganisation> limites) {
+                                            ObjectProvider<LimitesOrganisation> limites,
+                                            RolePersonnaliseRepository rolesPersonnalises) {
         return new MembresService(membres, etablissements, transaction, horloge,
                 avertir.getIfAvailable(() -> AvertirMembres.PERSONNE),
-                limites.getIfAvailable(() -> LimitesOrganisation.AUCUNE));
+                limites.getIfAvailable(() -> LimitesOrganisation.AUCUNE), rolesPersonnalises);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public ResoudreAccesUseCase resoudreAcces(MembreRepository membres, OrganisationRepository organisations,
                                               UniteDeTravail transaction,
-                                              ObjectProvider<AvertirMembres> avertir) {
+                                              ObjectProvider<AvertirMembres> avertir,
+                                              CataloguePermissions catalogue,
+                                              RolePersonnaliseRepository rolesPersonnalises) {
         return new AccesService(membres, organisations, transaction,
-                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE));
+                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE), catalogue, rolesPersonnalises);
+    }
+
+    // ------------------------------------------------------------------ rôles personnalisés et permissions
+
+    /** Les permissions viennent des modules installés : le registre les rassemble. */
+    @Bean
+    @ConditionalOnMissingBean
+    public CataloguePermissions cataloguePermissions(ObjectProvider<RegistreModules> registre) {
+        return () -> {
+            RegistreModules modules = registre.getIfAvailable();
+            return modules == null ? List.of() : modules.permissions();
+        };
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RolePersonnaliseRepository rolePersonnaliseRepository(EntityManagerFactory fabrique) {
+        return new RolePersonnaliseJpaAdapter(partage(fabrique));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GererRolesUseCase gererRoles(RolePersonnaliseRepository roles, MembreRepository membres,
+                                        CataloguePermissions catalogue, UniteDeTravail transaction, Clock horloge) {
+        return new RolesService(roles, membres, catalogue, transaction, horloge);
+    }
+
+    // ------------------------------------------------------------------ paramètres de l'entreprise
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EntrepriseRepository entrepriseRepository(EntityManagerFactory fabrique) {
+        return new EntrepriseJpaAdapter(partage(fabrique));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GererEntrepriseUseCase gererEntreprise(EntrepriseRepository entreprises,
+                                                  OrganisationRepository organisations,
+                                                  UniteDeTravail transaction) {
+        return new EntrepriseService(entreprises, organisations, transaction);
     }
 
     // ------------------------------------------------------------------ connexion « local »
