@@ -1,6 +1,10 @@
 package com.venach.kauris.kernel.ui.entreprise;
 
 import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.kernel.document.Cartouche;
+import com.venach.kauris.kernel.document.Habillage;
+import com.venach.kauris.kernel.document.ProducteurDocuments;
+import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase.SaisieTheme;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase.Saisie;
 import com.venach.kauris.kernel.entreprise.domain.Devise;
@@ -9,12 +13,13 @@ import com.venach.kauris.kernel.entreprise.domain.FormeJuridique;
 import com.venach.kauris.kernel.entreprise.domain.Logo;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.entreprise.domain.ThemeDocument;
-import com.venach.kauris.kernel.entreprise.domain.ThemeDocument.Police;
 import com.venach.kauris.kernel.module.PermissionsNoyau;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.ui.ContexteCourant;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -28,7 +33,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -51,10 +58,13 @@ public class EntrepriseController {
 
     private final ContexteCourant contexte;
     private final GererEntrepriseUseCase entreprises;
+    private final ProducteurDocuments documents;
 
-    public EntrepriseController(ContexteCourant contexte, GererEntrepriseUseCase entreprises) {
+    public EntrepriseController(ContexteCourant contexte, GererEntrepriseUseCase entreprises,
+                                ProducteurDocuments documents) {
         this.contexte = contexte;
         this.entreprises = entreprises;
+        this.documents = documents;
     }
 
     /**
@@ -77,9 +87,6 @@ public class EntrepriseController {
         model.addAttribute("tousLesPays", Pays.values());
         model.addAttribute("formes", FormeJuridique.values());
         model.addAttribute("devises", Devise.values());
-        model.addAttribute("polices", Police.values());
-        model.addAttribute("tailles", java.util.stream.IntStream
-                .rangeClosed(ThemeDocument.TAILLE_MIN, ThemeDocument.TAILLE_MAX).boxed().toList());
         model.addAttribute("manques", entreprise.manques());
         model.addAttribute("peutModifier", acces.peut(PermissionsNoyau.ENTREPRISE_MODIFIER));
         return "kauris/entreprise";
@@ -100,9 +107,9 @@ public class EntrepriseController {
             entreprises.enregistrer(acces, new Saisie(champs.get("denomination"), champs.get("sigle"),
                     champs.get("forme"), champs.get("capital"), champs.get("pays"), champs.get("ville"),
                     champs.get("adresse"), champs.get("boitePostale"), champs.get("telephone"), champs.get("email"),
-                    champs.get("siteWeb"), identifiants, champs.get("devise"), autresDevises, champs.get("police"),
-                    champs.get("taille"), champs.get("couleurPrincipale"), champs.get("couleurTexte"),
-                    champs.get("mentions")));
+                    champs.get("siteWeb"), identifiants, champs.get("devise"), autresDevises, champs.get("banque"),
+                    champs.get("titulaireCompte"), champs.get("numeroCompte"), champs.get("bic"),
+                    champs.get("agence"), champs.get("mentions")));
             flash.addFlashAttribute("succes", "Paramètres de l'entreprise enregistrés.");
         } catch (ErreurMetier refus) {
             flash.addFlashAttribute("erreur", refus.getMessage());
@@ -152,11 +159,117 @@ public class EntrepriseController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    /** Un document d'exemple, pour voir le logo, le thème et les mentions légales tels qu'ils sortiront. */
-    @GetMapping("/apercu")
-    public String apercu(HttpServletRequest requete, Model model) {
+    // ------------------------------------------------------------------ thème des documents
+
+    @GetMapping("/theme")
+    public String theme(HttpServletRequest requete, Model model) {
         Acces acces = contexte.exiger(requete, PermissionsNoyau.ENTREPRISE_CONSULTER);
-        model.addAttribute("entreprise", entreprises.consulter(acces.tenantId()));
+        model.addAttribute("theme", entreprises.consulter(acces.tenantId()).theme());
+        model.addAttribute("modeles", ThemeDocument.Modele.values());
+        model.addAttribute("polices", documents.polices().toutes());
+        model.addAttribute("tailles", java.util.stream.IntStream
+                .rangeClosed(ThemeDocument.TAILLE_MIN, ThemeDocument.TAILLE_MAX).boxed().toList());
+        model.addAttribute("positions", ThemeDocument.PositionLogo.values());
+        model.addAttribute("styles", ThemeDocument.StyleTitre.values());
+        Map<String, Map<String, String>> valeurs = new LinkedHashMap<>();
+        for (ThemeDocument.Modele m : ThemeDocument.Modele.values()) {
+            if (m != ThemeDocument.Modele.PERSONNALISE) {
+                valeurs.put(m.name(), valeurs(ThemeDocument.du(m)));
+            }
+        }
+        model.addAttribute("valeursModeles", valeurs);
+        model.addAttribute("peutModifier", acces.peut(PermissionsNoyau.ENTREPRISE_MODIFIER));
+        return "kauris/theme";
+    }
+
+    private static Map<String, String> valeurs(ThemeDocument t) {
+        Map<String, String> v = new LinkedHashMap<>();
+        v.put("policeTitres", t.policeTitres());
+        v.put("policeTexte", t.policeTexte());
+        v.put("taille", String.valueOf(t.taille()));
+        v.put("couleurPrincipale", t.couleurPrincipale().toLowerCase());
+        v.put("couleurEntetes", t.couleurEntetes().toLowerCase());
+        v.put("couleurTexte", t.couleurTexte().toLowerCase());
+        v.put("logo", t.logo().name());
+        v.put("titre", t.titre().name());
+        return v;
+    }
+
+    @PostMapping("/theme")
+    public String enregistrerTheme(@RequestParam Map<String, String> champs, HttpServletRequest requete,
+                                   RedirectAttributes flash) {
+        Acces acces = contexte.exiger(requete);
+        try {
+            ThemeDocument theme = entreprises.definirTheme(acces, saisieTheme(champs));
+            flash.addFlashAttribute("succes", "Thème « " + theme.modele().libelle() + " » enregistré.");
+        } catch (ErreurMetier refus) {
+            flash.addFlashAttribute("erreur", refus.getMessage());
+        }
+        return "redirect:" + PAGE + "/theme";
+    }
+
+    private static SaisieTheme saisieTheme(Map<String, String> c) {
+        return new SaisieTheme(c.get("modele"), c.get("policeTitres"), c.get("policeTexte"), c.get("taille"),
+                c.get("couleurPrincipale"), c.get("couleurEntetes"), c.get("couleurTexte"), c.get("logo"),
+                c.get("titre"));
+    }
+
+    // ------------------------------------------------------------------ document d'exemple
+
+    /**
+     * Un document d'exemple sur l'ossature commune. Avec des réglages dans l'adresse (éditeur de thème), il
+     * montre ce thème sans l'enregistrer ; des réglages incorrects montrent le thème enregistré.
+     */
+    @GetMapping("/apercu")
+    public String apercu(@RequestParam Map<String, String> reglages, HttpServletRequest requete, Model model) {
+        Acces acces = contexte.exiger(requete, PermissionsNoyau.ENTREPRISE_CONSULTER);
+        String lienPdf = requete.getContextPath() + PAGE + "/apercu.pdf"
+                + (requete.getQueryString() == null ? "" : "?" + requete.getQueryString());
+        model.addAllAttributes(exemple(acces, reglages, lienPdf, false));
         return "kauris/apercu-document";
+    }
+
+    @GetMapping("/apercu.pdf")
+    public ResponseEntity<byte[]> apercuPdf(@RequestParam Map<String, String> reglages, HttpServletRequest requete) {
+        Acces acces = contexte.exiger(requete, PermissionsNoyau.ENTREPRISE_CONSULTER);
+        byte[] pdf = documents.pdf("kauris/apercu-document", exemple(acces, reglages, null, true));
+        return enPdf(pdf, ProducteurDocuments.nomDeFichier("document d'exemple", null));
+    }
+
+    private Map<String, Object> exemple(Acces acces, Map<String, String> reglages, String lienPdf, boolean pdf) {
+        Entreprise entreprise = entreprises.consulter(acces.tenantId());
+        ThemeDocument theme = entreprise.theme();
+        if (reglages.containsKey("modele")) {
+            try {
+                theme = entreprises.lire(saisieTheme(reglages));
+            } catch (ErreurMetier incorrect) {
+                // aperçu du thème enregistré
+            }
+        }
+        Habillage habillage = documents.habillage(entreprise, theme, entreprises.logo(acces.tenantId()),
+                "Document d'exemple", "", lienPdf, pdf);
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("habillage", habillage);
+        variables.put("cartouche", Cartouche.de(
+                Cartouche.c("Entité", entreprise.raisonSociale()),
+                Cartouche.c("Établissement", acces.organisation()),
+                Cartouche.c(entreprise.pays().identifiantFiscal().sigle(),
+                        entreprise.identifiant(entreprise.pays().identifiantFiscal().code())),
+                Cartouche.c("RCCM", entreprise.identifiant("rccm")),
+                Cartouche.c("Pays", entreprise.pays().nom()),
+                Cartouche.c("Monnaie", entreprise.devise().code() + " — " + entreprise.devise().nom())));
+        variables.put("etabliPar", acces.nomMembre());
+        variables.put("visas", List.of("Visa du comptable", "Visa du dirigeant"));
+        return variables;
+    }
+
+    /** Un PDF à ouvrir dans le navigateur, avec un nom de fichier propre s'il est enregistré. */
+    public static ResponseEntity<byte[]> enPdf(byte[] pdf, String nomDeFichier) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(nomDeFichier).build().toString())
+                .cacheControl(CacheControl.noStore())
+                .body(pdf);
     }
 }

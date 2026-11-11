@@ -25,7 +25,8 @@ import java.util.UUID;
 public record Entreprise(UUID tenantId, String denomination, String sigle, FormeJuridique forme, Long capital,
                          Pays pays, String ville, String adresse, String boitePostale, String telephone,
                          String email, String siteWeb, Map<String, String> identifiants, Devise devise,
-                         Set<Devise> autresDevises, ThemeDocument theme, String mentions, boolean aUnLogo) {
+                         Set<Devise> autresDevises, ThemeDocument theme, CoordonneesBancaires banque,
+                         String mentions, boolean aUnLogo) {
 
     public static final int DENOMINATION_MAX = 120;
     public static final int COURT_MAX = 60;
@@ -42,6 +43,7 @@ public record Entreprise(UUID tenantId, String denomination, String sigle, Forme
         Objects.requireNonNull(forme, "forme juridique requise");
         Objects.requireNonNull(devise, "devise requise");
         Objects.requireNonNull(theme, "thème requis");
+        banque = banque == null ? CoordonneesBancaires.AUCUNE : banque;
         denomination = Saisie.nom(denomination, "Dénomination", DENOMINATION_MAX);
         sigle = texte(sigle, "Sigle", COURT_MAX);
         ville = texte(ville, "Ville", COURT_MAX);
@@ -64,12 +66,18 @@ public record Entreprise(UUID tenantId, String denomination, String sigle, Forme
     /** Ce qu'on affiche tant que rien n'a été saisi : le nom de l'organisation, le Togo, le franc CFA. */
     public static Entreprise parDefaut(UUID tenantId, String nomOrganisation) {
         return new Entreprise(tenantId, nomOrganisation, "", FormeJuridique.AUTRE, null, Pays.TOGO, "", "", "", "",
-                "", "", Map.of(), Devise.XOF, Set.of(), ThemeDocument.PAR_DEFAUT, "", false);
+                "", "", Map.of(), Devise.XOF, Set.of(), ThemeDocument.PAR_DEFAUT, CoordonneesBancaires.AUCUNE,
+                "", false);
     }
 
     public Entreprise avecLogo(boolean present) {
         return new Entreprise(tenantId, denomination, sigle, forme, capital, pays, ville, adresse, boitePostale,
-                telephone, email, siteWeb, identifiants, devise, autresDevises, theme, mentions, present);
+                telephone, email, siteWeb, identifiants, devise, autresDevises, theme, banque, mentions, present);
+    }
+
+    public Entreprise avecTheme(ThemeDocument nouveau) {
+        return new Entreprise(tenantId, denomination, sigle, forme, capital, pays, ville, adresse, boitePostale,
+                telephone, email, siteWeb, identifiants, devise, autresDevises, nouveau, banque, mentions, aUnLogo);
     }
 
     private static String texte(String valeur, String champ, int max) {
@@ -108,6 +116,18 @@ public record Entreprise(UUID tenantId, String denomination, String sigle, Forme
             }
         }
         return remplis;
+    }
+
+    /** Les deux identifiants de l'en-tête des documents : le numéro fiscal, puis le registre du commerce. */
+    public List<Identifiant> identifiantsEnTete() {
+        List<Identifiant> entete = new ArrayList<>();
+        for (ChampLegal champ : pays.champsEssentiels().reversed()) {
+            String valeur = identifiants.get(champ.code());
+            if (valeur != null) {
+                entete.add(new Identifiant(champ.sigle(), champ.libelle(), valeur));
+            }
+        }
+        return entete;
     }
 
     /** « Boulangerie du Port SARL » : la dénomination suivie du sigle de sa forme. */
@@ -157,6 +177,25 @@ public record Entreprise(UUID tenantId, String denomination, String sigle, Forme
             parties.add(email);
         }
         return String.join(" · ", parties);
+    }
+
+    /**
+     * La ligne légale du pied des documents : « ATLANTIS SA • Capital social : 150 000 000 F CFA • NIF : …
+     * • RCCM : … », avec ce qui est rempli.
+     */
+    public String piedLegal() {
+        List<String> parties = new ArrayList<>();
+        parties.add(raisonSociale());
+        if (forme.aUnCapital() && capital != null && capital > 0) {
+            parties.add("Capital social : " + devise.formater(capital));
+        }
+        for (ChampLegal champ : pays.champsEssentiels().reversed()) {
+            String valeur = identifiants.get(champ.code());
+            if (valeur != null) {
+                parties.add(champ.sigle() + " : " + valeur);
+            }
+        }
+        return String.join(" \u2022 ", parties);
     }
 
     /** Ce qu'il manque pour qu'un document soit complet aux yeux de l'administration du pays. */

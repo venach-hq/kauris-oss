@@ -29,6 +29,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Docker 29 refuse les clients trop anciens : il faut au moins cette version de Testcontainers. -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- PDF des documents : HTML + CSS vers PDF (LGPL), et lecture tolérante du HTML produit par Thymeleaf -->
+        <openhtmltopdf.version>1.1.37</openhtmltopdf.version>
+        <jsoup.version>1.21.1</jsoup.version>
     </properties>
 
     <dependencyManagement>
@@ -37,6 +40,16 @@
                 <groupId>com.venach.kauris</groupId>
                 <artifactId>kauris-kernel</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.openhtmltopdf</groupId>
+                <artifactId>openhtmltopdf-pdfbox</artifactId>
+                <version>${openhtmltopdf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${jsoup.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

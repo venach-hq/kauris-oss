@@ -1,13 +1,13 @@
 package com.venach.kauris.kernel.entreprise.adapter.out;
 
 import com.venach.kauris.kernel.entreprise.application.port.out.EntrepriseRepository;
+import com.venach.kauris.kernel.entreprise.domain.CoordonneesBancaires;
 import com.venach.kauris.kernel.entreprise.domain.Devise;
 import com.venach.kauris.kernel.entreprise.domain.Entreprise;
 import com.venach.kauris.kernel.entreprise.domain.FormeJuridique;
 import com.venach.kauris.kernel.entreprise.domain.Logo;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.entreprise.domain.ThemeDocument;
-import com.venach.kauris.kernel.entreprise.domain.ThemeDocument.Police;
 import jakarta.persistence.EntityManager;
 
 import java.util.Arrays;
@@ -49,8 +49,11 @@ public class EntrepriseJpaAdapter implements EntrepriseRepository {
         return Optional.of(new Entreprise(e.tenantId, e.denomination, e.sigle,
                 FormeJuridique.valueOf(e.formeJuridique), e.capital, Pays.parCode(e.pays).orElseThrow(), e.ville,
                 e.adresse, e.boitePostale, e.telephone, e.email, e.siteWeb, identifiants, Devise.valueOf(e.devise),
-                autres, new ThemeDocument(Police.valueOf(e.police), e.tailleTexte, e.couleurPrincipale,
-                e.couleurTexte), e.mentions, aUnLogo(tenantId)));
+                autres, new ThemeDocument(ThemeDocument.Modele.valueOf(e.themeModele), e.policeTitres,
+                e.policeTexte, e.tailleTexte, e.couleurPrincipale, e.couleurEntetes, e.couleurTexte,
+                ThemeDocument.PositionLogo.valueOf(e.positionLogo), ThemeDocument.StyleTitre.valueOf(e.styleTitre)),
+                new CoordonneesBancaires(e.banque, e.banqueTitulaire, e.banqueCompte, e.banqueBic, e.banqueAgence),
+                e.mentions, aUnLogo(tenantId)));
     }
 
     @Override
@@ -70,10 +73,21 @@ public class EntrepriseJpaAdapter implements EntrepriseRepository {
         e.siteWeb = a.siteWeb();
         e.devise = a.devise().code();
         e.autresDevises = a.autresDevises().stream().map(Devise::code).sorted().collect(Collectors.joining(","));
-        e.police = a.theme().police().name();
-        e.tailleTexte = a.theme().taille();
-        e.couleurPrincipale = a.theme().couleurPrincipale();
-        e.couleurTexte = a.theme().couleurTexte();
+        ThemeDocument t = a.theme();
+        e.themeModele = t.modele().name();
+        e.policeTitres = t.policeTitres();
+        e.policeTexte = t.policeTexte();
+        e.tailleTexte = t.taille();
+        e.couleurPrincipale = t.couleurPrincipale();
+        e.couleurEntetes = t.couleurEntetes();
+        e.couleurTexte = t.couleurTexte();
+        e.positionLogo = t.logo().name();
+        e.styleTitre = t.titre().name();
+        e.banque = a.banque().banque();
+        e.banqueTitulaire = a.banque().titulaire();
+        e.banqueCompte = a.banque().compte();
+        e.banqueBic = a.banque().bic();
+        e.banqueAgence = a.banque().agence();
         e.mentions = a.mentions();
         em.merge(e);
         // L'entreprise doit exister en base avant ses identifiants (clé étrangère).

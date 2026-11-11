@@ -4,6 +4,7 @@
 <body>
 <section>
     <p>Ces paramètres figurent en tête et en pied de tous les documents que Kauris produit pour vous.
+        <a th:href="@{/entreprise/theme}">Thème des documents</a> ·
         <a th:href="@{/entreprise/apercu}" target="_blank" rel="noopener">Voir un document d'exemple</a></p>
     <div class="k-message k-ko" th:unless="${manques.isEmpty()}">
         Pour des documents complets, il manque :
@@ -85,26 +86,15 @@
         </fieldset>
 
         <fieldset th:disabled="${!peutModifier}">
-            <legend>Thème des documents</legend>
-            <label>Police
-                <select name="police">
-                    <option th:each="p : ${polices}" th:value="${p.name()}" th:text="${p.libelle()}"
-                            th:selected="${p == entreprise.theme().police()}"
-                            th:style="${'font-family:' + p.famille()}">Arial</option>
-                </select>
-            </label>
-            <label>Taille du texte (points)
-                <select name="taille">
-                    <option th:each="t : ${tailles}" th:value="${t}" th:text="${t}"
-                            th:selected="${t == entreprise.theme().taille()}">10</option>
-                </select>
-            </label>
-            <label>Couleur principale (titres, filets)
-                <input name="couleurPrincipale" type="color" th:value="${entreprise.theme().couleurPrincipale()}">
-            </label>
-            <label>Couleur du texte
-                <input name="couleurTexte" type="color" th:value="${entreprise.theme().couleurTexte()}">
-            </label>
+            <legend>Coordonnées bancaires (pied des documents)</legend>
+            <label>Banque <input name="banque" th:value="${entreprise.banque().banque()}" maxlength="80"
+                                 placeholder="Ecobank Togo"></label>
+            <label>Titulaire du compte <input name="titulaireCompte" th:value="${entreprise.banque().titulaire()}"
+                                              maxlength="120"></label>
+            <label>Numéro de compte (IBAN ou RIB)
+                <input name="numeroCompte" th:value="${entreprise.banque().compte()}" maxlength="60"></label>
+            <label>Code BIC / SWIFT <input name="bic" th:value="${entreprise.banque().bic()}" maxlength="20"></label>
+            <label>Agence <input name="agence" th:value="${entreprise.banque().agence()}" maxlength="120"></label>
         </fieldset>
 
         <button type="submit" class="k-bouton" th:if="${peutModifier}">Enregistrer</button>

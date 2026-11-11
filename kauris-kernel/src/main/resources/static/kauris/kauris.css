@@ -140,3 +140,15 @@ summary { cursor: pointer; font-size: 14px; }
 .k-carte { background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 8px; padding: .4rem 1rem 1rem; margin: 0 0 1rem; }
 .k-logo { max-width: 220px; max-height: 120px; border: 1px solid var(--k-bord); border-radius: 6px; padding: .4rem; background: #fff; }
 input[type=color] { width: 4rem; height: 2.2rem; padding: .15rem; }
+
+/* Éditeur du thème des documents : réglages à gauche, aperçu à droite */
+.k-theme { width: 100%; border-collapse: collapse; }
+.k-theme td { vertical-align: top; }
+.k-theme-reglages { width: 330px; padding-right: 1.2rem; }
+.k-theme-apercu iframe { width: 100%; height: 80vh; min-height: 640px; border: 1px solid var(--k-bord);
+    border-radius: 8px; background: #E8EAED; }
+.k-choix { display: grid; grid-template-columns: auto 1fr; gap: .5rem; align-items: start; font-weight: 400 !important; }
+@media (max-width: 900px) {
+    .k-theme, .k-theme tbody, .k-theme tr, .k-theme td { display: block; width: 100%; }
+    .k-theme-reglages { padding-right: 0; }
+}

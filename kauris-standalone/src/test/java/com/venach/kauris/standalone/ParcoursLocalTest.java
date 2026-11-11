@@ -51,6 +51,9 @@ class ParcoursLocalTest {
 
     private static final String EMAIL = "awa@exemple.test";
     private static final String MOT_DE_PASSE = "pain-chaud-2026";
+    /** Une vraie image PNG d'un pixel : le PDF l'intègre. */
+    private static final byte[] PNG_1X1 = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
 
     @Container
     @ServiceConnection
@@ -220,27 +223,53 @@ class ParcoursLocalTest {
                         .param("telephone", "+228 90 00 00 00").param("email", "contact@exemple.test")
                         .param("siteWeb", "").param("identifiant.rccm", "TG-LFW-01-2024-B12-00001")
                         .param("identifiant.nif", "1000123456").param("devise", "XOF")
-                        .param("autresDevises", "EUR").param("police", "GEORGIA").param("taille", "11")
-                        .param("couleurPrincipale", "#0A5C36").param("couleurTexte", "#111111")
-                        .param("mentions", ""))
+                        .param("autresDevises", "EUR").param("banque", "Ecobank Togo")
+                        .param("titulaireCompte", "Boulangerie du Port SARL")
+                        .param("numeroCompte", "TG42 TG90 8010 0100 4521 8730 1642").param("bic", "")
+                        .param("agence", "Lomé Centre").param("mentions", ""))
                 .andExpect(redirectedUrl("/entreprise"))
                 .andExpect(flash().attributeExists("succes"));
         mvc.perform(multipart("/entreprise/logo").file(new MockMultipartFile("fichier", "logo.png", "image/png",
-                        new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0}))
+                        PNG_1X1))
                         .session(session).with(csrf()))
                 .andExpect(redirectedUrl("/entreprise"))
                 .andExpect(flash().attributeExists("succes"));
         mvc.perform(get("/entreprise/logo").session(session)).andExpect(status().isOk())
                 .andExpect(content().contentType("image/png"));
         mvc.perform(get("/entreprise/apercu").session(session)).andExpect(status().isOk())
-                .andExpect(content().string(containsString("NIF 1000123456")))
-                .andExpect(content().string(containsString("Georgia")))
-                .andExpect(content().string(containsString("/entreprise/logo")));
+                .andExpect(content().string(containsString("1000123456")))
+                .andExpect(content().string(containsString("Coordonnées bancaires")))
+                .andExpect(content().string(containsString("'Inter', Helvetica")))
+                .andExpect(content().string(containsString("data:image/png;base64,")))
+                .andExpect(content().string(containsString("/entreprise/apercu.pdf")));
+
+        // Thème des documents : trois modèles, un personnalisé à l'aperçu sans l'enregistrer, puis enregistré.
+        mvc.perform(get("/entreprise/theme").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Moderne")))
+                .andExpect(content().string(containsString("Classique")))
+                .andExpect(content().string(containsString("Élégant")));
+        mvc.perform(get("/entreprise/apercu").session(session).param("modele", "PERSONNALISE")
+                        .param("policeTitres", "Poppins").param("policeTexte", "Lato").param("taille", "11")
+                        .param("couleurPrincipale", "#0a5c36").param("couleurEntetes", "#0a5c36")
+                        .param("couleurTexte", "#111111").param("logo", "DROITE").param("titre", "NORMAL"))
+                .andExpect(content().string(containsString("'Poppins', Helvetica")));
+        mvc.perform(post("/entreprise/theme").session(session).with(csrf()).param("modele", "CLASSIQUE"))
+                .andExpect(redirectedUrl("/entreprise/theme"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/entreprise/apercu").session(session))
+                .andExpect(content().string(containsString("'Merriweather', Times")));
+        byte[] pdf = mvc.perform(get("/entreprise/apercu.pdf").session(session)).andExpect(status().isOk())
+                .andExpect(content().contentType("application/pdf"))
+                .andReturn().getResponse().getContentAsByteArray();
+        assertEquals("%PDF", new String(pdf, 0, 4, java.nio.charset.StandardCharsets.ISO_8859_1));
+        mvc.perform(get("/kauris/polices/inconnue.ttf")).andExpect(status().isNotFound());
 
         // Gestionnaire, Kofi voit l'entreprise mais ne la modifie pas.
         mvc.perform(get("/entreprise").session(sessionKofi)).andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Envoyer le logo"))));
         mvc.perform(post("/entreprise/logo/retirer").session(sessionKofi).with(csrf()))
+                .andExpect(flash().attributeExists("erreur"));
+        mvc.perform(post("/entreprise/theme").session(sessionKofi).with(csrf()).param("modele", "ELEGANT"))
                 .andExpect(flash().attributeExists("erreur"));
 
         // Un rôle « Caissier » créé par Awa : Kofi ne voit plus que ce qui y est coché.

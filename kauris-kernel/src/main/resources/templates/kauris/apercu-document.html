@@ -1,25 +1,29 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{kauris/document :: page(titre='Document d\'exemple', entreprise=${entreprise}, contenu=~{::section})}">
+<!-- Document d'exemple : montre l'ossature commune avec les paramètres et le thème de l'entreprise. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
 <body>
-<section>
-    <h1>Document d'exemple</h1>
-    <p>Ce document montre comment sortiront vos factures, bulletins et états : votre logo et votre identité en
-        tête, la police et les couleurs de votre thème, et vos mentions légales en pied de page.</p>
-    <table>
-        <thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire</th><th>Montant</th></tr></thead>
+<section th:with="d=${habillage.entreprise().devise()}">
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+
+    <table class="k-doc-tableau">
+        <thead>
+        <tr><th>Désignation</th><th class="k-doc-montant">Quantité</th><th class="k-doc-montant">Prix unitaire</th>
+            <th class="k-doc-montant">Montant</th></tr>
+        </thead>
         <tbody>
-        <tr><td>Article ou prestation d'exemple</td><td>2</td>
-            <td th:text="${entreprise.devise().formater(12500)}">12 500 F CFA</td>
-            <td th:text="${entreprise.devise().formater(25000)}">25 000 F CFA</td></tr>
-        <tr><td>Autre ligne d'exemple</td><td>1</td>
-            <td th:text="${entreprise.devise().formater(7500)}">7 500 F CFA</td>
-            <td th:text="${entreprise.devise().formater(7500)}">7 500 F CFA</td></tr>
+        <tr class="k-doc-groupe"><td colspan="4">Prestations</td></tr>
+        <tr><td class="k-doc-retrait">Article ou prestation d'exemple</td><td class="k-doc-montant">2</td>
+            <td class="k-doc-montant" th:text="${d.formater(12500)}">12 500 F CFA</td>
+            <td class="k-doc-montant" th:text="${d.formater(25000)}">25 000 F CFA</td></tr>
+        <tr><td class="k-doc-retrait">Autre ligne d'exemple</td><td class="k-doc-montant">1</td>
+            <td class="k-doc-montant" th:text="${d.formater(7500)}">7 500 F CFA</td>
+            <td class="k-doc-montant" th:text="${d.formater(7500)}">7 500 F CFA</td></tr>
+        <tr class="k-doc-total"><td colspan="3">Total</td>
+            <td class="k-doc-montant" th:text="${d.formater(32500)}">32 500 F CFA</td></tr>
         </tbody>
-        <tfoot>
-        <tr><td colspan="3">Total</td><td th:text="${entreprise.devise().formater(32500)}">32 500 F CFA</td></tr>
-        </tfoot>
     </table>
+
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
 </section>
 </body>
 </html>

@@ -11,7 +11,7 @@ import com.venach.kauris.kernel.entreprise.domain.FormeJuridique;
 import com.venach.kauris.kernel.entreprise.domain.Logo;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.entreprise.domain.ThemeDocument;
-import com.venach.kauris.kernel.entreprise.domain.ThemeDocument.Police;
+import com.venach.kauris.kernel.entreprise.domain.CoordonneesBancaires;
 import com.venach.kauris.kernel.module.PermissionsNoyau;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.application.port.out.OrganisationRepository;
@@ -52,14 +52,36 @@ public class EntrepriseService implements GererEntrepriseUseCase {
                 s.autresDevises().forEach(code -> autres.add(devise(code)));
             }
             boolean aUnLogo = entreprises.logo(acteur.tenantId()).isPresent();
+            // Le thème se règle dans son propre écran : on garde celui qui est enregistré.
+            ThemeDocument theme = consulter(acteur.tenantId()).theme();
             Entreprise entreprise = new Entreprise(acteur.tenantId(), s.denomination(), s.sigle(),
                     parmi(FormeJuridique.class, s.forme(), "Forme juridique"), capital(s.capital()), pays, s.ville(),
                     s.adresse(), s.boitePostale(), s.telephone(), s.email(), s.siteWeb(), s.identifiants(), devise,
-                    autres, new ThemeDocument(parmi(Police.class, s.police(), "Police"), entier(s.taille()),
-                    s.couleurPrincipale(), s.couleurTexte()), s.mentions(), aUnLogo);
+                    autres, theme, new CoordonneesBancaires(s.banque(), s.titulaireCompte(), s.numeroCompte(),
+                    s.bic(), s.agence()), s.mentions(), aUnLogo);
             entreprises.sauvegarder(entreprise);
             return entreprise;
         });
+    }
+
+    @Override
+    public ThemeDocument lire(SaisieTheme s) {
+        ThemeDocument.Modele modele = parmi(ThemeDocument.Modele.class, s.modele(), "Modèle de thème");
+        if (modele != ThemeDocument.Modele.PERSONNALISE) {
+            return ThemeDocument.du(modele);
+        }
+        return new ThemeDocument(modele, s.policeTitres(), s.policeTexte(), entier(s.taille()),
+                s.couleurPrincipale(), s.couleurEntetes(), s.couleurTexte(),
+                parmi(ThemeDocument.PositionLogo.class, s.logo(), "Place du logo"),
+                parmi(ThemeDocument.StyleTitre.class, s.titre(), "Style du titre"));
+    }
+
+    @Override
+    public ThemeDocument definirTheme(Acces acteur, SaisieTheme saisie) {
+        exigerDeModifier(acteur);
+        ThemeDocument theme = lire(saisie);
+        transaction.executer(() -> entreprises.sauvegarder(consulter(acteur.tenantId()).avecTheme(theme)));
+        return theme;
     }
 
     @Override

@@ -1,29 +1,82 @@
-/* Habillage des documents produits par Kauris. La police, la taille et les couleurs viennent du thème de
-   l'entreprise (attribut style du corps) ; cette feuille n'apporte que la mise en page. */
-.k-doc { margin: 0; background: #ECECEC; line-height: 1.4; }
+/* Mise en page commune des documents de Kauris, à l'écran et en PDF (moteur openhtmltopdf : CSS 2.1, tableaux
+   plutôt que flex, pas de variables CSS). Polices, taille et couleurs viennent du thème de l'entreprise
+   (ThemeDocument.feuille), ajouté après cette feuille. */
+
+@page {
+    size: A4;
+    margin: 12mm 12mm 16mm 12mm;
+    @bottom-left {
+        content: element(basDePage);
+        vertical-align: top;
+    }
+    @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 7pt;
+        color: #9AA0A6;
+        vertical-align: top;
+    }
+}
+
+.k-doc { margin: 0; line-height: 1.35; }
+.k-doc-courant { position: running(basDePage); font-family: Helvetica, Arial, sans-serif; font-size: 7pt;
+    color: #9AA0A6; }
+
+/* En-tête de l'entreprise */
+.k-doc-entete { width: 100%; border-collapse: collapse; border-bottom: 3px solid #1E293B; margin-bottom: 6mm; }
+.k-doc-entete td { vertical-align: top; padding: 0 0 4mm 0; }
+.k-doc-logo { width: 40mm; }
+.k-doc-logo img { max-width: 34mm; max-height: 24mm; }
+.k-doc-identite { font-size: 0.95em; line-height: 1.45; }
+.k-doc-a-droite { text-align: right; }
+.k-doc-nom { font-size: 1.75em; font-weight: 700; text-transform: uppercase; line-height: 1.2; margin-bottom: 1mm; }
+
+/* Titre */
+.k-doc-titre { text-align: center; font-size: 1.9em; font-weight: 700; margin: 0 0 6mm 0; }
+.k-doc h2 { font-size: 1.15em; margin: 6mm 0 2mm 0; }
+
+/* Cartouche */
+.k-doc-cartouche { width: 100%; border-collapse: collapse; margin: 0 0 5mm 0; table-layout: fixed; }
+.k-doc-cartouche td { border: 1px solid #DADCE0; padding: 1.5mm 2mm; vertical-align: top; font-size: 0.92em; }
+.k-doc-etiquette { font-size: 0.78em; font-weight: 700; text-transform: uppercase; color: #5F6368;
+    letter-spacing: 0.04em; }
+
+/* Tableaux de contenu */
+.k-doc-tableau { width: 100%; border-collapse: collapse; margin: 0 0 5mm 0; -fs-table-paginate: paginate; }
+.k-doc-tableau thead { display: table-header-group; }
+.k-doc-tableau th { text-align: left; font-size: 0.85em; font-weight: 700; text-transform: uppercase;
+    padding: 1.8mm 2mm; }
+.k-doc-tableau td { padding: 1.5mm 2mm; border-bottom: 1px solid #E8EAED; vertical-align: top; }
+.k-doc-tableau tr { page-break-inside: avoid; }
+.k-doc-tableau tr.k-doc-groupe td { background-color: #F1F3F4; font-weight: 700; }
+.k-doc-tableau tr.k-doc-total td { font-weight: 700; border-top: 2px solid #1E293B; border-bottom: 0; }
+.k-doc-tableau .k-doc-montant, .k-doc-tableau th.k-doc-montant { text-align: right; white-space: nowrap; }
+.k-doc-tableau .k-doc-retrait { padding-left: 6mm; }
+.k-doc-simple th { background-color: transparent; color: inherit; border-bottom: 1px solid #DADCE0; }
+
+/* Signatures */
+.k-doc-signatures { width: 100%; border-collapse: collapse; margin: 6mm 0 0 0; table-layout: fixed;
+    page-break-inside: avoid; }
+.k-doc-signatures td { border: 1px solid #DADCE0; height: 20mm; padding: 2mm; vertical-align: top;
+    font-size: 0.9em; }
+
+/* Pied légal */
+.k-doc-pied { border-top: 1px solid #1E293B; margin-top: 6mm; padding-top: 2mm; text-align: center;
+    font-size: 0.8em; color: #3C4043; line-height: 1.5; page-break-inside: avoid; }
+
+/* À l'écran : une feuille A4 sur fond gris, avec les boutons */
+.k-doc-ecran { background: #E8EAED; }
+.k-doc-ecran .k-doc-page { width: 186mm; max-width: calc(100% - 2rem); margin: 0 auto 2rem; padding: 12mm;
+    background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .15); }
 .k-doc-outils { text-align: center; padding: .8rem; font-family: Arial, Helvetica, sans-serif; }
-.k-doc-outils button { font-size: 14px; padding: .5rem 1rem; border: 1.5px solid #999; border-radius: 6px;
-    background: #fff; cursor: pointer; }
-.k-doc-page { width: min(100% - 2rem, 210mm); min-height: 270mm; margin: 0 auto 2rem; padding: 14mm 16mm;
-    background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .15); display: flex; flex-direction: column; }
-.k-doc-entete { display: flex; gap: 6mm; align-items: flex-start; padding-bottom: 5mm;
-    border-bottom: 2px solid var(--k-doc-principale, #03C75A); }
-.k-doc-logo { max-width: 38mm; max-height: 26mm; object-fit: contain; }
-.k-doc-nom { font-size: 1.5em; font-weight: 700; color: var(--k-doc-principale, #03C75A); }
-.k-doc-identifiants span { margin-right: 1em; white-space: nowrap; }
-.k-doc-corps { flex: 1; padding: 8mm 0; }
-.k-doc-corps h1 { font-size: 1.5em; margin: 0 0 4mm; color: var(--k-doc-principale, #03C75A); }
-.k-doc-corps h2 { font-size: 1.15em; margin: 6mm 0 2mm; }
-.k-doc-corps table { width: 100%; border-collapse: collapse; margin: 4mm 0; }
-.k-doc-corps th { text-align: left; color: #fff; background: var(--k-doc-principale, #03C75A); padding: 2mm 3mm; }
-.k-doc-corps td { padding: 2mm 3mm; border-bottom: 1px solid #ddd; vertical-align: top; }
-.k-doc-corps tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--k-doc-principale, #03C75A); }
-.k-doc-corps th:last-child, .k-doc-corps td:last-child { text-align: right; white-space: nowrap; }
-.k-doc-pied { border-top: 1px solid #bbb; padding-top: 3mm; font-size: .8em; text-align: center; color: #555; }
+.k-doc-bouton { display: inline-block; font-size: 14px; padding: .45rem 1rem; margin: 0 .25rem;
+    border: 1.5px solid #9AA0A6; border-radius: 6px; background: #fff; color: #202124; cursor: pointer;
+    text-decoration: none; }
+.k-doc-courant-ecran { margin-top: 8mm; font-family: Arial, Helvetica, sans-serif; font-size: 7pt;
+    color: #9AA0A6; }
 
 @media print {
-    .k-doc { background: #fff; }
+    .k-doc-ecran { background: #fff; }
+    .k-doc-ecran .k-doc-page { width: auto; max-width: none; margin: 0; padding: 0; box-shadow: none; }
     .k-doc-outils { display: none; }
-    .k-doc-page { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
-    @page { size: A4; margin: 14mm 16mm; }
 }

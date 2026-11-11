@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Thème des documents', contenu=~{::section})}">
+<body>
+<section>
+    <p>Le thème s'applique à tous les documents de l'entreprise : factures, relevés, bulletins, états. Choisissez un
+        modèle, ou « Personnalisé » pour régler vous-même polices et couleurs. L'aperçu se met à jour tout seul.
+        <a th:href="@{/entreprise}">← Paramètres de l'entreprise</a></p>
+
+    <table class="k-theme">
+        <tr>
+            <td class="k-theme-reglages">
+                <form id="k-theme" class="k-pile" method="post" th:action="@{/entreprise/theme}">
+                    <fieldset th:disabled="${!peutModifier}">
+                        <legend>Modèle</legend>
+                        <label class="k-choix" th:each="m : ${modeles}">
+                            <input type="radio" name="modele" th:value="${m.name()}" th:checked="${m == theme.modele()}">
+                            <span><strong th:text="${m.libelle()}">Moderne</strong><br>
+                                <span class="k-discret" th:text="${m.description()}">…</span></span>
+                        </label>
+                    </fieldset>
+                    <fieldset th:disabled="${!peutModifier}">
+                        <legend>Réglages</legend>
+                        <label>Police des titres
+                            <select name="policeTitres">
+                                <option th:each="p : ${polices}" th:value="${p.famille()}" th:text="${p.libelle()}"
+                                        th:selected="${p.famille() == theme.policeTitres()}">Inter</option>
+                            </select>
+                        </label>
+                        <label>Police du texte
+                            <select name="policeTexte">
+                                <option th:each="p : ${polices}" th:value="${p.famille()}" th:text="${p.libelle()}"
+                                        th:selected="${p.famille() == theme.policeTexte()}">Inter</option>
+                            </select>
+                        </label>
+                        <label>Taille du texte (points)
+                            <select name="taille">
+                                <option th:each="t : ${tailles}" th:value="${t}" th:text="${t}"
+                                        th:selected="${t == theme.taille()}">9</option>
+                            </select>
+                        </label>
+                        <label>Couleur principale (titre, filets)
+                            <input name="couleurPrincipale" type="color" th:value="${theme.couleurPrincipale()}">
+                        </label>
+                        <label>Couleur des en-têtes de tableau
+                            <input name="couleurEntetes" type="color" th:value="${theme.couleurEntetes()}">
+                        </label>
+                        <label>Couleur du texte
+                            <input name="couleurTexte" type="color" th:value="${theme.couleurTexte()}">
+                        </label>
+                        <label>Place du logo
+                            <select name="logo">
+                                <option th:each="p : ${positions}" th:value="${p.name()}" th:text="${p.libelle()}"
+                                        th:selected="${p == theme.logo()}">À gauche</option>
+                            </select>
+                        </label>
+                        <label>Style du titre
+                            <select name="titre">
+                                <option th:each="s : ${styles}" th:value="${s.name()}" th:text="${s.libelle()}"
+                                        th:selected="${s == theme.titre()}">Capitales</option>
+                            </select>
+                        </label>
+                    </fieldset>
+                    <p class="k-discret" th:if="${polices.size() <= 3}">Seules les polices de base (Helvetica, Times,
+                        Courier) sont installées sur ce serveur : voir « Polices des documents » dans la documentation.</p>
+                    <button type="submit" class="k-bouton" th:if="${peutModifier}">Enregistrer le thème</button>
+                    <a class="k-bouton k-secondaire" id="k-theme-pdf" th:href="@{/entreprise/apercu.pdf}"
+                       target="_blank" rel="noopener">Voir en PDF</a>
+                </form>
+            </td>
+            <td class="k-theme-apercu">
+                <iframe id="k-theme-apercu" title="Aperçu du thème"></iframe>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Les valeurs des trois modèles, pour remplir les réglages quand on en choisit un. -->
+    <script th:inline="javascript">
+        (function () {
+            const modeles = /*[[${valeursModeles}]]*/ {};
+            const form = document.getElementById('k-theme');
+            const apercu = document.getElementById('k-theme-apercu');
+            const pdf = document.getElementById('k-theme-pdf');
+            const base = /*[[@{/entreprise/apercu}]]*/ '/entreprise/apercu';
+            let attente;
+
+            function parametres() {
+                return new URLSearchParams(new FormData(form)).toString().replace(/(^|&)_csrf=[^&]*/, '');
+            }
+            // La page d'aperçu est lue puis écrite dans le cadre (srcdoc) : la sécurité de l'application interdit
+            // de l'y charger directement (en-tête X-Frame-Options).
+            function charger(adresse) {
+                fetch(adresse, {credentials: 'same-origin'})
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) { apercu.srcdoc = html; });
+            }
+            function rafraichir() {
+                clearTimeout(attente);
+                attente = setTimeout(function () {
+                    const p = parametres();
+                    charger(base + '?' + p);
+                    pdf.href = base + '.pdf?' + p;
+                }, 350);
+            }
+            charger(base);
+            form.addEventListener('change', function (evt) {
+                const champ = evt.target;
+                if (champ.name === 'modele' && modeles[champ.value]) {
+                    Object.entries(modeles[champ.value]).forEach(function ([nom, valeur]) {
+                        if (form.elements[nom]) { form.elements[nom].value = valeur; }
+                    });
+                } else if (champ.name !== 'modele') {
+                    form.querySelector('input[name=modele][value=PERSONNALISE]').checked = true;
+                }
+                rafraichir();
+            });
+            form.addEventListener('input', function (evt) {
+                if (evt.target.type === 'color') {
+                    form.querySelector('input[name=modele][value=PERSONNALISE]').checked = true;
+                    rafraichir();
+                }
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>
