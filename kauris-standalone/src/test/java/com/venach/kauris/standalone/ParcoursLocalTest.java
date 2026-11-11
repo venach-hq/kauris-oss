@@ -77,6 +77,10 @@ class ParcoursLocalTest {
         mvc.perform(get("/installation")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Installer Kauris")));
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
+        // L'icône de l'onglet est publique, comme la page de connexion qui l'affiche.
+        mvc.perform(get("/kauris/favicon.svg")).andExpect(status().isOk());
+        mvc.perform(get("/favicon.ico")).andExpect(status().isOk());
+        mvc.perform(get("/installation")).andExpect(content().string(containsString("/kauris/favicon.svg")));
 
         // Un mot de passe trop court est refusé avec un message, et rien n'est créé.
         mvc.perform(post("/installation").with(csrf())
