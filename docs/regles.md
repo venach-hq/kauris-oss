@@ -87,7 +87,8 @@ sociaux…), ses monnaies, son logo et le thème de ses documents. Un module les
 
 En-tête (logo, identité, identifiants), police, taille et couleurs du thème, et pied de page avec la mention
 légale OHADA (`entreprise.mentionLegale()`) sont alors les mêmes partout. Les montants s'écrivent avec
-`entreprise.devise().formater(montant)`.
+`entreprise.devise().formater(montant)` (entier) ou `formaterDecimal(montant)` (`BigDecimal`) : deux noms
+distincts, car Thymeleaf ne choisit pas entre deux méthodes du même nom.
 
 ## Notifications
 

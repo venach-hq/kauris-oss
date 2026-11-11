@@ -53,7 +53,7 @@ public enum Devise {
     }
 
     /** « 25 000 F CFA », « 1 250,50 € » : milliers séparés par une espace insécable, virgule décimale. */
-    public String formater(BigDecimal montant) {
+    public String formaterDecimal(BigDecimal montant) {
         DecimalFormatSymbols symboles = new DecimalFormatSymbols(Locale.ROOT);
         symboles.setGroupingSeparator('\u00a0');
         symboles.setDecimalSeparator(',');
@@ -63,6 +63,6 @@ public enum Devise {
     }
 
     public String formater(long montant) {
-        return formater(BigDecimal.valueOf(montant));
+        return formaterDecimal(BigDecimal.valueOf(montant));
     }
 }

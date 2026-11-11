@@ -183,5 +183,6 @@ class EntrepriseTest {
     @Test
     void lesMontantsSEcriventDansLaMonnaieSansCoupureEntreLesChiffres() {
         assertEquals("1\u00a0250\u00a0000\u00a0F CFA", Devise.XOF.formater(1_250_000));
+        assertEquals("1\u00a0250,50\u00a0€", Devise.EUR.formaterDecimal(new java.math.BigDecimal("1250.5")));
     }
 }
