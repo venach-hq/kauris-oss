@@ -6,6 +6,7 @@ import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.Saisie;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
+import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.domain.AttributionRole;
@@ -25,13 +26,20 @@ public class MembresService implements GererMembresUseCase {
     private final EtablissementRepository etablissements;
     private final UniteDeTravail transaction;
     private final Clock horloge;
+    private final AvertirMembres avertir;
 
     public MembresService(MembreRepository membres, EtablissementRepository etablissements,
                           UniteDeTravail transaction, Clock horloge) {
+        this(membres, etablissements, transaction, horloge, AvertirMembres.PERSONNE);
+    }
+
+    public MembresService(MembreRepository membres, EtablissementRepository etablissements,
+                          UniteDeTravail transaction, Clock horloge, AvertirMembres avertir) {
         this.membres = membres;
         this.etablissements = etablissements;
         this.transaction = transaction;
         this.horloge = horloge;
+        this.avertir = avertir;
     }
 
     @Override
@@ -68,6 +76,9 @@ public class MembresService implements GererMembresUseCase {
             verifierEtablissements(tenantId, membre.roles());
             garderUnProprietaire(tenantId, membre);
             membres.sauvegarder(membre);
+            if (!avant.equals(membre.roles())) {
+                avertir.rolesChanges(membre);
+            }
         });
     }
 

@@ -15,6 +15,7 @@ import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissem
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisationUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
+import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.OrganisationRepository;
@@ -24,6 +25,7 @@ import com.venach.kauris.kernel.organisation.application.service.MembresService;
 import com.venach.kauris.kernel.organisation.application.service.OrganisationService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -100,15 +102,19 @@ public class OrganisationAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GererMembresUseCase gererMembres(MembreRepository membres, EtablissementRepository etablissements,
-                                            UniteDeTravail transaction, Clock horloge) {
-        return new MembresService(membres, etablissements, transaction, horloge);
+                                            UniteDeTravail transaction, Clock horloge,
+                                            ObjectProvider<AvertirMembres> avertir) {
+        return new MembresService(membres, etablissements, transaction, horloge,
+                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE));
     }
 
     @Bean
     @ConditionalOnMissingBean
     public ResoudreAccesUseCase resoudreAcces(MembreRepository membres, OrganisationRepository organisations,
-                                              UniteDeTravail transaction) {
-        return new AccesService(membres, organisations, transaction);
+                                              UniteDeTravail transaction,
+                                              ObjectProvider<AvertirMembres> avertir) {
+        return new AccesService(membres, organisations, transaction,
+                avertir.getIfAvailable(() -> AvertirMembres.PERSONNE));
     }
 
     // ------------------------------------------------------------------ connexion « local »

@@ -8,3 +8,9 @@ spring:
       hibernate.jdbc.time_zone: UTC
   flyway:
     locations: classpath:db/migration
+
+# Dans les tests, le relais de la boîte d'envoi ne passe que quand le test le demande.
+kauris:
+  notifications:
+    relais:
+      actif: false

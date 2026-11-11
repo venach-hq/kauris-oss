@@ -3,6 +3,12 @@ package com.venach.kauris.kernel.persistance;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase.CompteConnectable;
+import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
+import com.venach.kauris.kernel.notification.application.port.in.NotifierUseCase;
+import com.venach.kauris.kernel.notification.application.port.in.RelayerBoiteDEnvoiUseCase;
+import com.venach.kauris.kernel.notification.application.port.out.TransportNotifications;
+import com.venach.kauris.kernel.notification.domain.Avis;
+import com.venach.kauris.kernel.notification.domain.Notification;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
@@ -25,6 +31,7 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,6 +39,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,7 +57,15 @@ class PersistanceNoyauTest {
     @SpringBootConfiguration
     @EnableAutoConfiguration
     static class Application {
+
+        /** À la place du transport : on regarde ce que le relais fait partir. */
+        @Bean
+        TransportNotifications transportObserve() {
+            return PARTIS::add;
+        }
     }
+
+    private static final List<Avis> PARTIS = new CopyOnWriteArrayList<>();
 
     @Container
     @ServiceConnection
@@ -65,6 +81,12 @@ class PersistanceNoyauTest {
     private ResoudreAccesUseCase acces;
     @Autowired
     private GererComptesLocauxUseCase comptes;
+    @Autowired
+    private NotifierUseCase notifier;
+    @Autowired
+    private ConsulterNotificationsUseCase notifications;
+    @Autowired
+    private RelayerBoiteDEnvoiUseCase relais;
     @Autowired
     private MembreRepository membresStockes;
     @Autowired
@@ -158,5 +180,47 @@ class PersistanceNoyauTest {
         assertThrows(ErreurMetier.class,
                 () -> comptes.changerMotDePasse(compte.compteId(), "premier-passage", "troisieme-passage"));
         assertEquals(1, acces.accesDe(Identite.locale(compte.compteId().toString())).size());
+    }
+
+    @Test
+    void uneNotificationEstGardeeEtSonAvisPartUneSeuleFois() {
+        OrganisationOuverte o = ouvrir("Librairie", "sub-" + UUID.randomUUID());
+
+        notifier.notifier(o.tenantId(), o.membreId(), "Paie prête", "La paie de novembre est calculée.", "/paie");
+
+        assertEquals(1, notifications.nonLues(o.tenantId(), o.membreId()));
+        Notification lue = notifications.recentes(o.tenantId(), o.membreId(), 10).get(0);
+        assertEquals("Paie prête", lue.titre());
+        assertEquals("/paie", lue.lien().orElseThrow());
+
+        relais.relayer();
+        assertEquals(1, PARTIS.stream().filter(a -> a.notificationId().equals(lue.id())).count());
+        relais.relayer();
+        assertEquals(1, PARTIS.stream().filter(a -> a.notificationId().equals(lue.id())).count());
+
+        assertTrue(notifications.marquerLue(o.tenantId(), o.membreId(), lue.id()).orElseThrow().estLue());
+        assertEquals(0, notifications.nonLues(o.tenantId(), o.membreId()));
+        notifier.notifier(o.tenantId(), o.membreId(), "Autre", "", null);
+        notifications.toutMarquerLu(o.tenantId(), o.membreId());
+        assertEquals(0, notifications.nonLues(o.tenantId(), o.membreId()));
+    }
+
+    @Test
+    void lArriveeDUnInvitePrevientLeProprietaireDansLaMemeTransaction() {
+        OrganisationOuverte o = ouvrir("Menuiserie", "sub-" + UUID.randomUUID());
+        String email = "yao-" + UUID.randomUUID() + "@exemple.test";
+        Membre yao = membres.inviter(o.tenantId(), o.membreId(), email, "Yao",
+                Set.of(AttributionRole.pourTouteLOrganisation(Role.LECTEUR)));
+
+        acces.rattacherInvitations(new IdentiteConnectee(Identite.venach("sub-" + UUID.randomUUID()), email, true,
+                "Yao"));
+
+        List<Notification> recues = notifications.recentes(o.tenantId(), o.membreId(), 10);
+        assertEquals(1, recues.size());
+        assertTrue(recues.get(0).message().contains("Yao"));
+        // changer ses rôles le prévient, lui
+        membres.definirRoles(o.tenantId(), o.membreId(), yao.id(),
+                Set.of(AttributionRole.pourTouteLOrganisation(Role.GESTIONNAIRE)));
+        assertEquals(1, notifications.nonLues(o.tenantId(), yao.id()));
     }
 }

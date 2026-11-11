@@ -38,7 +38,7 @@ toute l'organisation ou pour un établissement.
 
 | Dossier | Rôle |
 |---|---|
-| `kauris-kernel` | Socle commun : registre des modules, organisation → établissements → membres → rôles, comptes locaux |
+| `kauris-kernel` | Socle commun : registre des modules, organisation → établissements → membres → rôles, comptes locaux, interface commune, notifications |
 | `kauris-standalone` | Lanceur autonome des modules, avec la connexion « local » |
 | `docs/` | Règles du projet |
 

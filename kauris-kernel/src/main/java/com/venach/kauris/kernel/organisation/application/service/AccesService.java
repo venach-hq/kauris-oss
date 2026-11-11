@@ -6,6 +6,7 @@ import com.venach.kauris.kernel.commun.UniteDeTravail;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.application.port.in.IdentiteConnectee;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
+import com.venach.kauris.kernel.organisation.application.port.out.AvertirMembres;
 import com.venach.kauris.kernel.organisation.application.port.out.MembreRepository;
 import com.venach.kauris.kernel.organisation.application.port.out.OrganisationRepository;
 import com.venach.kauris.kernel.organisation.domain.Identite;
@@ -25,12 +26,19 @@ public class AccesService implements ResoudreAccesUseCase {
     private final MembreRepository membres;
     private final OrganisationRepository organisations;
     private final UniteDeTravail transaction;
+    private final AvertirMembres avertir;
 
     public AccesService(MembreRepository membres, OrganisationRepository organisations,
                         UniteDeTravail transaction) {
+        this(membres, organisations, transaction, AvertirMembres.PERSONNE);
+    }
+
+    public AccesService(MembreRepository membres, OrganisationRepository organisations,
+                        UniteDeTravail transaction, AvertirMembres avertir) {
         this.membres = membres;
         this.organisations = organisations;
         this.transaction = transaction;
+        this.avertir = avertir;
     }
 
     @Override
@@ -72,6 +80,7 @@ public class AccesService implements ResoudreAccesUseCase {
                 if (dejaMembre.add(invitation.tenantId())) {
                     invitation.rattacher(personne.identite());
                     membres.sauvegarder(invitation);
+                    avertir.membreARejoint(invitation);
                     rejointes++;
                 }
             }
