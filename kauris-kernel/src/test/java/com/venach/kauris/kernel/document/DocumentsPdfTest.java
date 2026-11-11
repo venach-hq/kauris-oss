@@ -17,7 +17,16 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -119,5 +128,57 @@ class DocumentsPdfTest {
     void leNomDeFichierEstSimple() {
         assertEquals("livre-journal-20261009.pdf", ProducteurDocuments.nomDeFichier("Livre-journal", "20261009"));
         assertEquals("releve-des-mouvements.pdf", ProducteurDocuments.nomDeFichier("Relevé des mouvements", null));
+    }
+
+    /**
+     * Les trois modèles, avec un logo, écrits dans target/documents-exemple pour être regardés (la CI les garde).
+     * Avec les polices DejaVu du système quand elles existent, pour vérifier aussi l'intégration des polices.
+     */
+    @Test
+    void lesTroisModelesEnPdfPourLesRegarder() throws IOException {
+        Path sortie = Path.of("target", "documents-exemple");
+        Files.createDirectories(sortie);
+        CataloguePolices polices = CataloguePolices.vide();
+        Path dejavu = Path.of("/usr/share/fonts/truetype/dejavu");
+        if (Files.isRegularFile(dejavu.resolve("DejaVuSans.ttf"))) {
+            Path dossier = Files.createTempDirectory("polices");
+            Files.copy(dejavu.resolve("DejaVuSans.ttf"), dossier.resolve("DejaVuSans-Regular.ttf"));
+            if (Files.isRegularFile(dejavu.resolve("DejaVuSans-Bold.ttf"))) {
+                Files.copy(dejavu.resolve("DejaVuSans-Bold.ttf"), dossier.resolve("DejaVuSans-Bold.ttf"));
+            }
+            polices = CataloguePolices.depuis(dossier);
+        }
+        ProducteurDocuments producteur = new ProducteurDocuments(moteur, monde.entreprises, polices,
+                EnMemoire.HORLOGE);
+        monde.entreprises.definirLogo(awa, logo());
+        for (ThemeDocument.Modele modele : ThemeDocument.Modele.values()) {
+            ThemeDocument theme = modele == ThemeDocument.Modele.PERSONNALISE
+                    ? new ThemeDocument(modele, polices.connait("DejaVuSans") ? "DejaVuSans" : "Times",
+                    polices.connait("DejaVuSans") ? "DejaVuSans" : "Helvetica", 10, "#B45309", "#FEF3C7",
+                    "#1C1917", ThemeDocument.PositionLogo.GAUCHE, ThemeDocument.StyleTitre.MAJUSCULES)
+                    : ThemeDocument.du(modele);
+            Habillage h = producteur.habillage(monde.entreprises.consulter(o.tenantId()), theme,
+                    monde.entreprises.logo(o.tenantId()), "Livre-journal", "du 01/01/2026 au 09/10/2026", null,
+                    true);
+            byte[] pdf = producteur.pdf("kauris/apercu-document", exemple(h));
+            Files.write(sortie.resolve("exemple-" + modele.name().toLowerCase(Locale.ROOT) + ".pdf"), pdf);
+            assertTrue(texte(pdf).contains("ATLANTIS AUTOMOBILES TOGO SA"));
+        }
+    }
+
+    /** Un logo PNG dessiné pour l'exemple : un carré de couleur avec un « A ». */
+    private static byte[] logo() throws IOException {
+        BufferedImage image = new BufferedImage(160, 160, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(0x1E293B));
+        g.fillRoundRect(0, 0, 160, 160, 28, 28);
+        g.setColor(Color.WHITE);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 110));
+        g.drawString("A", 42, 122);
+        g.dispose();
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", png);
+        return png.toByteArray();
     }
 }
