@@ -54,4 +54,18 @@ public final class RegistreModules {
                 .flatMap(m -> m.menu().stream())
                 .toList();
     }
+
+    /** Toutes les permissions déclarées, le noyau d'abord ; un code déclaré deux fois est une erreur. */
+    public List<Permission> permissions() {
+        List<Permission> toutes = tous().stream()
+                .sorted(Comparator.comparing((ModuleKauris m) -> !"kernel".equals(m.code()))
+                        .thenComparing(ModuleKauris::code))
+                .flatMap(m -> m.permissions().stream())
+                .toList();
+        long distinctes = toutes.stream().map(Permission::code).distinct().count();
+        if (distinctes != toutes.size()) {
+            throw new IllegalStateException("Une permission est déclarée par deux modules");
+        }
+        return toutes;
+    }
 }

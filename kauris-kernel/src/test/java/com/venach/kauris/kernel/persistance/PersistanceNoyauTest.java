@@ -3,6 +3,11 @@ package com.venach.kauris.kernel.persistance;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase.CompteConnectable;
+import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
+import com.venach.kauris.kernel.entreprise.domain.Devise;
+import com.venach.kauris.kernel.entreprise.domain.Entreprise;
+import com.venach.kauris.kernel.entreprise.domain.Pays;
+import com.venach.kauris.kernel.module.PermissionsNoyau;
 import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
 import com.venach.kauris.kernel.notification.application.port.in.NotifierUseCase;
 import com.venach.kauris.kernel.notification.application.port.in.RelayerBoiteDEnvoiUseCase;
@@ -15,6 +20,7 @@ import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUse
 import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisationUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisationUseCase.OrganisationOuverte;
 import com.venach.kauris.kernel.organisation.application.port.in.GererOrganisationUseCase.Ouverture;
+import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.IdentiteConnectee;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.organisation.application.port.out.EtablissementRepository;
@@ -24,6 +30,7 @@ import com.venach.kauris.kernel.organisation.domain.Etablissement;
 import com.venach.kauris.kernel.organisation.domain.Identite;
 import com.venach.kauris.kernel.organisation.domain.Membre;
 import com.venach.kauris.kernel.organisation.domain.Role;
+import com.venach.kauris.kernel.organisation.domain.RolePersonnalise;
 import com.venach.kauris.kernel.organisation.domain.StatutMembre;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +44,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -87,6 +95,10 @@ class PersistanceNoyauTest {
     private ConsulterNotificationsUseCase notifications;
     @Autowired
     private RelayerBoiteDEnvoiUseCase relais;
+    @Autowired
+    private GererRolesUseCase roles;
+    @Autowired
+    private GererEntrepriseUseCase entreprises;
     @Autowired
     private MembreRepository membresStockes;
     @Autowired
@@ -222,5 +234,56 @@ class PersistanceNoyauTest {
         membres.definirRoles(o.tenantId(), o.membreId(), yao.id(),
                 Set.of(AttributionRole.pourTouteLOrganisation(Role.GESTIONNAIRE)));
         assertEquals(1, notifications.nonLues(o.tenantId(), yao.id()));
+    }
+
+    @Test
+    void unRolePersonnaliseSeRelitEtLimiteLesDroitsDeSonTitulaire() {
+        OrganisationOuverte o = ouvrir("Cabinet", "sub-" + UUID.randomUUID());
+        RolePersonnalise comptable = roles.creer(o.tenantId(), o.membreId(), "Comptable", "Tient les comptes",
+                Set.of(PermissionsNoyau.ENTREPRISE_CONSULTER, PermissionsNoyau.ENTREPRISE_MODIFIER));
+        String email = "efua-" + UUID.randomUUID() + "@exemple.test";
+        Membre efua = membres.inviter(o.tenantId(), o.membreId(), email, "Efua",
+                Set.of(AttributionRole.personnalise(comptable.id(), o.etablissementId())));
+        Identite identite = Identite.venach("sub-" + UUID.randomUUID());
+        acces.rattacherInvitations(new IdentiteConnectee(identite, email, true, "Efua"));
+
+        assertEquals(Set.of(AttributionRole.personnalise(comptable.id(), o.etablissementId())),
+                membresStockes.trouver(o.tenantId(), efua.id()).orElseThrow().roles());
+        RolePersonnalise relu = roles.lister(o.tenantId()).get(0);
+        assertEquals("Tient les comptes", relu.description());
+        assertEquals(comptable.permissions(), relu.permissions());
+        Acces droit = acces.accesDe(identite).get(0);
+        assertTrue(droit.peut(PermissionsNoyau.ENTREPRISE_MODIFIER, o.etablissementId()));
+        assertFalse(droit.peut(PermissionsNoyau.MEMBRES_CONSULTER));
+        assertEquals("Comptable", droit.resumeRoles());
+        // un rôle encore donné ne se supprime pas
+        assertThrows(ErreurMetier.class, () -> roles.supprimer(o.tenantId(), o.membreId(), comptable.id()));
+    }
+
+    @Test
+    void lesParametresDeLEntrepriseEtSonLogoSeRelisent() {
+        OrganisationOuverte o = ouvrir("Imprimerie", "sub-" + UUID.randomUUID());
+        Acces proprietaire = acces.accesDe(membresStockes.trouver(o.tenantId(), o.membreId()).orElseThrow()
+                .identite().orElseThrow()).get(0);
+        GererEntrepriseUseCase.Saisie saisie = new GererEntrepriseUseCase.Saisie("Imprimerie du Golfe", "IDG",
+                "SA", "10 000 000", "BJ", "Cotonou", "Lot 12, Haie Vive", "", "+229 01 00 00 00", "", "",
+                Map.of("rccm", "RB/COT/24 B 12345", "ifu", "3202412345678"), "XOF", Set.of("EUR", "USD"),
+                "GEORGIA", "12", "#123456", "#000000", "");
+
+        entreprises.enregistrer(proprietaire, saisie);
+        entreprises.enregistrer(proprietaire, saisie); // réécrire ne double pas les identifiants
+        entreprises.definirLogo(proprietaire, new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2});
+
+        Entreprise relue = entreprises.consulter(o.tenantId());
+        assertEquals(Pays.BENIN, relue.pays());
+        assertEquals(10_000_000L, relue.capital());
+        assertEquals(Map.of("rccm", "RB/COT/24 B 12345", "ifu", "3202412345678"), relue.identifiants());
+        assertEquals(Set.of(Devise.EUR, Devise.USD), relue.autresDevises());
+        assertEquals(12, relue.theme().taille());
+        assertTrue(relue.aUnLogo());
+        assertEquals(10, entreprises.logo(o.tenantId()).orElseThrow().contenu().length);
+
+        entreprises.retirerLogo(proprietaire);
+        assertFalse(entreprises.consulter(o.tenantId()).aUnLogo());
     }
 }

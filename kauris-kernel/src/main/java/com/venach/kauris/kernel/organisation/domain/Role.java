@@ -1,8 +1,9 @@
 package com.venach.kauris.kernel.organisation.domain;
 
 /**
- * Rôles du noyau. Les deux premiers valent pour toute l'organisation ; les deux autres peuvent être
- * limités à un établissement. Les modules s'appuient dessus pour autoriser leurs actions.
+ * Rôles du noyau. Les deux premiers valent pour toute l'organisation ; les autres peuvent être limités à un
+ * établissement. Les modules n'interrogent pas les rôles mais les permissions qu'ils donnent
+ * ({@code Acces.peut}).
  */
 public enum Role {
 
@@ -13,7 +14,12 @@ public enum Role {
     /** Saisit et modifie les données des modules. */
     GESTIONNAIRE("Gestionnaire", false),
     /** Consulte sans modifier. */
-    LECTEUR("Lecteur", false);
+    LECTEUR("Lecteur", false),
+    /**
+     * Un rôle créé par le propriétaire (un poste : comptable, caissier…). Il ne donne rien par lui-même : ce
+     * sont les permissions cochées dans ce rôle qui comptent.
+     */
+    PERSONNALISE("Rôle personnalisé", false);
 
     private final String libelle;
     private final boolean organisationEntiere;
@@ -37,6 +43,11 @@ public enum Role {
     }
 
     public boolean peutModifier() {
-        return this != LECTEUR;
+        return this == PROPRIETAIRE || this == ADMINISTRATEUR || this == GESTIONNAIRE;
+    }
+
+    /** Les quatre rôles fournis par Kauris, par opposition à ceux que le propriétaire crée. */
+    public boolean deBase() {
+        return this != PERSONNALISE;
     }
 }

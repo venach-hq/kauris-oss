@@ -27,8 +27,17 @@ public final class ModuleNoyau implements ModuleKauris {
     }
 
     @Override
+    public List<Permission> permissions() {
+        return PermissionsNoyau.TOUTES;
+    }
+
+    @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Accueil", "/"), new EntreeMenu("Organisation", "/organisation"),
-                new EntreeMenu("Membres", "/organisation/membres"), new EntreeMenu("Mon profil", "/profil"));
+        return List.of(new EntreeMenu("Accueil", "/"),
+                new EntreeMenu("Organisation", "/organisation", PermissionsNoyau.ORGANISATION_CONSULTER),
+                new EntreeMenu("Membres", "/organisation/membres", PermissionsNoyau.MEMBRES_CONSULTER),
+                new EntreeMenu("Rôles", "/organisation/roles", PermissionsNoyau.MEMBRES_CONSULTER),
+                new EntreeMenu("Entreprise", "/entreprise", PermissionsNoyau.ENTREPRISE_CONSULTER),
+                new EntreeMenu("Mon profil", "/profil"));
     }
 }

@@ -23,6 +23,11 @@ public interface ModuleKauris {
         return "";
     }
 
+    /** Permissions que le module déclare : ce que le propriétaire peut accorder ou non dans un rôle. */
+    default List<Permission> permissions() {
+        return List.of();
+    }
+
     /** Entrées que le module ajoute au menu de l'interface commune, dans l'ordre. */
     default List<EntreeMenu> menu() {
         return List.of();

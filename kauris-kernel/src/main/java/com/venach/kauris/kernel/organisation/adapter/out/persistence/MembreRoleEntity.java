@@ -34,6 +34,11 @@ public class MembreRoleEntity {
     @Column(name = "etablissement_id", length = 36)
     UUID etablissementId;
 
+    /** Renseigné seulement si {@code codeRole} vaut PERSONNALISE. */
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "role_personnalise_id", length = 36)
+    UUID rolePersonnaliseId;
+
     protected MembreRoleEntity() {
     }
 }

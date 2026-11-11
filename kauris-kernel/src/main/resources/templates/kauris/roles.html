@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Rôles et permissions', contenu=~{::section})}">
+<body>
+<section>
+    <p>Un rôle dit ce qu'un membre voit et modifie. Kauris en fournit quatre ; le propriétaire en crée d'autres
+        pour les postes de son entreprise (comptable, caissier, responsable RH…) en cochant leurs permissions.</p>
+
+    <h2>Rôles de base</h2>
+    <table class="k-table">
+        <thead><tr><th>Rôle</th><th>Ce qu'il donne</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${deBase}">
+            <td><strong th:text="${r.nom()}">Propriétaire</strong></td>
+            <td th:text="${r.portee()}">Tout.</td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="k-discret">Gérer les établissements, les membres et leurs rôles reste réservé aux propriétaires et
+        aux administrateurs : aucun rôle personnalisé ne le permet.</p>
+
+    <h2>Rôles de l'organisation</h2>
+    <p class="k-discret" th:if="${personnalises.isEmpty()}">Aucun rôle personnalisé pour le moment.</p>
+    <div class="k-carte" th:each="role : ${personnalises}">
+        <form class="k-pile k-large" method="post" th:action="@{/organisation/roles/{id}(id=${role.id()})}">
+            <label>Nom du rôle
+                <input name="nom" th:value="${role.nom()}" required minlength="2" maxlength="60"
+                       th:disabled="${!proprietaire}">
+            </label>
+            <label>Description
+                <input name="description" th:value="${role.description()}" maxlength="200"
+                       th:disabled="${!proprietaire}">
+            </label>
+            <fieldset th:each="groupe : ${permissions}">
+                <legend th:text="${groupe.key}">Organisation</legend>
+                <label th:each="p : ${groupe.value}">
+                    <input type="checkbox" name="permissions" th:value="${p.code()}"
+                           th:checked="${role.permissions().contains(p.code())}" th:disabled="${!proprietaire}">
+                    <span th:text="${p.libelle()}">Voir…</span>
+                </label>
+            </fieldset>
+            <button type="submit" class="k-bouton" th:if="${proprietaire}">Enregistrer</button>
+        </form>
+        <form method="post" th:if="${proprietaire}"
+              th:action="@{/organisation/roles/{id}/supprimer(id=${role.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Supprimer ce rôle</button>
+        </form>
+    </div>
+
+    <th:block th:if="${proprietaire}">
+        <h2>Créer un rôle</h2>
+        <form class="k-pile k-large" method="post" th:action="@{/organisation/roles}">
+            <label>Nom du rôle
+                <input name="nom" required minlength="2" maxlength="60" placeholder="Comptable, Caissier…">
+            </label>
+            <label>Description
+                <input name="description" maxlength="200">
+            </label>
+            <fieldset th:each="groupe : ${permissions}">
+                <legend th:text="${groupe.key}">Organisation</legend>
+                <label th:each="p : ${groupe.value}">
+                    <input type="checkbox" name="permissions" th:value="${p.code()}">
+                    <span th:text="${p.libelle()}">Voir…</span>
+                </label>
+            </fieldset>
+            <button type="submit" class="k-bouton">Créer le rôle</button>
+        </form>
+    </th:block>
+    <p class="k-discret" th:unless="${proprietaire}">Seul un propriétaire crée et modifie les rôles.</p>
+</section>
+</body>
+</html>
