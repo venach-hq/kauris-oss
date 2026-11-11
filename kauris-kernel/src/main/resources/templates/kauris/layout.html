@@ -33,6 +33,11 @@
         <noscript><button type="submit">OK</button></noscript>
     </form>
     <span class="k-espace"></span>
+    <a class="k-notifications" th:href="@{/notifications}" th:if="${kauris != null and kauris.acces() != null}">
+        Notifications
+        <span id="k-non-lues" class="k-compteur" th:classappend="${kauris.notificationsNonLues() == 0} ? 'k-vide'"
+              th:text="${kauris.notificationsNonLues()}">0</span>
+    </a>
     <form class="k-personne" method="post" th:action="@{/logout}" th:if="${kauris != null}">
         <span th:text="${kauris.nomAffiche()}">Nom</span>
         <button type="submit" class="k-bouton k-secondaire">Se déconnecter</button>
@@ -47,5 +52,10 @@
     <div class="k-message k-ko" role="alert" th:if="${erreur}" th:text="${erreur}">Refusé.</div>
     <th:block th:replace="${contenu}"/>
 </main>
+<!-- Les avis reçus en direct s'affichent ici ; kauris.js y lit les adresses du canal et du compteur. -->
+<div id="k-avis" class="k-avis" role="status" aria-live="polite"
+     th:if="${kauris != null and kauris.acces() != null}"
+     th:attr="data-canal=@{/ws/notifications},data-compteur=@{/notifications/non-lues},data-liste=@{/notifications}"></div>
+<script th:src="@{/kauris/kauris.js}" defer></script>
 </body>
 </html>

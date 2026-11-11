@@ -1,3 +1,4 @@
 com.venach.kauris.kernel.KernelAutoConfiguration
 com.venach.kauris.kernel.OrganisationAutoConfiguration
+com.venach.kauris.kernel.NotificationsAutoConfiguration
 com.venach.kauris.kernel.InterfaceCommuneAutoConfiguration

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Notifications', contenu=~{::section})}">
+<body>
+<section>
+    <p class="k-discret" th:if="${notifications.isEmpty()}">Aucune notification pour le moment.</p>
+    <form method="post" th:action="@{/notifications/lues}" th:unless="${notifications.isEmpty()}">
+        <button type="submit" class="k-bouton k-secondaire">Tout marquer comme lu</button>
+    </form>
+    <ul class="k-liste">
+        <li th:each="n : ${notifications}" th:classappend="${n.lue()} ? 'k-lue'">
+            <div>
+                <strong th:text="${n.titre()}">Titre</strong>
+                <span class="k-pastille k-ok" th:unless="${n.lue()}">Nouveau</span>
+                <p th:text="${n.message()}">Message</p>
+                <span class="k-discret" th:text="${n.date()}">11/11/2026 08:00</span>
+            </div>
+            <form method="post" th:action="@{/notifications/{id}/lue(id=${n.id()})}"
+                  th:if="${n.aUnLien() or !n.lue()}">
+                <button type="submit" class="k-bouton k-secondaire"
+                        th:text="${n.aUnLien()} ? 'Ouvrir' : 'Marquer comme lu'">Ouvrir</button>
+            </form>
+        </li>
+    </ul>
+</section>
+</body>
+</html>

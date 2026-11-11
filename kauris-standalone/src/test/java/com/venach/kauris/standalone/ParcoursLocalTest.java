@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -167,6 +168,26 @@ class ParcoursLocalTest {
                 .andExpect(redirectedUrl("/compte"))
                 .andExpect(flash().attributeExists("erreur"));
         mvc.perform(get("/compte").session(sessionKofi)).andExpect(status().isOk());
+
+        // Notifications : Awa change les rôles de Kofi, Kofi est prévenu et ne voit que les siennes.
+        mvc.perform(get("/notifications/non-lues").session(sessionKofi))
+                .andExpect(jsonPath("$.nonLues").value(0));
+        mvc.perform(post("/organisation/membres/" + kofi + "/roles").session(session).with(csrf())
+                        .param("role", "GESTIONNAIRE"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/notifications/non-lues").session(sessionKofi))
+                .andExpect(jsonPath("$.nonLues").value(1));
+        mvc.perform(get("/notifications/non-lues").session(session))
+                .andExpect(jsonPath("$.nonLues").value(0));
+        mvc.perform(get("/notifications").session(sessionKofi)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Vos rôles ont changé")))
+                .andExpect(content().string(containsString("/kauris/kauris.js")));
+        mvc.perform(post("/notifications/lues").session(sessionKofi).with(csrf()))
+                .andExpect(redirectedUrl("/notifications"));
+        mvc.perform(get("/notifications/non-lues").session(sessionKofi))
+                .andExpect(jsonPath("$.nonLues").value(0));
+        // Le canal WebSocket demande d'être connecté.
+        mvc.perform(get("/ws/notifications")).andExpect(status().is3xxRedirection());
 
         // Désactivé, Kofi perd l'accès tout de suite, sans attendre la fin de sa session.
         mvc.perform(post("/organisation/membres/" + kofi + "/desactiver").session(session).with(csrf()))

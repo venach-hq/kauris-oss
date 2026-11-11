@@ -12,9 +12,10 @@ import java.util.List;
  * @param acces         l'organisation dans laquelle la personne travaille ; nul si elle n'en a aucune
  * @param autresAcces   ses autres organisations, pour en changer
  * @param comptesLocaux vrai en mode de connexion « local »
+ * @param notificationsNonLues dans l'organisation courante
  */
 public record ContexteKauris(IdentiteConnectee personne, Acces acces, List<Acces> autresAcces,
-                             List<EntreeMenu> menu, boolean comptesLocaux) {
+                             List<EntreeMenu> menu, boolean comptesLocaux, long notificationsNonLues) {
 
     /** Le nom à afficher : celui du membre, sinon celui du compte, sinon l'email. */
     public String nomAffiche() {

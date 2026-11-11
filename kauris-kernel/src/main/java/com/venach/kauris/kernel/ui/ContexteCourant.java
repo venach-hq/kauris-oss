@@ -1,6 +1,7 @@
 package com.venach.kauris.kernel.ui;
 
 import com.venach.kauris.kernel.module.RegistreModules;
+import com.venach.kauris.kernel.notification.application.port.in.ConsulterNotificationsUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.organisation.application.port.in.IdentiteConnectee;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
@@ -24,11 +25,19 @@ public class ContexteCourant {
     private final SessionKauris session;
     private final ResoudreAccesUseCase acces;
     private final RegistreModules modules;
+    private final ConsulterNotificationsUseCase notifications;
 
     public ContexteCourant(SessionKauris session, ResoudreAccesUseCase acces, RegistreModules modules) {
+        this(session, acces, modules, null);
+    }
+
+    /** @param notifications nul si l'application n'a pas les notifications : le compteur reste à zéro */
+    public ContexteCourant(SessionKauris session, ResoudreAccesUseCase acces, RegistreModules modules,
+                           ConsulterNotificationsUseCase notifications) {
         this.session = session;
         this.acces = acces;
         this.modules = modules;
+        this.notifications = notifications;
     }
 
     /** Le contexte de la requête ; vide si personne n'est connecté. Calculé une seule fois par requête. */
@@ -70,7 +79,9 @@ public class ContexteCourant {
         Acces courant = tous.stream().filter(a -> a.tenantId().equals(choisie)).findFirst()
                 .orElse(tous.isEmpty() ? null : tous.get(0));
         List<Acces> autres = tous.stream().filter(a -> a != courant).toList();
+        long nonLues = courant == null || notifications == null ? 0
+                : notifications.nonLues(courant.tenantId(), courant.membreId());
         return new ContexteKauris(personne, courant, autres, courant == null ? List.of() : modules.menu(),
-                session.comptesLocaux());
+                session.comptesLocaux(), nonLues);
     }
 }
