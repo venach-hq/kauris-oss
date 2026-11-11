@@ -1,0 +1,27 @@
+# Base du poste de développement pour le mode autonome : make dev-up / make dev-down.
+# Port décalé pour ne pas gêner Kauris Cloud (3307) sur le même poste.
+# Identifiants valables uniquement dans ce conteneur local.
+name: kauris-oss-dev
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: kauris
+      MYSQL_USER: kauris
+      MYSQL_PASSWORD: kauris_dev
+      MYSQL_ROOT_PASSWORD: root_dev
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3308:3306"
+    volumes:
+      - kauris-oss-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ukauris", "-pkauris_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  kauris-oss-mysql:

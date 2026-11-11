@@ -1,4 +1,5 @@
 # Production : derrière un proxy (nginx), seulement sur l'interface locale.
+# DB_URL, DB_USERNAME et DB_PASSWORD sont obligatoires : sans eux, l'application refuse de démarrer.
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
 

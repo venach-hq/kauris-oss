@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connexion · Kauris</title>
+    <style>
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #F5F5F5;
+            font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #1E1E1E; }
+        main { width: min(92vw, 400px); background: #fff; border: 1px solid #E2E2E2; border-radius: 10px;
+            padding: 2rem 1.75rem; }
+        h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.02em; text-align: center; }
+        p { margin: 0 0 1.5rem; color: #767676; font-size: 14px; text-align: center; }
+        label { display: block; font-size: 13px; font-weight: 600; margin: .9rem 0 .3rem; }
+        input { width: 100%; box-sizing: border-box; border: 1.5px solid #ccc; border-radius: 6px;
+            padding: .6rem .7rem; font-size: 15px; }
+        .aide { color: #767676; font-size: 12px; margin-top: .25rem; }
+        .message { border-radius: 6px; padding: .7rem .9rem; margin-bottom: 1rem; font-size: 14px; }
+        .message.ko { background: #fdecef; color: #e0244a; }
+        .message.ok { background: #e8fdf1; color: #02a84b; }
+        button { width: 100%; margin-top: 1.4rem; background: #03C75A; color: #fff; font-weight: 700; border: 0;
+            border-radius: 6px; padding: .8rem 1rem; font-size: 15px; cursor: pointer; }
+        button:hover { background: #02a84b; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Kauris</h1>
+    <p>Connectez-vous avec votre compte.</p>
+    <div class="message ko" th:if="${param.erreur}">Adresse ou mot de passe incorrect.</div>
+    <div class="message ok" th:if="${param.deconnexion}">Vous êtes déconnecté.</div>
+    <div class="message ok" th:if="${param.installe}">Kauris est installé. Connectez-vous.</div>
+    <form method="post" th:action="@{/connexion}">
+        <label for="email">Adresse email</label>
+        <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+        <label for="motDePasse">Mot de passe</label>
+        <input id="motDePasse" name="motDePasse" type="password" autocomplete="current-password" required>
+        <button type="submit">Se connecter</button>
+    </form>
+</main>
+</body>
+</html>

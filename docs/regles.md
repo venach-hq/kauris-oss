@@ -21,7 +21,9 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    - aucun import vers l'intérieur d'un autre module (seulement `kauris-kernel` et des événements) ;
    - aucun secret dans le code ou la configuration.
 4. Migrations Flyway du module (`db/migration/<module>/`), jamais `ddl-auto=update`.
-5. Tests : domaine (unitaires), services, intégration base.
+   Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
+   Une migration publiée ne se modifie jamais.
+5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune.
 7. CI au vert (`make verify`, `make secrets`).
 8. Déploiement.

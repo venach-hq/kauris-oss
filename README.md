@@ -8,22 +8,38 @@ fonctionne **seul**, avec un compte local, ou **dans Kauris Cloud**, avec un com
 
 ## Démarrer
 
-Prérequis : Java 21, Docker (pour la recherche de secrets), `make`.
+Prérequis : Java 21, Docker (base de développement, tests sur MySQL, recherche de secrets), `make`.
 
 ```bash
 make help      # toutes les commandes
-make verify    # compile et teste (identique à la CI)
+make verify    # compile et teste, y compris sur un MySQL jetable (identique à la CI)
+make dev-up    # MySQL local sur le port 3308
 make run       # lance le mode autonome sur http://localhost:8090
 ```
 
-Environnement : `SPRING_PROFILES_ACTIVE=dev` (par défaut) ou `prod`.
+Au premier démarrage, Kauris ouvre l'écran d'installation : on y crée l'organisation, son premier
+établissement et le compte du propriétaire (email + mot de passe). Cet écran se ferme ensuite pour toujours.
+
+Environnement : `SPRING_PROFILES_ACTIVE=dev` (par défaut) ou `prod`. En production, `DB_URL`, `DB_USERNAME`
+et `DB_PASSWORD` sont obligatoires (MySQL 8).
+
+## Connexion
+
+| Mode | Où | Comment |
+|---|---|---|
+| `local` | ce dépôt (`kauris-standalone`) | email + mot de passe ; seule l'empreinte BCrypt est gardée |
+| `venach` | Kauris Cloud | compte account.venach.com (OpenID Connect) |
+
+Dans les deux cas, le noyau ne retient de la personne qu'une identité (fournisseur + identifiant stable).
+Ses droits viennent de ses rôles de membre : propriétaire, administrateur, gestionnaire ou lecteur, pour
+toute l'organisation ou pour un établissement.
 
 ## Organisation
 
 | Dossier | Rôle |
 |---|---|
-| `kauris-kernel` | Socle commun : registre des modules (puis organisation, membres, droits, connexion) |
-| `kauris-standalone` | Lanceur autonome des modules |
+| `kauris-kernel` | Socle commun : registre des modules, organisation → établissements → membres → rôles, comptes locaux |
+| `kauris-standalone` | Lanceur autonome des modules, avec la connexion « local » |
 | `docs/` | Règles du projet |
 
 Les règles de travail (procédure par module, conventions, sécurité) sont dans [`docs/regles.md`](docs/regles.md).
