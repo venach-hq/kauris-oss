@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Catalogue', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <p>Les articles et prestations que vous vendez, avec leur prix hors taxes. Une facture reprend le prix du moment :
+        changer un prix ne change pas les documents déjà faits.</p>
+    <form class="v-recherche" method="get" th:action="@{/ventes/catalogue}">
+        <label style="display:flex;align-items:center;gap:.3rem;font-weight:400">
+            <input type="checkbox" name="archives" value="true" th:checked="${archives}" onchange="this.form.submit()">
+            avec les articles archivés</label>
+        <noscript><button type="submit" class="k-bouton k-secondaire">Afficher</button></noscript>
+    </form>
+
+    <p class="k-discret" th:if="${articles.isEmpty()}">Le catalogue est vide.</p>
+    <table class="k-table" th:unless="${articles.isEmpty()}">
+        <thead><tr><th>Réf.</th><th>Désignation</th><th>Unité</th><th class="v-montant">Prix HT</th>
+            <th class="v-montant" th:if="${reglages.assujettiTva()}">TVA</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="x : ${articles}" th:classappend="${x.actif()} ? '' : 'v-barre'">
+            <td th:text="${x.reference()}">REF</td>
+            <td><span th:text="${x.designation()}">Article</span>
+                <span class="k-discret" th:text="${x.type().libelle()}">Article</span></td>
+            <td th:text="${x.unite()}">u</td>
+            <td class="v-montant" th:text="${f.montant(x.prixHt())}">0</td>
+            <td class="v-montant" th:if="${reglages.assujettiTva()}" th:text="${f.pourcent(x.tauxTva())}">18 %</td>
+            <td>
+                <details th:if="${droits.catalogue()}">
+                    <summary>Modifier</summary>
+                    <form class="k-pile" method="post" th:action="@{/ventes/catalogue/{id}(id=${x.id()})}">
+                        <th:block th:replace="~{ventes/catalogue :: champs(${x})}"></th:block>
+                        <button type="submit" class="k-bouton">Enregistrer</button>
+                    </form>
+                    <form method="post" th:action="@{/ventes/catalogue/{id}/archiver(id=${x.id()})}">
+                        <input type="hidden" name="archiver" th:value="${x.actif()}">
+                        <button type="submit" class="k-bouton k-secondaire" th:text="${x.actif() ? 'Archiver' : 'Réactiver'}">Archiver</button>
+                    </form>
+                </details>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <details th:if="${droits.catalogue()}" th:open="${articles.isEmpty()}">
+        <summary><strong>Ajouter un article ou une prestation</strong></summary>
+        <form class="k-pile" method="post" th:action="@{/ventes/catalogue}">
+            <th:block th:replace="~{ventes/catalogue :: champs(${null})}"></th:block>
+            <button type="submit" class="k-bouton">Ajouter au catalogue</button>
+        </form>
+    </details>
+</section>
+
+<th:block th:fragment="champs(x)">
+    <label>Type
+        <select name="type">
+            <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}"
+                    th:selected="${x != null and x.type() == t}">Article</option>
+        </select>
+    </label>
+    <label>Désignation <input name="designation" th:value="${x?.designation()}" required minlength="2" maxlength="200"></label>
+    <label>Référence (facultative) <input name="reference" th:value="${x?.reference()}" maxlength="40"></label>
+    <label>Unité (u, h, jour, kg, m…) <input name="unite" th:value="${x?.unite()}" maxlength="20"></label>
+    <label>Prix hors taxes, sans décimales
+        <input name="prixHt" inputmode="numeric" required maxlength="20" placeholder="25 000"
+               th:value="${x != null ? x.prixHt() : ''}"></label>
+    <label th:if="${reglages.assujettiTva()}">Taux de TVA (%)
+        <input name="tauxTva" inputmode="decimal" maxlength="6"
+               th:value="${x != null ? f.decimal(x.tauxTva()) : f.decimal(reglages.tauxTva())}"></label>
+</th:block>
+</body>
+</html>

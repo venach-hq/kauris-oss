@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Impayés', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <p class="k-discret" th:if="${factures.isEmpty()}">Aucune facture à encaisser.</p>
+
+    <th:block th:unless="${factures.isEmpty()}">
+        <h2>Par client</h2>
+        <table class="k-table">
+            <thead><tr><th>Client</th><th>Factures</th><th class="v-montant">Reste dû</th><th class="v-montant">Dont en retard</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="c : ${parClient}">
+                <td><a th:href="@{/ventes/clients/{id}(id=${c.clientId()})}" th:text="${c.nom()}">Client</a></td>
+                <td th:text="${c.factures()}">1</td>
+                <td class="v-montant" th:text="${f.montant(c.montant())}">0</td>
+                <td class="v-montant" th:text="${c.enRetard() > 0 ? f.montant(c.enRetard()) : ''}">0</td>
+                <td><a th:href="@{/ventes/clients/{id}/releve(id=${c.clientId()})}" target="_blank" rel="noopener">Relevé à envoyer</a></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h2>Factures</h2>
+        <table class="k-table">
+            <thead><tr><th>N°</th><th>Client</th><th>Échéance</th><th class="v-montant">Total</th><th class="v-montant">Reste</th><th>Situation</th></tr></thead>
+            <tbody>
+            <tr th:each="d : ${factures}">
+                <td><a th:href="@{/ventes/documents/{id}(id=${d.id()})}" th:text="${d.numero()}">FA</a></td>
+                <td th:text="${d.client().nom()}">Client</td>
+                <td th:text="${f.jour(d.contenu().echeance())}">01/12/2026</td>
+                <td class="v-montant" th:text="${f.montant(d.totaux().totalTtc())}">0</td>
+                <td class="v-montant" th:text="${f.montant(d.resteAPayer())}">0</td>
+                <td><span th:replace="~{ventes/commun :: situation(${d.situation(aujourdHui)})}"></span></td>
+            </tr>
+            </tbody>
+        </table>
+    </th:block>
+</section>
+</body>
+</html>

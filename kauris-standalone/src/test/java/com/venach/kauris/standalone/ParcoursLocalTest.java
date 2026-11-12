@@ -143,6 +143,20 @@ class ParcoursLocalTest {
         mvc.perform(get("/").session(session))
                 .andExpect(content().string(containsString("Awa M. Mensah")));
 
+        // Le module Ventes est installé : dans le menu, avec ses écrans, son script et ses formulaires protégés.
+        assertTrue(registre.present("ventes"));
+        mvc.perform(get("/ventes").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/ventes\"")))
+                .andExpect(content().string(containsString("Tableau de bord")));
+        mvc.perform(get("/ventes/documents/nouveau").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("/ventes/ventes.js")));
+        mvc.perform(get("/ventes/ventes.js").session(session)).andExpect(status().isOk());
+        mvc.perform(post("/ventes/clients").session(session).with(csrf()).param("type", "PARTICULIER")
+                        .param("nom", "Yao Kossi"))
+                .andExpect(redirectedUrlPattern("/ventes/clients/*"));
+        mvc.perform(post("/ventes/clients").session(session).param("type", "PARTICULIER").param("nom", "Pirate"))
+                .andExpect(status().isForbidden());
+
         // Établissements.
         mvc.perform(get("/organisation").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Siège")));

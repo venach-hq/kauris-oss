@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Réglages des ventes', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <p>L'en-tête, le pied et le thème des documents se règlent dans <a th:href="@{/entreprise}">Entreprise</a>.</p>
+    <form class="k-pile k-large" method="post" th:action="@{/ventes/reglages}">
+        <fieldset th:disabled="${!droits.reglages()}">
+            <legend>TVA</legend>
+            <label class="k-choix"><input type="checkbox" name="assujettiTva" th:checked="${reglages.assujettiTva()}">
+                <span>L'entreprise facture la TVA (régime réel). Décochez pour une entreprise à la taxe professionnelle
+                    unique, à l'impôt synthétique ou exonérée : ses documents n'auront pas de TVA.</span></label>
+            <label>Taux proposé par défaut (%)
+                <input name="tauxTva" inputmode="decimal" maxlength="6" th:value="${f.decimal(reglages.tauxTva())}"></label>
+            <label>Mention imprimée quand il n'y a pas de TVA
+                <input name="mentionTva" th:value="${reglages.mentionTva()}" maxlength="200"
+                       placeholder="TVA non applicable"></label>
+        </fieldset>
+        <fieldset th:disabled="${!droits.reglages()}">
+            <legend>Délais</legend>
+            <label>Délai de paiement par défaut des factures, en jours (0 = comptant)
+                <input name="delaiPaiement" inputmode="numeric" maxlength="3" th:value="${reglages.delaiPaiement()}"></label>
+            <label>Durée de validité des devis, en jours
+                <input name="validiteDevis" inputmode="numeric" maxlength="3" th:value="${reglages.validiteDevis()}"></label>
+        </fieldset>
+        <fieldset th:disabled="${!droits.reglages()}">
+            <legend>Conditions de paiement imprimées sur les factures</legend>
+            <label>Pénalités de retard, escompte, modes acceptés…
+                <textarea name="conditions" rows="4" maxlength="1000" style="font:inherit"
+                          th:text="${reglages.conditions()}"></textarea></label>
+        </fieldset>
+        <button type="submit" class="k-bouton" th:if="${droits.reglages()}">Enregistrer</button>
+    </form>
+    <p class="k-discret">Les factures de Kauris ne sont pas des factures normalisées (certifiées par l'administration
+        fiscale : e-MECeF, FNE, SECeF…). Si votre régime l'exige, continuez de les produire avec l'outil agréé.</p>
+</section>
+</body>
+</html>

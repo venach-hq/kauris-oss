@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Ventes', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <div class="v-boutons" th:if="${droits.saisir()}">
+        <a class="k-bouton" th:href="@{/ventes/documents/nouveau(type='FACTURE')}">Nouvelle facture</a>
+        <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/nouveau(type='DEVIS')}">Nouveau devis</a>
+        <a class="k-bouton k-secondaire" th:href="@{/ventes/clients}">Ajouter un client</a>
+    </div>
+
+    <div class="v-chiffres">
+        <div class="v-chiffre"><span>Facturé ce mois (HT)</span><strong th:text="${f.montant(bilan.factureMoisHt())}">0</strong></div>
+        <div class="v-chiffre"><span>Encaissé ce mois</span><strong th:text="${f.montant(bilan.encaisseMois())}">0</strong></div>
+        <div class="v-chiffre"><span>Reste à encaisser</span><strong th:text="${f.montant(bilan.resteDu())}">0</strong></div>
+        <div class="v-chiffre" th:classappend="${bilan.enRetard() > 0} ? 'v-alerte'"><span>En retard</span>
+            <strong th:text="${f.montant(bilan.enRetard())}">0</strong>
+            <a th:if="${bilan.facturesEnRetard() > 0}" th:href="@{/ventes/impayes}"
+               th:text="${bilan.facturesEnRetard() + ' facture(s) à relancer'}">à relancer</a></div>
+    </div>
+
+    <h2>Dernières factures</h2>
+    <p class="k-discret" th:if="${bilan.dernieres().isEmpty()}">Aucune facture pour le moment.</p>
+    <table class="k-table" th:unless="${bilan.dernieres().isEmpty()}">
+        <thead><tr><th>N°</th><th>Date</th><th>Client</th><th class="v-montant">Total</th><th class="v-montant">Reste</th><th>Situation</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${bilan.dernieres()}">
+            <td><a th:href="@{/ventes/documents/{id}(id=${d.id()})}" th:text="${d.numero() ?: 'Brouillon'}">FA-2026-0001</a></td>
+            <td th:text="${f.jour(d.contenu().date())}">01/11/2026</td>
+            <td th:text="${d.client().nom()}">Client</td>
+            <td class="v-montant" th:text="${f.montant(d.totaux().totalTtc())}">0</td>
+            <td class="v-montant" th:text="${d.modifiable() ? '' : f.montant(d.resteAPayer())}">0</td>
+            <td><span th:replace="~{ventes/commun :: situation(${d.situation(aujourdHui)})}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Devis en attente</h2>
+    <p class="k-discret" th:if="${bilan.devisEnAttente().isEmpty()}">Aucun devis en attente de réponse ou de facture.</p>
+    <table class="k-table" th:unless="${bilan.devisEnAttente().isEmpty()}">
+        <thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Valable jusqu'au</th><th class="v-montant">Total</th><th>Situation</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${bilan.devisEnAttente()}">
+            <td><a th:href="@{/ventes/documents/{id}(id=${d.id()})}" th:text="${d.numero()}">DE-2026-0001</a></td>
+            <td th:text="${f.jour(d.contenu().date())}">01/11/2026</td>
+            <td th:text="${d.client().nom()}">Client</td>
+            <td th:text="${f.jour(d.contenu().echeance())}">01/12/2026</td>
+            <td class="v-montant" th:text="${f.montant(d.totaux().totalTtc())}">0</td>
+            <td><span th:replace="~{ventes/commun :: situation(${d.situation(aujourdHui)})}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

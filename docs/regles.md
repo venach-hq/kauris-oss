@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_21`).
+   `V20261111_22`, les ventes à `V20261112_1`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune.
 7. CI au vert (`make verify`, `make secrets`).
@@ -112,6 +112,10 @@ return EntrepriseController.enPdf(pdf, ProducteurDocuments.nomDeFichier("Relevé
 - Mise en page en tableaux (le moteur PDF lit le CSS 2.1 : ni flex ni variables CSS).
 - Les montants s'écrivent avec `entreprise.devise().formater(montant)` (entier) ou `formaterDecimal(montant)`
   (`BigDecimal`) : deux noms distincts, car Thymeleaf ne choisit pas entre deux méthodes du même nom.
+- Un montant en toutes lettres : `MontantEnLettres.montant(montant, devise)` (« un million de francs CFA »).
+- Documents commerciaux : deux colonnes `k-doc-colonnes` (cellule `k-doc-intervalle` entre les deux), bloc du
+  destinataire `k-doc-destinataire` (nom en `k-doc-nom-tiers`), totaux à droite `k-doc-totaux`, remarques
+  `k-doc-note`, bandeau `k-doc-brouillon` pour un document sans valeur.
 
 ### Polices des documents
 

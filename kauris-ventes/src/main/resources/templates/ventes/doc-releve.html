@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Relevé de compte d'un client : factures au débit, avoirs et règlements au crédit, solde. Écran et PDF. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <table class="k-doc-colonnes">
+        <tr>
+            <td><div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div></td>
+            <td class="k-doc-intervalle"></td>
+            <td style="width: 42%;">
+                <div class="k-doc-destinataire" th:with="c=${r.client()}">
+                    <div class="k-doc-nom-tiers" th:text="${c.nom()}">Client</div>
+                    <div th:unless="${c.etat().contact().isEmpty()}" th:text="${'À l''attention de ' + c.etat().contact()}">Contact</div>
+                    <div th:text="${c.fige().adresseComplete()}">Adresse</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="k-doc-tableau">
+        <thead>
+        <tr><th>Date</th><th>Pièce</th><th>Libellé</th><th>Échéance</th>
+            <th class="k-doc-montant">Débit</th><th class="k-doc-montant">Crédit</th><th class="k-doc-montant">Solde</th></tr>
+        </thead>
+        <tbody>
+        <tr class="k-doc-groupe"><td colspan="6">Solde au début de la période</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.soldeInitial())}">0</td></tr>
+        <tr th:each="l : ${r.lignes()}">
+            <td th:text="${f.jour(l.date())}">01/11/2026</td>
+            <td th:text="${l.piece()}">FA-2026-0001</td>
+            <td th:text="${l.libelle()}">Facture</td>
+            <td th:text="${f.jour(l.echeance())}"></td>
+            <td class="k-doc-montant" th:text="${l.debit() > 0 ? f.nombre(l.debit()) : ''}"></td>
+            <td class="k-doc-montant" th:text="${l.credit() > 0 ? f.nombre(l.credit()) : ''}"></td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.solde())}">0</td>
+        </tr>
+        <tr th:if="${r.lignes().isEmpty()}"><td colspan="7">Aucune opération sur la période.</td></tr>
+        <tr class="k-doc-total"><td colspan="4">Totaux et solde à la fin de la période</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.totalDebit())}">0</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.totalCredit())}">0</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.soldeFinal())}">0</td></tr>
+        </tbody>
+    </table>
+
+    <p th:if="${r.soldeFinal() > 0}">Nous vous remercions de bien vouloir régler la somme de
+        <strong th:text="${f.montant(r.soldeFinal())}">0</strong> restant due à ce jour. Si votre paiement est en
+        route, merci de ne pas tenir compte de ce rappel.</p>
+    <p th:if="${r.soldeFinal() == 0}">Votre compte est soldé à la fin de la période. Merci de votre confiance.</p>
+    <p th:if="${r.soldeFinal() < 0}">Votre compte présente un solde en votre faveur de
+        <strong th:text="${f.montant(-r.soldeFinal())}">0</strong>.</p>
+
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

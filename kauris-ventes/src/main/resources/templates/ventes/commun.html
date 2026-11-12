@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans des ventes : onglets et style. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .v-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1.2rem; border-bottom: 1px solid var(--k-bord); }
+        .v-onglets a { padding: .45rem .8rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 14px;
+            border-radius: 6px 6px 0 0; }
+        .v-onglets a.v-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .v-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; margin: 0 0 1rem; }
+        .v-chiffre { border: 1px solid var(--k-bord); border-radius: 8px; padding: .7rem 1rem; background: var(--k-carte); }
+        .v-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .v-chiffre strong { font-size: 1.3rem; }
+        .v-chiffre.v-alerte strong { color: var(--k-rouge); }
+        .v-montant { text-align: right !important; white-space: nowrap; }
+        .v-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+        .v-boutons form { margin: 0; }
+        .v-barre { text-decoration: line-through; opacity: .6; }
+        .v-recherche { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: 0 0 1rem; }
+        .v-recherche label { display: grid; gap: .2rem; font-size: 13px; font-weight: 600; }
+        .v-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+        .v-pastille-alerte { background: #fdecef !important; color: #b81c3b !important; }
+    </style>
+    <nav class="v-onglets" aria-label="Ventes">
+        <a th:href="@{/ventes}" th:classappend="${onglet == 'accueil'} ? 'v-actif'">Tableau de bord</a>
+        <a th:href="@{/ventes/documents(type='DEVIS')}" th:classappend="${onglet == 'devis'} ? 'v-actif'">Devis</a>
+        <a th:href="@{/ventes/documents(type='FACTURE')}" th:classappend="${onglet == 'facture'} ? 'v-actif'">Factures</a>
+        <a th:href="@{/ventes/documents(type='AVOIR')}" th:classappend="${onglet == 'avoir'} ? 'v-actif'">Avoirs</a>
+        <a th:href="@{/ventes/impayes}" th:classappend="${onglet == 'impayes'} ? 'v-actif'">Impayés</a>
+        <a th:href="@{/ventes/clients}" th:classappend="${onglet == 'clients'} ? 'v-actif'">Clients</a>
+        <a th:href="@{/ventes/catalogue}" th:classappend="${onglet == 'catalogue'} ? 'v-actif'">Catalogue</a>
+        <a th:href="@{/ventes/reglages}" th:classappend="${onglet == 'reglages'} ? 'v-actif'">Réglages</a>
+    </nav>
+</th:block>
+
+<!-- La situation d'un document, en pastille. -->
+<span th:fragment="situation(s)" class="k-pastille"
+      th:classappend="${s.alerte() ? 'v-pastille-alerte' : ((s.name() == 'PAYEE' or s.name() == 'ACCEPTE' or s.name() == 'FACTURE') ? 'k-ok' : '')}"
+      th:text="${s.libelle()}">À payer</span>
+</body>
+</html>

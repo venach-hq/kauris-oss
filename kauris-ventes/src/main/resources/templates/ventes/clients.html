@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Clients', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <form class="v-recherche" method="get" th:action="@{/ventes/clients}">
+        <label>Rechercher <input name="q" th:value="${q}" placeholder="Nom, téléphone, NIF…" maxlength="80"></label>
+        <label style="display:flex;align-items:center;gap:.3rem;font-weight:400">
+            <input type="checkbox" name="archives" value="true" th:checked="${archives}"> avec les clients archivés</label>
+        <button type="submit" class="k-bouton k-secondaire">Chercher</button>
+    </form>
+
+    <p class="k-discret" th:if="${clients.isEmpty()}">Aucun client<span th:unless="${q.isEmpty()}"> pour cette recherche</span>.</p>
+    <table class="k-table" th:unless="${clients.isEmpty()}">
+        <thead><tr><th>Client</th><th>Téléphone</th><th>Ville</th><th>NIF</th><th>Délai</th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${clients}" th:classappend="${c.actif()} ? '' : 'v-barre'">
+            <td><a th:href="@{/ventes/clients/{id}(id=${c.id()})}" th:text="${c.nom()}">Client</a>
+                <span class="k-discret" th:text="${c.type().libelle()}">Entreprise</span></td>
+            <td th:text="${c.telephone()}">+228</td>
+            <td th:text="${c.ville()}">Lomé</td>
+            <td th:text="${c.nif()}">NIF</td>
+            <td th:text="${c.delaiPaiement() == 0 ? 'Comptant' : c.delaiPaiement() + ' j'}">30 j</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <details th:if="${droits.saisir()}" th:open="${clients.isEmpty()}">
+        <summary><strong>Ajouter un client</strong></summary>
+        <form class="k-pile k-large" method="post" th:action="@{/ventes/clients}">
+            <th:block th:replace="~{ventes/clients :: champs(${null}, ${delaiParDefaut})}"></th:block>
+            <button type="submit" class="k-bouton">Ajouter le client</button>
+        </form>
+    </details>
+</section>
+
+<!-- Les champs de la fiche client, partagés par l'ajout et la modification. -->
+<th:block th:fragment="champs(e, delai)">
+    <fieldset>
+        <legend>Client</legend>
+        <label>Type
+            <select name="type">
+                <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}"
+                        th:selected="${e != null and e.type() == t}">Entreprise</option>
+            </select>
+        </label>
+        <label>Nom ou raison sociale <input name="nom" th:value="${e?.nom()}" required minlength="2" maxlength="150"></label>
+        <label>Personne à contacter <input name="contact" th:value="${e?.contact()}" maxlength="120"></label>
+        <label>Téléphone <input name="telephone" type="tel" th:value="${e?.telephone()}" maxlength="40"></label>
+        <label>Email <input name="email" type="email" th:value="${e?.email()}" maxlength="190"></label>
+    </fieldset>
+    <fieldset>
+        <legend>Adresse et identification</legend>
+        <label>Adresse <input name="adresse" th:value="${e?.adresse()}" maxlength="190"></label>
+        <label>Ville <input name="ville" th:value="${e?.ville()}" maxlength="80"></label>
+        <label>Pays <input name="pays" th:value="${e?.pays()}" maxlength="60"></label>
+        <label>NIF / IFU / NCC <input name="nif" th:value="${e?.nif()}" maxlength="60"></label>
+        <label>RCCM <input name="rccm" th:value="${e?.rccm()}" maxlength="60"></label>
+    </fieldset>
+    <fieldset>
+        <legend>Paiement</legend>
+        <label>Délai de paiement, en jours (0 = comptant)
+            <input name="delaiPaiement" inputmode="numeric" th:value="${e != null ? e.delaiPaiement() : delai}" maxlength="3">
+        </label>
+        <label>Notes internes (non imprimées) <input name="notes" th:value="${e?.notes()}" maxlength="1000"></label>
+    </fieldset>
+</th:block>
+</body>
+</html>
