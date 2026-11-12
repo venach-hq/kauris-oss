@@ -473,7 +473,9 @@ public class DocumentsVentesController {
             throw new ErreurMetier("Objet (200 caractères au plus) et message (5 000 au plus) obligatoires.");
         }
         var e = entreprises.consulter(a.tenantId());
-        courriels.envoyer(a.tenantId(), destinataire, e.email(), e.raisonSociale(), sujet, texte, piece);
+        // Les réponses vont à l'entreprise, ou à la personne qui écrit si l'entreprise n'a pas d'email.
+        String repondreA = e.email() == null || e.email().isBlank() ? a.email() : e.email();
+        courriels.envoyer(a.tenantId(), destinataire, repondreA, e.raisonSociale(), sujet, texte, piece);
     }
 
     private Envoi envoiDocument(Acces a, DocumentVente d, String contexteWeb) {
