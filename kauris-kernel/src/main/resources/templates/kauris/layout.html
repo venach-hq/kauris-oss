@@ -35,6 +35,8 @@
         <noscript><button type="submit">OK</button></noscript>
     </form>
     <span class="k-espace"></span>
+    <a class="k-aide-lien" th:each="l : ${liensEnPlus != null ? liensEnPlus : {}}" th:href="@{${l.chemin()}}"
+       th:text="${l.libelle()}">Lien</a>
     <a class="k-aide-lien" th:if="${liens != null}" th:href="${liens.guide()}" target="_blank" rel="noopener">Aide</a>
     <a class="k-notifications" th:href="@{/notifications}" th:if="${kauris != null and kauris.acces() != null}">
         Notifications
