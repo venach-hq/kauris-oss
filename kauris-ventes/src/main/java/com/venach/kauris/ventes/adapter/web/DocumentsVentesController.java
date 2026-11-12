@@ -230,6 +230,8 @@ public class DocumentsVentesController {
         model.addAttribute("issus", ventes.issusDe(a, id));
         model.addAttribute("reglements", d.type() == TypeDocument.FACTURE ? ventes.reglements(a, id) : List.of());
         model.addAttribute("modes", ModeReglement.values());
+        model.addAttribute("comptes", ventes.comptesDEncaissement(a));
+        model.addAttribute("actions", ventes.actionsDEncaissement(a, d));
         return "ventes/document";
     }
 
@@ -307,7 +309,7 @@ public class DocumentsVentesController {
             ventes.encaisser(a, id, FormatsVentes.lireDate(c.get("date")),
                     FormatsVentes.lireMontant(c.get("montant"), "Montant"),
                     FormatsVentes.lireChoix(ModeReglement.class, c.get("mode"), "Mode de règlement"),
-                    c.get("reference"));
+                    c.get("reference"), FormatsVentes.lireId(c.get("compte")));
             flash.addFlashAttribute("succes", "Règlement enregistré.");
             return "redirect:" + PAGE + "/documents/" + id;
         }, PAGE + "/documents/" + id);

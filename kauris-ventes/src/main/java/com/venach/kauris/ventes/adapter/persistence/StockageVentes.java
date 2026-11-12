@@ -324,6 +324,7 @@ public class StockageVentes implements Ports.Clients, Ports.Articles, Ports.Docu
         e.montant = r.montant();
         e.mode = r.mode().name();
         e.reference = r.reference();
+        e.compteId = r.compteId();
         e.annule = r.annule();
         e.motifAnnulation = r.motifAnnulation();
         e.creePar = r.creePar();
@@ -355,7 +356,7 @@ public class StockageVentes implements Ports.Clients, Ports.Articles, Ports.Docu
 
     private static Reglement reglement(ReglementEntity e) {
         return new Reglement(e.id, e.tenantId, e.factureId, e.date, e.montant, ModeReglement.valueOf(e.mode),
-                e.reference, e.annule, e.motifAnnulation, e.creePar, e.creeLe);
+                e.reference, e.compteId, e.annule, e.motifAnnulation, e.creePar, e.creeLe);
     }
 
     // ================================================================== réglages

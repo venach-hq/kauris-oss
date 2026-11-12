@@ -7,9 +7,15 @@ import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Un paiement reçu pour une facture. Il ne se modifie pas ; une erreur s'annule (il reste au journal). */
+/**
+ * Un paiement reçu pour une facture. Il ne se modifie pas ; une erreur s'annule (il reste au journal).
+ *
+ * @param compteId le compte de trésorerie où l'argent est arrivé, si l'application en tient (Kauris Cloud) ;
+ *                 null sinon
+ */
 public record Reglement(UUID id, UUID tenantId, UUID factureId, LocalDate date, long montant, ModeReglement mode,
-                        String reference, boolean annule, String motifAnnulation, UUID creePar, Instant creeLe) {
+                        String reference, UUID compteId, boolean annule, String motifAnnulation, UUID creePar,
+                        Instant creeLe) {
 
     public Reglement {
         Objects.requireNonNull(id);
@@ -26,16 +32,16 @@ public record Reglement(UUID id, UUID tenantId, UUID factureId, LocalDate date, 
     }
 
     public static Reglement nouveau(UUID tenantId, UUID factureId, LocalDate date, long montant, ModeReglement mode,
-                                    String reference, UUID creePar, Instant maintenant) {
-        return new Reglement(UUID.randomUUID(), tenantId, factureId, date, montant, mode, reference, false, "",
-                creePar, maintenant);
+                                    String reference, UUID compteId, UUID creePar, Instant maintenant) {
+        return new Reglement(UUID.randomUUID(), tenantId, factureId, date, montant, mode, reference, compteId, false,
+                "", creePar, maintenant);
     }
 
     public Reglement annuler(String motif) {
         if (annule) {
             throw new ErreurMetier("Ce règlement est déjà annulé.");
         }
-        return new Reglement(id, tenantId, factureId, date, montant, mode, reference, true,
+        return new Reglement(id, tenantId, factureId, date, montant, mode, reference, compteId, true,
                 Client.texte(motif, "Motif", 200), creePar, creeLe);
     }
 }

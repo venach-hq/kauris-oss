@@ -1,5 +1,6 @@
 package com.venach.kauris.ventes.application;
 
+import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.ventes.domain.Article;
 import com.venach.kauris.ventes.domain.Client;
 import com.venach.kauris.ventes.domain.DocumentVente;
@@ -85,5 +86,53 @@ public final class Ports {
         Optional<ReglagesVentes> reglages(UUID tenantId);
 
         void sauvegarder(ReglagesVentes reglages);
+    }
+
+    /**
+     * Ce que l'application ajoute aux encaissements des ventes. Le mode autonome n'ajoute rien
+     * ({@link #AUCUN}) ; Kauris Cloud y branche sa trésorerie : comptes où déposer un règlement, demande de
+     * paiement PI-SPI, report des règlements dans les comptes.
+     */
+    public interface Encaissements {
+
+        /** Un compte où un règlement peut être déposé (caisse, banque, Mobile Money…). */
+        record Compte(UUID id, String libelle) {
+        }
+
+        /** Une autre façon d'encaisser une facture, montrée sur la facture (par exemple « Demander par PI-SPI »). */
+        record Action(String libelle, String chemin, String aide) {
+        }
+
+        /** Les comptes où déposer un règlement ; vide = la question n'est pas posée. */
+        List<Compte> comptes(UUID tenantId);
+
+        /** Les autres façons d'encaisser cette facture émise, pour cette personne. */
+        List<Action> actions(Acces acces, DocumentVente facture);
+
+        /** Appelé dans la transaction du règlement : ce qui échoue ici annule le règlement. */
+        void reglementEnregistre(DocumentVente facture, Reglement reglement);
+
+        /** Appelé dans la transaction de l'annulation. */
+        void reglementAnnule(DocumentVente facture, Reglement reglement);
+
+        Encaissements AUCUN = new Encaissements() {
+            @Override
+            public List<Compte> comptes(UUID tenantId) {
+                return List.of();
+            }
+
+            @Override
+            public List<Action> actions(Acces acces, DocumentVente facture) {
+                return List.of();
+            }
+
+            @Override
+            public void reglementEnregistre(DocumentVente facture, Reglement reglement) {
+            }
+
+            @Override
+            public void reglementAnnule(DocumentVente facture, Reglement reglement) {
+            }
+        };
     }
 }

@@ -222,6 +222,9 @@ final class Entites {
         String mode;
         @Column(name = "reference", length = 80, nullable = false)
         String reference;
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        @Column(name = "compte_id", length = 36, updatable = false)
+        UUID compteId;
         @Column(name = "annule", nullable = false)
         boolean annule;
         @Column(name = "motif_annulation", length = 200, nullable = false)

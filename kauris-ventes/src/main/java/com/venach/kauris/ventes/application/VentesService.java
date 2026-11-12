@@ -50,12 +50,20 @@ public class VentesService {
     private final Ports.Documents documents;
     private final Ports.Reglements reglements;
     private final Ports.Reglages reglages;
+    private final Ports.Encaissements encaissements;
     private final UniteDeTravail transaction;
     private final Clock horloge;
 
     public VentesService(Ports.Clients clients, Ports.Articles articles, Ports.Documents documents,
                          Ports.Reglements reglements, Ports.Reglages reglages, UniteDeTravail transaction,
                          Clock horloge) {
+        this(clients, articles, documents, reglements, reglages, Ports.Encaissements.AUCUN, transaction, horloge);
+    }
+
+    public VentesService(Ports.Clients clients, Ports.Articles articles, Ports.Documents documents,
+                         Ports.Reglements reglements, Ports.Reglages reglages, Ports.Encaissements encaissements,
+                         UniteDeTravail transaction, Clock horloge) {
+        this.encaissements = encaissements;
         this.clients = clients;
         this.articles = articles;
         this.documents = documents;
@@ -445,8 +453,30 @@ public class VentesService {
                 .sorted(Comparator.comparing(Reglement::date).thenComparing(Reglement::creeLe)).toList();
     }
 
+    /** Les comptes où déposer un règlement (vide si l'application n'en tient pas). */
+    public List<Ports.Encaissements.Compte> comptesDEncaissement(Acces a) {
+        exiger(a, CONSULTER);
+        return encaissements.comptes(a.tenantId());
+    }
+
+    /** Les autres façons d'encaisser cette facture, si elle a un reste à payer. */
+    public List<Ports.Encaissements.Action> actionsDEncaissement(Acces a, DocumentVente facture) {
+        exiger(a, CONSULTER);
+        if (!a.peut(ENCAISSER) || facture.type() != TypeDocument.FACTURE || facture.modifiable()
+                || facture.resteAPayer() <= 0) {
+            return List.of();
+        }
+        return encaissements.actions(a, facture);
+    }
+
     public Reglement encaisser(Acces a, UUID factureId, LocalDate date, long montant, ModeReglement mode,
                                String reference) {
+        return encaisser(a, factureId, date, montant, mode, reference, null);
+    }
+
+    /** @param compteId compte de dépôt, choisi parmi {@link #comptesDEncaissement} ; null si aucun */
+    public Reglement encaisser(Acces a, UUID factureId, LocalDate date, long montant, ModeReglement mode,
+                               String reference, UUID compteId) {
         exiger(a, ENCAISSER);
         if (date == null || date.isAfter(aujourdHui())) {
             throw new ErreurMetier("Date du règlement : aujourd'hui ou avant.");
@@ -454,18 +484,50 @@ public class VentesService {
         if (mode == null) {
             throw new ErreurMetier("Choisissez le mode de règlement.");
         }
+        List<Ports.Encaissements.Compte> comptes = encaissements.comptes(a.tenantId());
+        if (compteId == null && !comptes.isEmpty()) {
+            throw new ErreurMetier("Choisissez le compte où l'argent est arrivé.");
+        }
+        if (compteId != null && comptes.stream().noneMatch(c -> c.id().equals(compteId))) {
+            throw new ErreurMetier("Ce compte ne reçoit pas de règlement.");
+        }
+        return transaction.executer(() -> enregistrer(a.tenantId(), factureId, date, montant, mode, reference,
+                compteId, a.membreId()));
+    }
+
+    /**
+     * Un règlement constaté par l'application elle-même (paiement PI-SPI reçu pour une demande faite depuis la
+     * facture), sans personne connectée : la permission a été vérifiée quand la demande a été faite. Le montant
+     * est ramené à ce qui reste à payer ; rien n'est enregistré si la facture est déjà soldée.
+     */
+    public java.util.Optional<Reglement> encaisserAutomatiquement(UUID tenantId, UUID factureId, LocalDate date,
+                                                                  long montant, ModeReglement mode, String reference,
+                                                                  UUID compteId) {
         return transaction.executer(() -> {
-            DocumentVente f = verrouillerDocument(a.tenantId(), factureId);
-            f.encaisser(montant);
-            if (date.isBefore(f.contenu().date())) {
-                throw new ErreurMetier("Le règlement ne peut pas précéder la date de la facture.");
+            DocumentVente f = verrouillerDocument(tenantId, factureId);
+            long retenu = Math.min(montant, f.resteAPayer());
+            if (f.type() != TypeDocument.FACTURE || f.statut() != StatutDocument.EMIS || retenu <= 0) {
+                return java.util.Optional.<Reglement>empty();
             }
-            Reglement r = Reglement.nouveau(a.tenantId(), factureId, date, montant, mode, reference, a.membreId(),
-                    Instant.now(horloge));
-            reglements.sauvegarder(r);
-            documents.sauvegarder(f);
-            return r;
+            LocalDate jour = date.isBefore(f.contenu().date()) ? f.contenu().date() : date;
+            return java.util.Optional.of(enregistrer(tenantId, factureId, jour, retenu, mode, reference, compteId,
+                    null));
         });
+    }
+
+    private Reglement enregistrer(UUID tenantId, UUID factureId, LocalDate date, long montant, ModeReglement mode,
+                                  String reference, UUID compteId, UUID creePar) {
+        DocumentVente f = verrouillerDocument(tenantId, factureId);
+        f.encaisser(montant);
+        if (date.isBefore(f.contenu().date())) {
+            throw new ErreurMetier("Le règlement ne peut pas précéder la date de la facture.");
+        }
+        Reglement r = Reglement.nouveau(tenantId, factureId, date, montant, mode, reference, compteId, creePar,
+                Instant.now(horloge));
+        reglements.sauvegarder(r);
+        documents.sauvegarder(f);
+        encaissements.reglementEnregistre(f, r);
+        return r;
     }
 
     public void annulerReglement(Acces a, UUID reglementId, String motif) {
@@ -481,6 +543,7 @@ public class VentesService {
             f.desencaisser(r.montant());
             reglements.sauvegarder(annule);
             documents.sauvegarder(f);
+            encaissements.reglementAnnule(f, annule);
         });
     }
 
