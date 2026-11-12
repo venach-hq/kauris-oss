@@ -59,3 +59,8 @@ info:
 kauris:
   documents:
     polices: ${KAURIS_POLICES:}
+  # Liens « Aide » et « Code source » de chaque page. Vides : le guide et le dépôt officiels. Une version modifiée
+  # mise à disposition par le réseau indique son propre dépôt (licence AGPL-3.0).
+  ui:
+    guide: ${KAURIS_GUIDE:}
+    code-source: ${KAURIS_CODE_SOURCE:}

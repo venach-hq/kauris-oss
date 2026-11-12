@@ -1,0 +1,11 @@
+# Seules les sources servent à construire l'image.
+**/target/
+.git/
+.github/
+.idea/
+.vscode/
+docs/
+deploy/
+*.env
+!*.env.example
+**/node_modules/

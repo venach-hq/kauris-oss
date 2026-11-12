@@ -9,6 +9,7 @@
         <summary>Comment ça marche ?</summary>
         <p>Le circuit : bon de commande → réception (entrée en stock) → facture fournisseur → paiement.</p>
         <p>Vous pouvez aussi saisir une facture fournisseur sans commande (loyer, électricité…).</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('stock-achats')}" target="_blank" rel="noopener">Guide complet du stock et des achats</a></p>
     </details>
     <div class="a-boutons">
         <a class="k-bouton" th:if="${droits.commander()}" th:href="@{/achats/commandes/nouvelle}">Nouvelle commande</a>

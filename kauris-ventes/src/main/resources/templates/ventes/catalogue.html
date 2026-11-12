@@ -9,6 +9,7 @@
         <summary>Comment ça marche ?</summary>
         <p>Le catalogue garde vos articles et services avec leur prix et leur TVA, pour aller plus vite dans les documents.</p>
         <p>Cochez « Suivre le stock » pour qu’une facture émise sorte la quantité du stock ; le seuil d’alerte signale le réapprovisionnement.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('ventes')}" target="_blank" rel="noopener">Guide complet des ventes</a></p>
     </details>
 
     <p>Les articles et prestations que vous vendez, avec leur prix hors taxes. Une facture reprend le prix du moment :

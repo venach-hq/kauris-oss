@@ -35,6 +35,7 @@
         <noscript><button type="submit">OK</button></noscript>
     </form>
     <span class="k-espace"></span>
+    <a class="k-aide-lien" th:if="${liens != null}" th:href="${liens.guide()}" target="_blank" rel="noopener">Aide</a>
     <a class="k-notifications" th:href="@{/notifications}" th:if="${kauris != null and kauris.acces() != null}">
         Notifications
         <span id="k-non-lues" class="k-compteur" th:classappend="${kauris.notificationsNonLues() == 0} ? 'k-vide'"
@@ -54,6 +55,11 @@
     <div class="k-message k-ko" role="alert" th:if="${erreur}" th:text="${erreur}">Refusé.</div>
     <th:block th:replace="${contenu}"/>
 </main>
+<footer class="k-pied" th:if="${liens != null}">
+    Kauris est un logiciel libre sous licence AGPL-3.0 ·
+    <a th:href="${liens.codeSource()}" target="_blank" rel="noopener">Code source</a> ·
+    <a th:href="${liens.guide()}" target="_blank" rel="noopener">Guide d’utilisation</a>
+</footer>
 <!-- Les avis reçus en direct s'affichent ici ; kauris.js y lit les adresses du canal et du compteur. -->
 <div id="k-avis" class="k-avis" role="status" aria-live="polite"
      th:if="${kauris != null and kauris.acces() != null}"

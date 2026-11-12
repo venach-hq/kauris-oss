@@ -136,7 +136,11 @@ class ParcoursLocalTest {
 
         // Mon profil : chacun change son propre nom.
         mvc.perform(get("/profil").session(session)).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Awa Mensah")));
+                .andExpect(content().string(containsString("Awa Mensah")))
+                .andExpect(content().string(containsString("href=\"/compte\"")))
+                // Aide et code source (licence AGPL-3.0) sur chaque page.
+                .andExpect(content().string(containsString("https://github.com/venach-hq/kauris-oss/blob/main/docs/guide")))
+                .andExpect(content().string(containsString("AGPL-3.0")));
         mvc.perform(post("/profil/nom").session(session).with(csrf()).param("nom", "Awa M. Mensah"))
                 .andExpect(redirectedUrl("/profil"))
                 .andExpect(flash().attributeExists("succes"));

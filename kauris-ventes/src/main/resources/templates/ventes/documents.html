@@ -10,6 +10,7 @@
         <p>Un brouillon se modifie librement ; une fois émis, le document est numéroté et figé.</p>
         <p>Un devis accepté se transforme en facture en un clic. Une facture se corrige par un avoir.</p>
         <p>Depuis un document émis : PDF, « Envoyer par email », enregistrer un règlement.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('ventes')}" target="_blank" rel="noopener">Guide complet des ventes</a></p>
     </details>
 
     <div class="v-boutons" th:if="${droits.saisir() and (type == null or type.name() != 'AVOIR')}">

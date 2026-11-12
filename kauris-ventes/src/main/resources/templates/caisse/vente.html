@@ -66,6 +66,7 @@
             Money ou par carte est déduit des espèces. Rien saisi en espèces = le compte juste.</p>
         <p>Les prix sont ceux du catalogue (TTC). Un client nommé reçoit une vraie facture à son nom ; sinon c’est
             le « Client comptoir ».</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('caisse')}" target="_blank" rel="noopener">Guide complet de la caisse</a></p>
     </details>
 
     <div class="c-ecran" id="c-vente" th:attr="data-devise=${f.devise().symbole()}">

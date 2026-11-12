@@ -18,6 +18,23 @@
 
     <name>Kauris (open source)</name>
     <description>Modules de gestion pour les PME de la zone UEMOA, utilisables seuls ou dans Kauris Cloud.</description>
+    <url>https://github.com/venach-hq/kauris-oss</url>
+    <inceptionYear>2026</inceptionYear>
+    <organization>
+        <name>Venach</name>
+        <url>https://kauris.venach.com</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License v3.0 only</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <url>https://github.com/venach-hq/kauris-oss</url>
+        <connection>scm:git:https://github.com/venach-hq/kauris-oss.git</connection>
+    </scm>
 
     <modules>
         <module>kauris-kernel</module>

@@ -17,6 +17,7 @@
         <p>L’écart compare ce total à ce qui devrait y être : fond + ventes payées en espèces. Un écart se note,
             il ne se corrige pas ici.</p>
         <p>Après la clôture, imprimez le rapport et rangez-le avec la recette.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('caisse')}" target="_blank" rel="noopener">Guide complet de la caisse</a></p>
     </details>
 
     <div class="c-chiffres">

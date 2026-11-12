@@ -12,6 +12,7 @@
             un prix TTC. Le taux se change sous les touches.</p>
         <p>En dessous : prix de vente à partir du coût, marge d’un article (taux de marge et taux de marque),
             remise et monnaie à rendre. La flèche → met un résultat à l’écran.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('caisse')}" target="_blank" rel="noopener">Guide complet de la caisse</a></p>
     </details>
     <div th:replace="~{caisse/commun :: calculatrice(${tauxTva})}"></div>
     <script th:src="@{/caisse/calculatrice.js}" defer></script>
