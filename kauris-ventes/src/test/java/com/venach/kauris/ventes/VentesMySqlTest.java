@@ -53,6 +53,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -214,12 +215,12 @@ class VentesMySqlTest {
                 .andExpect(content().string(containsString("Émettre")))
                 .andExpect(content().string(containsString("Croissants")));
 
-        mvc.perform(post(fiche + "/emettre")).andExpect(redirectedUrlPattern(fiche));
+        mvc.perform(post(fiche + "/emettre")).andExpect(redirectedUrl(fiche));
         String numero = TypeDocument.FACTURE.numero(jour.getYear(), 1);
         mvc.perform(get(fiche)).andExpect(content().string(containsString(numero)))
                 .andExpect(content().string(containsString("Enregistrer un règlement")));
         mvc.perform(post(fiche + "/reglements").param("date", jour.toString()).param("montant", "20 000")
-                .param("mode", "ESPECES").param("reference", "")).andExpect(redirectedUrlPattern(fiche));
+                .param("mode", "ESPECES").param("reference", "")).andExpect(redirectedUrl(fiche));
 
         // 200 × 250 = 50 000 à 18 % (9 000) + 1,5 × 1 000 = 1 500 sans TVA → 60 500 TTC ; 20 000 réglés
         DocumentVente lu = ventes.document(a, id);
