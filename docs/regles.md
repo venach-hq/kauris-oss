@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_1`).
+   `V20261111_22`, les ventes à `V20261112_2`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune.
 7. CI au vert (`make verify`, `make secrets`).
@@ -156,6 +156,14 @@ perdre sans que rien ne manque. Le lien d'une notification est toujours un chemi
 
 Les secrets sont lus dans les variables d'environnement. Une variable manquante en production doit
 empêcher le démarrage, jamais être remplacée par une valeur par défaut.
+
+## Ventes : ce que l'application peut y brancher
+
+Le module Ventes déclare un port `Ports.Encaissements` : les comptes où déposer un règlement, d'autres façons
+d'encaisser une facture (boutons sur la facture) et deux appels, dans la transaction, quand un règlement est
+enregistré ou annulé. Le mode autonome n'y branche rien ; Kauris Cloud y branche sa trésorerie (demande de
+paiement PI-SPI, report des règlements). Un paiement constaté par l'application elle-même passe par
+`VentesService.encaisserAutomatiquement`, ramené au reste à payer.
 
 ## Paiements
 

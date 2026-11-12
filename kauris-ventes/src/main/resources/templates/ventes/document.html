@@ -129,6 +129,12 @@
             </tbody>
         </table>
 
+        <div class="v-boutons" th:unless="${actions.isEmpty()}">
+            <th:block th:each="x : ${actions}">
+                <a class="k-bouton" th:href="@{${x.chemin()}}" th:text="${x.libelle()}">Demander le paiement</a>
+                <span class="k-discret" th:text="${x.aide()}">Aide</span>
+            </th:block>
+        </div>
         <details th:if="${droits.encaisser() and d.resteAPayer() > 0}" open>
             <summary><strong>Enregistrer un règlement</strong></summary>
             <form class="k-pile" method="post" th:action="@{/ventes/documents/{id}/reglements(id=${d.id()})}">
@@ -141,6 +147,13 @@
                     </select>
                 </label>
                 <label>Référence (n° de chèque, de transaction…) <input name="reference" maxlength="80"></label>
+                <label th:unless="${comptes.isEmpty()}">Arrivé sur le compte
+                    <select name="compte" required>
+                        <option value="">Choisir…</option>
+                        <option th:each="c : ${comptes}" th:value="${c.id()}" th:text="${c.libelle()}">Caisse</option>
+                    </select>
+                    <span class="k-discret">Le règlement est aussi inscrit dans ce compte de trésorerie.</span>
+                </label>
                 <button type="submit" class="k-bouton">Enregistrer le règlement</button>
             </form>
         </details>

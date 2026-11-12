@@ -10,11 +10,13 @@ import com.venach.kauris.ventes.adapter.persistence.StockageVentes;
 import com.venach.kauris.ventes.adapter.web.DocumentsVentesController;
 import com.venach.kauris.ventes.adapter.web.ModuleVentes;
 import com.venach.kauris.ventes.adapter.web.VentesController;
+import com.venach.kauris.ventes.application.Ports;
 import com.venach.kauris.ventes.application.VentesService;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,9 +38,18 @@ public class VentesAutoConfiguration {
         return new StockageVentes(SharedEntityManagerCreator.createSharedEntityManager(fabrique));
     }
 
+    /** Rien à ajouter aux encaissements par défaut ; Kauris Cloud fournit le sien (sa trésorerie). */
     @Bean
-    public VentesService ventesService(StockageVentes stockage, UniteDeTravail transaction, Clock horloge) {
-        return new VentesService(stockage, stockage, stockage, stockage, stockage, transaction, horloge);
+    @ConditionalOnMissingBean(Ports.Encaissements.class)
+    public Ports.Encaissements encaissementsVentes() {
+        return Ports.Encaissements.AUCUN;
+    }
+
+    @Bean
+    public VentesService ventesService(StockageVentes stockage, Ports.Encaissements encaissements,
+                                       UniteDeTravail transaction, Clock horloge) {
+        return new VentesService(stockage, stockage, stockage, stockage, stockage, encaissements, transaction,
+                horloge);
     }
 
     @Bean
