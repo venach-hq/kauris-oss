@@ -135,4 +135,14 @@ public final class Ports {
             }
         };
     }
+
+    /** Le stock, prévenu quand une facture (sortie) ou un avoir (retour) est émis, dans la même transaction. */
+    @FunctionalInterface
+    public interface Stock {
+
+        void documentEmis(DocumentVente document);
+
+        Stock AUCUN = document -> {
+        };
+    }
 }

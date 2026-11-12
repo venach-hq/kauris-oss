@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Mouvements de stock', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+    <form class="s-filtres" method="get" th:action="@{/stock/mouvements}">
+        <label>Dépôt
+            <select name="depot">
+                <option value="">Tous les dépôts</option>
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}" th:selected="${d.id() == depotId}">Magasin</option>
+            </select>
+        </label>
+        <label>Du <input type="date" name="du" th:value="${du}"></label>
+        <label>Au <input type="date" name="au" th:value="${au}"></label>
+        <button type="submit" class="k-bouton k-secondaire">Afficher</button>
+    </form>
+    <p class="k-discret" th:if="${mouvements.isEmpty()}">Aucun mouvement.</p>
+    <table class="k-table" th:unless="${mouvements.isEmpty()}">
+        <thead><tr><th>Date</th><th>N°</th><th>Article</th><th>Mouvement</th><th>Dépôt</th><th class="s-nombre">Quantité</th>
+            <th class="s-nombre">Valeur</th><th>Pièce</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${mouvements}">
+            <td th:text="${f.jour(m.date())}">01/11/2026</td>
+            <td th:text="${m.numero()}">MS-2026-000001</td>
+            <td><a th:href="@{/stock/articles/{id}(id=${m.articleId()})}"
+                   th:text="${articles.containsKey(m.articleId()) ? articles.get(m.articleId()).designation() : 'Article'}">Article</a></td>
+            <td th:text="${m.type().libelle()}">Entrée</td>
+            <td th:text="${nomsDepots.get(m.depotId())}">Magasin</td>
+            <td class="s-nombre" th:classappend="${m.type().entree()} ? 's-entree' : 's-sortie'"
+                th:text="${(m.type().entree() ? '+ ' : '- ') + f.decimal(m.quantite())}">+ 1</td>
+            <td class="s-nombre" th:text="${f.montant(m.valeur())}">0</td>
+            <td th:text="${m.reference()}">BL</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

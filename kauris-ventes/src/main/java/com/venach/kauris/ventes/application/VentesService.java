@@ -51,6 +51,7 @@ public class VentesService {
     private final Ports.Reglements reglements;
     private final Ports.Reglages reglages;
     private final Ports.Encaissements encaissements;
+    private Ports.Stock stock = Ports.Stock.AUCUN;
     private final UniteDeTravail transaction;
     private final Clock horloge;
 
@@ -71,6 +72,11 @@ public class VentesService {
         this.reglages = reglages;
         this.transaction = transaction;
         this.horloge = horloge;
+    }
+
+    /** Branche le stock (module Achats et stock) : il suit les factures et avoirs émis. */
+    public void brancherStock(Ports.Stock stock) {
+        this.stock = stock == null ? Ports.Stock.AUCUN : stock;
     }
 
     public LocalDate aujourdHui() {
@@ -413,6 +419,9 @@ public class VentesService {
                 documents.sauvegarder(origine);
             }
             documents.sauvegarder(d);
+            if (d.type() != TypeDocument.DEVIS) {
+                stock.documentEmis(d);
+            }
             return d;
         });
     }

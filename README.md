@@ -39,7 +39,7 @@ toute l'organisation ou pour un établissement.
 | Dossier | Rôle |
 |---|---|
 | `kauris-kernel` | Socle commun : registre des modules, organisation → établissements → membres → rôles et permissions, paramètres de l'entreprise (identité légale UEMOA, monnaies, compte bancaire, logo, thème des documents), ossature commune des documents et PDF, comptes locaux, interface commune, notifications |
-| `kauris-ventes` | Clients, catalogue (articles et prestations), devis, factures et avoirs numérotés par année, TVA par taux, règlements, impayés, relevé de compte client ; documents à l'écran et en PDF |
+| `kauris-ventes` | Ventes : clients, catalogue, devis, factures et avoirs numérotés par année, TVA par taux, règlements, impayés, relevé de compte client. Achats et stock : dépôts, entrées, sorties, transferts, inventaires, valeur au coût moyen pondéré, sortie à la facturation. Documents à l'écran et en PDF |
 | `kauris-standalone` | Lanceur autonome des modules, avec la connexion « local » |
 | `docs/` | Règles du projet |
 

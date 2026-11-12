@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Stock', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <div class="s-chiffres">
+        <div class="s-chiffre"><span>Valeur du stock (coût moyen)</span><strong th:text="${f.montant(etat.valeurTotale())}">0</strong></div>
+        <div class="s-chiffre"><span>Articles suivis</span><strong th:text="${etat.lignes().size()}">0</strong></div>
+        <div class="s-chiffre" th:classappend="${etat.alertes() > 0} ? 's-alerte'"><span>Stock bas</span>
+            <strong th:text="${etat.alertes()}">0</strong>
+            <a th:if="${etat.alertes() > 0 and !bas}" th:href="@{/stock(bas=true,depot=${depotId})}">Voir</a></div>
+    </div>
+
+    <form class="s-filtres" method="get" th:action="@{/stock}">
+        <label>Dépôt
+            <select name="depot">
+                <option value="">Tous les dépôts</option>
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}" th:selected="${d.id() == depotId}">Magasin</option>
+            </select>
+        </label>
+        <label>Rechercher <input name="q" th:value="${q}" maxlength="80" placeholder="Article ou référence"></label>
+        <label style="display:flex;align-items:center;gap:.3rem;font-weight:400">
+            <input type="checkbox" name="bas" value="true" th:checked="${bas}"> stock bas seulement</label>
+        <button type="submit" class="k-bouton k-secondaire">Afficher</button>
+        <a class="k-bouton k-secondaire" th:href="@{/stock/documents/etat(depot=${depotId})}" target="_blank" rel="noopener">État du stock (PDF)</a>
+    </form>
+
+    <div class="k-message" th:if="${etat.lignes().isEmpty() and q.isEmpty() and !bas}">Aucun article suivi en stock.
+        Dans <a th:href="@{/ventes/catalogue}">Ventes → Catalogue</a>, cochez « Suivre le stock » sur vos articles,
+        puis saisissez leur stock initial.</div>
+    <table class="k-table" th:unless="${etat.lignes().isEmpty()}">
+        <thead><tr><th>Article</th><th class="s-nombre" th:text="${etat.depot() == null ? 'Quantité' : 'Dans ' + etat.depot().nom()}">Quantité</th>
+            <th class="s-nombre" th:if="${etat.depot() != null}">Total</th>
+            <th class="s-nombre">Coût moyen</th><th class="s-nombre">Valeur</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${etat.lignes()}">
+            <td><a th:href="@{/stock/articles/{id}(id=${l.article().id()})}" th:text="${l.article().designation()}">Article</a>
+                <span class="k-discret" th:unless="${l.article().reference().isEmpty()}" th:text="${l.article().reference()}">REF</span></td>
+            <td class="s-nombre" th:classappend="${l.quantite().signum() < 0} ? 's-negatif'"
+                th:text="${f.decimal(l.quantite()) + ' ' + l.article().unite()}">0</td>
+            <td class="s-nombre" th:if="${etat.depot() != null}" th:text="${f.decimal(l.quantiteTotale())}">0</td>
+            <td class="s-nombre" th:text="${f.montant(l.cmup())}">0</td>
+            <td class="s-nombre" th:text="${f.montant(l.valeur())}">0</td>
+            <td><span class="k-pastille k-ko" th:if="${l.bas()}"
+                      th:text="${l.quantiteTotale().signum() < 0 ? 'Négatif' : 'Stock bas'}">Stock bas</span></td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="k-discret">La valeur est au coût moyen unitaire pondéré : chaque entrée recalcule le coût moyen, chaque
+        sortie part à ce coût. Une quantité négative signale une vente enregistrée avant la réception : saisissez
+        l'entrée ou faites l'inventaire.</p>
+</section>
+</body>
+</html>

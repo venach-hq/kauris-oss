@@ -119,7 +119,7 @@ class VentesMySqlTest {
         assertTrue(registre.present("ventes"));
         Client c = client(a, "Société Alpha");
         Article cable = ventes.creerArticle(a, new Article.Etat(null, null, Article.Type.BIEN, "CAB-2.5",
-                "Câble électrique 2,5 mm²", "m", 850, new BigDecimal("18"), true, null));
+                "Câble électrique 2,5 mm²", "m", 850, new BigDecimal("18"), true, null, true, null));
         ventes.definirReglages(a, true, new BigDecimal("18"), "", 30, 15, "Pénalité de 1 % par mois de retard.");
 
         DocumentVente devis = ventes.creerBrouillon(a, TypeDocument.DEVIS, c.id(), new Contenu(jour,
