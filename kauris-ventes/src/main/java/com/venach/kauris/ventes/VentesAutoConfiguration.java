@@ -16,6 +16,9 @@ import com.venach.kauris.ventes.achats.application.AchatsService;
 import com.venach.kauris.ventes.achats.application.PortsAchats;
 import com.venach.kauris.ventes.application.Ports;
 import com.venach.kauris.ventes.application.VentesService;
+import com.venach.kauris.ventes.caisse.adapter.persistence.StockageCaisse;
+import com.venach.kauris.ventes.caisse.adapter.web.CaisseController;
+import com.venach.kauris.ventes.caisse.application.CaisseService;
 import com.venach.kauris.ventes.stock.adapter.persistence.StockageStock;
 import com.venach.kauris.ventes.stock.adapter.web.ModuleAchatsStock;
 import com.venach.kauris.ventes.stock.adapter.web.StockController;
@@ -72,6 +75,19 @@ public class VentesAutoConfiguration {
         return new ModuleVentes();
     }
 
+    // ------------------------------------------------------------------ Caisse (vente au comptoir)
+
+    @Bean
+    public StockageCaisse stockageCaisse(EntityManagerFactory fabrique) {
+        return new StockageCaisse(SharedEntityManagerCreator.createSharedEntityManager(fabrique));
+    }
+
+    @Bean
+    public CaisseService caisseService(VentesService ventes, StockageCaisse stockage, UniteDeTravail transaction,
+                                       Clock horloge) {
+        return new CaisseService(ventes, stockage, stockage, transaction, horloge);
+    }
+
     // ------------------------------------------------------------------ Achats et stock
 
     @Bean
@@ -123,6 +139,13 @@ public class VentesAutoConfiguration {
         public VentesController ventesController(ContexteCourant contexte, VentesService ventes,
                                                  GererEntrepriseUseCase entreprises) {
             return new VentesController(contexte, ventes, entreprises);
+        }
+
+        @Bean
+        public CaisseController caisseController(ContexteCourant contexte, CaisseService caisse,
+                                                 VentesService ventes, GererEntrepriseUseCase entreprises,
+                                                 ProducteurDocuments producteur) {
+            return new CaisseController(contexte, caisse, ventes, entreprises, producteur);
         }
 
         @Bean

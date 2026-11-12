@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- Rapport de caisse (rapport Z à la clôture). Écran et PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau">
+        <thead><tr><th>Résumé</th><th class="k-doc-montant">Montant</th></tr></thead>
+        <tbody>
+        <tr><td th:text="${'Ventes (' + bilan.tickets() + ' ticket' + (bilan.tickets() > 1 ? 's' : '') + ')'}">Ventes</td>
+            <td class="k-doc-montant" th:text="${f.montant(bilan.total())}">0</td></tr>
+        <tr><td>dont espèces</td><td class="k-doc-montant" th:text="${f.montant(bilan.especes())}">0</td></tr>
+        <tr><td>dont Mobile Money</td><td class="k-doc-montant" th:text="${f.montant(bilan.mobile())}">0</td></tr>
+        <tr><td>dont carte</td><td class="k-doc-montant" th:text="${f.montant(bilan.carte())}">0</td></tr>
+        <tr><td>Fond de caisse à l'ouverture</td><td class="k-doc-montant" th:text="${f.montant(session.fond())}">0</td></tr>
+        <tr class="k-doc-total"><td>Espèces attendues dans le tiroir</td>
+            <td class="k-doc-montant" th:text="${f.montant(bilan.attendu())}">0</td></tr>
+        <th:block th:unless="${session.ouverte()}">
+            <tr><td>Espèces comptées</td><td class="k-doc-montant" th:text="${f.montant(session.especesComptees())}">0</td></tr>
+            <tr class="k-doc-total"><td th:text="${session.ecart() == 0 ? 'Écart' : (session.ecart() > 0 ? 'Écart (excédent)' : 'Écart (manque)')}">Écart</td>
+                <td class="k-doc-montant" th:text="${f.montant(session.ecart())}">0</td></tr>
+        </th:block>
+        </tbody>
+    </table>
+    <p class="k-doc-note" th:if="${!session.note().isEmpty()}" th:text="${'Note : ' + session.note()}">Note</p>
+    <p class="k-doc-note" th:if="${session.ouverte()}">Caisse encore ouverte : situation provisoire.</p>
+
+    <table class="k-doc-tableau" th:unless="${tickets.isEmpty()}">
+        <thead><tr><th>Heure</th><th>Facture</th><th class="k-doc-montant">Total</th><th class="k-doc-montant">Espèces</th>
+            <th class="k-doc-montant">Mobile Money</th><th class="k-doc-montant">Carte</th></tr></thead>
+        <tbody>
+        <tr th:each="t : ${tickets}">
+            <td th:text="${#strings.substringAfter(f.instant(t.creeLe()), ' à ')}">10:00</td>
+            <td th:text="${t.numero()}">FA-2026-0001</td>
+            <td class="k-doc-montant" th:text="${f.nombre(t.total())}">0</td>
+            <td class="k-doc-montant" th:text="${t.especes() > 0 ? f.nombre(t.especes()) : ''}">0</td>
+            <td class="k-doc-montant" th:text="${t.mobile() > 0 ? f.nombre(t.mobile()) : ''}">0</td>
+            <td class="k-doc-montant" th:text="${t.carte() > 0 ? f.nombre(t.carte()) : ''}">0</td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

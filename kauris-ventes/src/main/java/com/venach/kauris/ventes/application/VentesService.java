@@ -13,6 +13,7 @@ import com.venach.kauris.ventes.domain.ModeReglement;
 import com.venach.kauris.ventes.domain.Reglement;
 import com.venach.kauris.ventes.domain.ReglagesVentes;
 import com.venach.kauris.ventes.domain.StatutDocument;
+import com.venach.kauris.ventes.domain.Totaux;
 import com.venach.kauris.ventes.domain.TypeDocument;
 
 import java.math.BigDecimal;
@@ -87,7 +88,11 @@ public class VentesService {
 
     public ReglagesVentes reglages(Acces a) {
         exiger(a, CONSULTER);
-        return reglages.reglages(a.tenantId()).orElseGet(() -> ReglagesVentes.parDefaut(a.tenantId()));
+        return reglagesDe(a.tenantId());
+    }
+
+    private ReglagesVentes reglagesDe(UUID tenantId) {
+        return reglages.reglages(tenantId).orElseGet(() -> ReglagesVentes.parDefaut(tenantId));
     }
 
     public void definirReglages(Acces a, boolean assujettiTva, BigDecimal tauxTva, String mentionTva,
@@ -366,7 +371,7 @@ public class VentesService {
      * facture pas la TVA n'en met sur aucune ligne.
      */
     private Contenu controler(Acces a, Contenu contenu) {
-        ReglagesVentes r = reglages(a);
+        ReglagesVentes r = reglagesDe(a.tenantId());
         List<Ligne> lignes = new ArrayList<>();
         for (Ligne l : contenu.lignes()) {
             if (l.articleId() != null && articles.article(a.tenantId(), l.articleId()).isEmpty()) {
@@ -387,42 +392,138 @@ public class VentesService {
      */
     public DocumentVente emettre(Acces a, UUID id) {
         exiger(a, EMETTRE);
+        return transaction.executer(() -> emettreVerrouille(a, verrouillerDocument(a.tenantId(), id)));
+    }
+
+    private DocumentVente emettreVerrouille(Acces a, DocumentVente d) {
+        if (!d.modifiable()) {
+            throw new ErreurMetier("Ce document est déjà émis.");
+        }
+        LocalDate date = d.contenu().date();
+        if (date.isAfter(aujourdHui())) {
+            throw new ErreurMetier("Un document ne s'émet pas avec une date future.");
+        }
+        ReglagesVentes r = reglagesDe(a.tenantId());
+        Client c = trouverClient(a.tenantId(), d.client().id());
+        DocumentVente origine = d.origineId() == null ? null : verrouillerDocument(a.tenantId(), d.origineId());
+        if (d.type() == TypeDocument.FACTURE && origine != null && !origine.facturable()) {
+            throw new ErreurMetier("Le devis " + origine.numero() + " est « "
+                    + origine.statut().libelle().toLowerCase() + " » : il ne se facture plus.");
+        }
+        verifierOrdreDesDates(a.tenantId(), d.type(), date);
+        // Le compteur reste verrouillé jusqu'à la fin de la transaction : deux émissions simultanées passent
+        // l'une après l'autre, et la date se revérifie une fois le compteur obtenu.
+        long rang = documents.prochainRang(a.tenantId(), d.type(), date.getYear());
+        verifierOrdreDesDates(a.tenantId(), d.type(), date);
+        d.emettre(d.type().numero(date.getYear(), rang), c, r.assujettiTva() ? "" : r.mentionTva(),
+                r.conditions(), Instant.now(horloge));
+        if (origine != null && d.type() == TypeDocument.FACTURE) {
+            origine.marquerFacture();
+            documents.sauvegarder(origine);
+        }
+        if (origine != null && d.type() == TypeDocument.AVOIR) {
+            origine.crediter(d.totaux().totalTtc());
+            documents.sauvegarder(origine);
+        }
+        documents.sauvegarder(d);
+        if (d.type() != TypeDocument.DEVIS) {
+            stock.documentEmis(d);
+        }
+        return d;
+    }
+
+    // ================================================================== vente au comptoir (caisse)
+
+    /** Un paiement reçu au comptoir ; {@code compteId} : compte de dépôt (trésorerie), null s'il n'y en a pas. */
+    public record PaiementComptoir(ModeReglement mode, long montant, String reference, UUID compteId) {
+    }
+
+    /** Le client des ventes au comptoir sans nom : créé à la première vente. */
+    public static final String CLIENT_COMPTOIR = "Client comptoir";
+
+    public Client clientComptoir(Acces a) {
+        exiger(a, PermissionsVentes.CAISSE);
+        return transaction.executer(() -> clients.clients(a.tenantId()).stream()
+                .filter(c -> c.actif() && normaliser(c.nom()).equals(normaliser(CLIENT_COMPTOIR)))
+                .min(Comparator.comparing(c -> c.etat().creeLe()))
+                .orElseGet(() -> {
+                    Client c = Client.creer(a.tenantId(), new Client.Etat(null, null, Client.Type.PARTICULIER,
+                            CLIENT_COMPTOIR, "", "", "", "", "", "", "", "", 0,
+                            "Ventes au comptoir sans nom de client.", true, null), Instant.now(horloge));
+                    clients.sauvegarder(c);
+                    return c;
+                }));
+    }
+
+    /** Les totaux qu'aurait ce ticket (TVA et remise comprises), avant de demander les paiements. */
+    public Totaux apercuComptoir(Acces a, Map<UUID, BigDecimal> quantites, BigDecimal remiseGlobale) {
+        exiger(a, PermissionsVentes.CAISSE);
+        return Totaux.de(controler(a, new Contenu(aujourdHui(), aujourdHui(), "", "", lignesComptoir(a, quantites),
+                BigDecimal.ZERO, "")).lignes(), remiseGlobale == null ? BigDecimal.ZERO : remiseGlobale);
+    }
+
+    private List<Ligne> lignesComptoir(Acces a, Map<UUID, BigDecimal> quantites) {
+        if (quantites == null || quantites.isEmpty()) {
+            throw new ErreurMetier("Le ticket est vide : ajoutez au moins un article.");
+        }
+        if (quantites.size() > 200) {
+            throw new ErreurMetier("Un ticket a 200 lignes au plus.");
+        }
+        List<Ligne> lignes = new ArrayList<>();
+        quantites.forEach((articleId, quantite) -> {
+            Article x = trouverArticle(a.tenantId(), articleId);
+            if (!x.actif()) {
+                throw new ErreurMetier("L'article « " + x.designation() + " » est archivé.");
+            }
+            if (quantite == null || quantite.signum() <= 0) {
+                throw new ErreurMetier("Quantité invalide pour « " + x.designation() + " ».");
+            }
+            lignes.add(x.ligne(quantite));
+        });
+        return lignes;
+    }
+
+    /**
+     * Une vente au comptoir : facture du jour émise et réglée d'un coup, dans une seule transaction (numéro de
+     * facture, sortie de stock, règlements et leur report en trésorerie). Les prix viennent du catalogue. Les
+     * paiements doivent couvrir exactement le total : la monnaie rendue n'est pas un règlement.
+     */
+    public DocumentVente vendreAuComptoir(Acces a, UUID clientId, Map<UUID, BigDecimal> quantites,
+                                          BigDecimal remiseGlobale, List<PaiementComptoir> paiements) {
+        exiger(a, PermissionsVentes.CAISSE);
+        List<Ligne> lignes = lignesComptoir(a, quantites);
+        List<Ports.Encaissements.Compte> comptes = encaissements.comptes(a.tenantId());
+        for (PaiementComptoir p : paiements) {
+            if (p.mode() == null || p.montant() <= 0) {
+                throw new ErreurMetier("Chaque paiement a un mode et un montant positif.");
+            }
+            if (p.compteId() == null && !comptes.isEmpty()) {
+                throw new ErreurMetier("Choisissez à l'ouverture de la caisse le compte où arrive chaque mode de "
+                        + "paiement (" + p.mode().libelle() + ").");
+            }
+            if (p.compteId() != null && comptes.stream().noneMatch(c -> c.id().equals(p.compteId()))) {
+                throw new ErreurMetier("Le compte prévu pour " + p.mode().libelle() + " ne reçoit plus de règlement.");
+            }
+        }
+        LocalDate jour = aujourdHui();
         return transaction.executer(() -> {
-            DocumentVente d = verrouillerDocument(a.tenantId(), id);
-            if (!d.modifiable()) {
-                throw new ErreurMetier("Ce document est déjà émis.");
-            }
-            LocalDate date = d.contenu().date();
-            if (date.isAfter(aujourdHui())) {
-                throw new ErreurMetier("Un document ne s'émet pas avec une date future.");
-            }
-            ReglagesVentes r = reglages(a);
-            Client c = trouverClient(a.tenantId(), d.client().id());
-            DocumentVente origine = d.origineId() == null ? null : verrouillerDocument(a.tenantId(), d.origineId());
-            if (d.type() == TypeDocument.FACTURE && origine != null && !origine.facturable()) {
-                throw new ErreurMetier("Le devis " + origine.numero() + " est « "
-                        + origine.statut().libelle().toLowerCase() + " » : il ne se facture plus.");
-            }
-            verifierOrdreDesDates(a.tenantId(), d.type(), date);
-            // Le compteur reste verrouillé jusqu'à la fin de la transaction : deux émissions simultanées passent
-            // l'une après l'autre, et la date se revérifie une fois le compteur obtenu.
-            long rang = documents.prochainRang(a.tenantId(), d.type(), date.getYear());
-            verifierOrdreDesDates(a.tenantId(), d.type(), date);
-            d.emettre(d.type().numero(date.getYear(), rang), c, r.assujettiTva() ? "" : r.mentionTva(),
-                    r.conditions(), Instant.now(horloge));
-            if (origine != null && d.type() == TypeDocument.FACTURE) {
-                origine.marquerFacture();
-                documents.sauvegarder(origine);
-            }
-            if (origine != null && d.type() == TypeDocument.AVOIR) {
-                origine.crediter(d.totaux().totalTtc());
-                documents.sauvegarder(origine);
+            Client c = trouverClient(a.tenantId(), clientId);
+            Contenu contenu = controler(a, new Contenu(jour, jour, "Vente au comptoir", "", lignes,
+                    remiseGlobale == null ? BigDecimal.ZERO : remiseGlobale, ""));
+            DocumentVente d = DocumentVente.brouillon(a.tenantId(), TypeDocument.FACTURE, c, contenu, null,
+                    a.membreId(), Instant.now(horloge));
+            long paye = paiements.stream().mapToLong(PaiementComptoir::montant).sum();
+            if (paye != d.totaux().totalTtc()) {
+                throw new ErreurMetier("Les paiements (" + paye + ") ne font pas le total du ticket ("
+                        + d.totaux().totalTtc() + ").");
             }
             documents.sauvegarder(d);
-            if (d.type() != TypeDocument.DEVIS) {
-                stock.documentEmis(d);
+            DocumentVente emise = emettreVerrouille(a, d);
+            for (PaiementComptoir p : paiements) {
+                enregistrer(a.tenantId(), emise.id(), jour, p.montant(), p.mode(), p.reference(), p.compteId(),
+                        a.membreId());
             }
-            return d;
+            return documents.document(a.tenantId(), emise.id()).orElse(emise);
         });
     }
 

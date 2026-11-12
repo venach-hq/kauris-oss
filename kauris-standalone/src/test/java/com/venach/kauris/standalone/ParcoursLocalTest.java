@@ -156,6 +156,10 @@ class ParcoursLocalTest {
                 .andExpect(content().string(containsString("href=\"/stock\"")));
         mvc.perform(get("/achats").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/achats\"")));
+        mvc.perform(get("/caisse").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/caisse\"")))
+                .andExpect(content().string(containsString("Ouvrir ma caisse")));
+        mvc.perform(get("/caisse/calculatrice.js").session(session)).andExpect(status().isOk());
         mvc.perform(post("/ventes/clients").session(session).with(csrf()).param("type", "PARTICULIER")
                         .param("nom", "Yao Kossi"))
                 .andExpect(redirectedUrlPattern("/ventes/clients/*"));

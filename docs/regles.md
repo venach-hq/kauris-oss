@@ -166,6 +166,13 @@ du stock est au coût moyen unitaire pondéré. Les achats (paquet `…ventes.ac
 réception de commande fait entrer les articles suivis au prix de la commande ; les règlements des fournisseurs
 passent par le port `PortsAchats.Decaissements` (Kauris Cloud y branche sa trésorerie).
 
+La caisse (vente au comptoir, paquet `…ventes.caisse`, tables `caisse_…`, migrations `db/migration/caisse`) fait
+partie du module Ventes (permission `ventes.caisse`). Chaque personne ouvre sa caisse avec un fond, encaisse des
+tickets et la clôture le jour même en comptant ses espèces (écart, rapport PDF). Un ticket est une facture du jour
+émise et réglée dans une seule transaction (`VentesService.vendreAuComptoir`) : le stock et les encaissements
+suivent comme pour toute facture. Les scripts qui calculent (total du ticket, calculatrice) ont leurs tests dans
+`src/test/js`, lancés par `make verify` quand node est là.
+
 ## Ventes : ce que l'application peut y brancher
 
 Le module Ventes déclare un port `Ports.Encaissements` : les comptes où déposer un règlement, d'autres façons

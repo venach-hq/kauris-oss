@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Rapports de caisse', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
+    <p class="k-discret" th:if="${sessions.isEmpty()}">Aucune caisse ouverte pour l’instant.</p>
+    <table class="k-table" th:unless="${sessions.isEmpty()}">
+        <thead><tr><th>Caisse</th><th>Caissier</th><th>Jour</th><th class="c-nombre">Tickets</th>
+            <th class="c-nombre">Ventes</th><th class="c-nombre">Espèces</th><th class="c-nombre">Mobile Money</th>
+            <th class="c-nombre">Carte</th><th>État</th><th class="c-nombre">Écart</th></tr></thead>
+        <tbody>
+        <tr th:each="s : ${sessions}" th:with="b=${bilans.get(s.id())}">
+            <td><a th:href="@{/caisse/sessions/{id}(id=${s.id()})}" th:text="${s.numero()}">CA</a></td>
+            <td th:text="${s.caissier()}">Kofi</td>
+            <td th:text="${f.jour(s.jour())}">12/11/2026</td>
+            <td class="c-nombre" th:text="${b.tickets()}">0</td>
+            <td class="c-nombre" th:text="${f.nombre(b.total())}">0</td>
+            <td class="c-nombre" th:text="${f.nombre(b.especes())}">0</td>
+            <td class="c-nombre" th:text="${f.nombre(b.mobile())}">0</td>
+            <td class="c-nombre" th:text="${f.nombre(b.carte())}">0</td>
+            <td th:text="${s.ouverte() ? 'ouverte' : 'clôturée'}">clôturée</td>
+            <td class="c-nombre" th:classappend="${s.ecart() != null and s.ecart() != 0} ? 'c-ecart-ko'"
+                th:text="${s.ecart() == null ? '' : f.nombre(s.ecart())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Calculatrice', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Comme une calculatrice de bureau, au doigt ou au clavier (chiffres, + − * /, Entrée, Échap, Retour
+            arrière). « 200 + 10 % = » donne 220 ; « 200 × 10 % » donne 20.</p>
+        <p>+ TVA passe d’un prix HT au prix TTC, − TVA fait l’inverse ; « TVA du TTC » donne la TVA contenue dans
+            un prix TTC. Le taux se change sous les touches.</p>
+        <p>En dessous : prix de vente à partir du coût, marge d’un article (taux de marge et taux de marque),
+            remise et monnaie à rendre. La flèche → met un résultat à l’écran.</p>
+    </details>
+    <div th:replace="~{caisse/commun :: calculatrice(${tauxTva})}"></div>
+    <script th:src="@{/caisse/calculatrice.js}" defer></script>
+</section>
+</body>
+</html>

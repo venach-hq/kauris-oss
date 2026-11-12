@@ -6,7 +6,7 @@ COMPOSE := docker compose -f docker-compose.dev.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-up dev-down dev-reset verify test package run install secrets clean
+.PHONY: help dev-up dev-down dev-reset verify test test-js package run install secrets clean
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-10s\033[0m %s\n", $$1, $$2}'
@@ -20,8 +20,12 @@ dev-down: ## Arrête le MySQL local (les données sont gardées)
 dev-reset: ## Arrête le MySQL local ET efface ses données
 	$(COMPOSE) down -v
 
-verify: ## Compile et lance tous les tests, y compris sur un MySQL jetable (Docker requis ; ce que fait la CI)
+verify: test-js ## Compile et lance tous les tests, y compris sur un MySQL jetable (Docker requis ; ce que fait la CI)
 	$(MVN) verify
+
+test-js: ## Teste les scripts des écrans qui calculent (node requis, sautés sans node)
+	@if command -v node >/dev/null; then for f in kauris-*/src/test/js/*.test.js; do node "$$f" || exit 1; done; \
+	else echo "node absent : tests des scripts sautés"; fi
 
 test: ## Lance les tests
 	$(MVN) test
