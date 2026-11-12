@@ -41,13 +41,13 @@
                 </select>
                 <a class="k-discret" th:if="${clients.isEmpty()}" th:href="@{/ventes/clients}">Ajoutez d'abord un client</a>
             </label>
-            <label>Date <input type="date" name="date" required th:value="${contenu.date()}"></label>
+            <label>Date <input type="date" name="date" required th:value="${saisie.date()}"></label>
             <label th:unless="${type.name() == 'AVOIR'}">
                 <span th:text="${type.name() == 'DEVIS' ? 'Valable jusqu''au' : 'Échéance de paiement'}">Échéance</span>
-                <input type="date" name="echeance" th:value="${contenu.echeance()}" th:required="${type.name() == 'FACTURE'}">
+                <input type="date" name="echeance" th:value="${saisie.echeance()}" th:required="${type.name() == 'FACTURE'}">
             </label>
-            <label>Objet <input name="objet" maxlength="200" th:value="${contenu.objet()}" placeholder="Fourniture et pose…"></label>
-            <label>Référence du client (bon de commande) <input name="reference" maxlength="80" th:value="${contenu.reference()}"></label>
+            <label>Objet <input name="objet" maxlength="200" th:value="${saisie.objet()}" placeholder="Fourniture et pose…"></label>
+            <label>Référence du client (bon de commande) <input name="reference" maxlength="80" th:value="${saisie.reference()}"></label>
         </div>
 
         <table class="v-lignes">
@@ -65,7 +65,7 @@
             <label>Remise globale (%) <input name="remiseGlobale" inputmode="decimal" maxlength="6"
                                              th:value="${f.decimal(contenu.remiseGlobale())}"></label>
             <label style="grid-column: span 2">Notes imprimées sur le document
-                <input name="notes" maxlength="1000" th:value="${contenu.notes()}" placeholder="Délai de livraison, garantie…"></label>
+                <input name="notes" maxlength="1000" th:value="${saisie.notes()}" placeholder="Délai de livraison, garantie…"></label>
         </div>
 
         <div class="v-totaux-saisie" aria-live="polite">

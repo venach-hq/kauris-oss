@@ -150,7 +150,7 @@ public class DocumentsVentesController {
                 ? (type == TypeDocument.DEVIS ? "Nouveau devis" : "Nouvelle facture")
                 : type.libelle() + " (brouillon)");
         model.addAttribute("document", d);
-        model.addAttribute("contenu", contenu);
+        model.addAttribute("saisie", contenu);    // « contenu » est pris par le gabarit commun
         model.addAttribute("lignes", lignes);
         model.addAttribute("vides", LIGNES_VIDES);
         model.addAttribute("clientId", clientId);
