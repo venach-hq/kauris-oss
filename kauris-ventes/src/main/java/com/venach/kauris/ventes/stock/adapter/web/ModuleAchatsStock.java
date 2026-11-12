@@ -3,6 +3,8 @@ package com.venach.kauris.ventes.stock.adapter.web;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
+import com.venach.kauris.ventes.achats.adapter.web.AchatsController;
+import com.venach.kauris.ventes.achats.application.PermissionsAchats;
 import com.venach.kauris.ventes.stock.application.PermissionsStock;
 
 import java.util.List;
@@ -38,11 +40,13 @@ public class ModuleAchatsStock implements ModuleKauris {
 
     @Override
     public List<Permission> permissions() {
-        return PermissionsStock.TOUTES;
+        return java.util.stream.Stream.concat(PermissionsAchats.TOUTES.stream(), PermissionsStock.TOUTES.stream())
+                .toList();
     }
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Stock", StockController.PAGE, PermissionsStock.CONSULTER));
+        return List.of(new EntreeMenu("Achats", AchatsController.PAGE, PermissionsAchats.CONSULTER),
+                new EntreeMenu("Stock", StockController.PAGE, PermissionsStock.CONSULTER));
     }
 }

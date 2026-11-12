@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans des achats : onglets et style. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .a-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1.2rem; border-bottom: 1px solid var(--k-bord); }
+        .a-onglets a { padding: .45rem .8rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 14px; }
+        .a-onglets a.a-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .a-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; margin: 0 0 1rem; }
+        .a-chiffre { border: 1px solid var(--k-bord); border-radius: 8px; padding: .7rem 1rem; background: var(--k-carte); }
+        .a-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .a-chiffre strong { font-size: 1.3rem; }
+        .a-chiffre.a-alerte strong { color: var(--k-rouge); }
+        .a-montant { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .a-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+        .a-boutons form { margin: 0; }
+        .a-barre { text-decoration: line-through; opacity: .6; }
+        .a-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+    </style>
+    <nav class="a-onglets" aria-label="Achats">
+        <a th:href="@{/achats}" th:classappend="${onglet == 'accueil'} ? 'a-actif'">Tableau de bord</a>
+        <a th:href="@{/achats/commandes}" th:classappend="${onglet == 'commandes'} ? 'a-actif'">Commandes</a>
+        <a th:href="@{/achats/factures}" th:classappend="${onglet == 'factures'} ? 'a-actif'">Factures fournisseurs</a>
+        <a th:href="@{/achats/dettes}" th:classappend="${onglet == 'dettes'} ? 'a-actif'">À payer</a>
+        <a th:href="@{/achats/fournisseurs}" th:classappend="${onglet == 'fournisseurs'} ? 'a-actif'">Fournisseurs</a>
+    </nav>
+</th:block>
+
+<span th:fragment="statut(c)" class="k-pastille"
+      th:classappend="${c.statut().name() == 'RECUE' ? 'k-ok' : (c.statut().name() == 'ANNULEE' ? 'k-ko' : '')}"
+      th:text="${c.statut().libelle()}">Envoyée</span>
+</body>
+</html>

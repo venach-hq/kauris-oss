@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${fournisseur.nom()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <div class="a-boutons">
+        <a class="k-bouton" th:if="${droits.commander() and fournisseur.actif()}"
+           th:href="@{/achats/commandes/nouvelle(fournisseur=${fournisseur.id()})}">Nouvelle commande</a>
+        <a class="k-bouton k-secondaire" th:if="${droits.payer() and fournisseur.actif()}"
+           th:href="@{/achats/factures/nouvelle(fournisseur=${fournisseur.id()})}">Enregistrer une facture</a>
+        <span class="k-pastille k-ko" th:unless="${fournisseur.actif()}">Archivé</span>
+    </div>
+    <div class="a-chiffres">
+        <div class="a-chiffre"><span>Vous lui devez</span><strong th:text="${f.montant(du)}">0</strong></div>
+    </div>
+    <h2>Commandes</h2>
+    <p class="k-discret" th:if="${commandes.isEmpty()}">Aucune commande.</p>
+    <table class="k-table" th:unless="${commandes.isEmpty()}">
+        <tbody>
+        <tr th:each="c : ${commandes}">
+            <td><a th:href="@{/achats/commandes/{id}(id=${c.id()})}" th:text="${c.intitule()}">BC</a></td>
+            <td th:text="${f.jour(c.date())}">01/11/2026</td>
+            <td class="a-montant" th:text="${f.montant(c.totaux().totalTtc())}">0</td>
+            <td><span th:replace="~{achats/commun :: statut(${c})}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+    <h2>Factures</h2>
+    <p class="k-discret" th:if="${factures.isEmpty()}">Aucune facture.</p>
+    <table class="k-table" th:unless="${factures.isEmpty()}">
+        <tbody>
+        <tr th:each="x : ${factures}">
+            <td><a th:href="@{/achats/factures/{id}(id=${x.id()})}" th:text="${x.referenceFournisseur()}">F</a></td>
+            <td th:text="${f.jour(x.date())}">01/11/2026</td>
+            <td class="a-montant" th:text="${f.montant(x.montantHt() + x.montantTva())}">0</td>
+            <td th:text="${x.situation(aujourdHui)}">À payer</td>
+        </tr>
+        </tbody>
+    </table>
+    <h2>Fiche</h2>
+    <form class="k-pile k-large" method="post" th:action="@{/achats/fournisseurs/{id}(id=${fournisseur.id()})}">
+        <th:block th:replace="~{achats/fournisseurs :: champs(${etat})}"></th:block>
+        <button type="submit" class="k-bouton" th:if="${droits.commander()}">Enregistrer</button>
+    </form>
+    <form method="post" th:action="@{/achats/fournisseurs/{id}(id=${fournisseur.id()})}" th:if="${droits.commander()}">
+        <input type="hidden" name="archiver" th:value="${fournisseur.actif()}">
+        <button type="submit" class="k-bouton k-secondaire" th:text="${fournisseur.actif() ? 'Archiver' : 'Réactiver'}">Archiver</button>
+    </form>
+</section>
+</body>
+</html>

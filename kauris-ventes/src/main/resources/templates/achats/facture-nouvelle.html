@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Enregistrer une facture fournisseur', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <p class="k-discret" th:if="${commande != null}" th:text="${'Pour la commande ' + commande.numero() + ' : montants repris de la commande, à corriger s''ils diffèrent.'}">…</p>
+    <form class="k-pile" method="post" th:action="@{/achats/factures}">
+        <input type="hidden" name="commande" th:value="${commande == null ? '' : commande.id()}">
+        <label>Fournisseur
+            <select name="fournisseur" required th:disabled="${commande != null}">
+                <option value="" th:if="${fournisseurId == null}">Choisir…</option>
+                <option th:each="x : ${fournisseurs}" th:value="${x.id()}" th:text="${x.nom()}" th:selected="${x.id() == fournisseurId}">Fournisseur</option>
+            </select>
+            <input type="hidden" name="fournisseur" th:if="${commande != null}" th:value="${fournisseurId}">
+        </label>
+        <label>Numéro de la facture du fournisseur <input name="reference" required maxlength="60"></label>
+        <label>Date de la facture <input type="date" name="date" required th:value="${aujourdHui}" th:max="${aujourdHui}"></label>
+        <label>Échéance (vide = selon le délai du fournisseur) <input type="date" name="echeance"></label>
+        <label>Objet <input name="objet" maxlength="200"></label>
+        <label>Montant hors taxes <input name="ht" required inputmode="numeric" maxlength="20" th:value="${ht}"></label>
+        <label>TVA <input name="tva" inputmode="numeric" maxlength="20" th:value="${tva}" placeholder="0"></label>
+        <button type="submit" class="k-bouton">Enregistrer</button>
+    </form>
+</section>
+</body>
+</html>

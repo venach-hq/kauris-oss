@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${onglet == 'dettes' ? 'À payer aux fournisseurs' : 'Factures fournisseurs'}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <div class="a-boutons" th:if="${droits.payer()}">
+        <a class="k-bouton" th:href="@{/achats/factures/nouvelle}">Enregistrer une facture fournisseur</a>
+    </div>
+    <p class="k-discret" th:if="${factures.isEmpty()}" th:text="${onglet == 'dettes' ? 'Rien à payer.' : 'Aucune facture.'}">Aucune facture.</p>
+    <table class="k-table" th:unless="${factures.isEmpty()}">
+        <thead><tr><th>Facture</th><th>Fournisseur</th><th>Date</th><th>Échéance</th><th class="a-montant">Total TTC</th>
+            <th class="a-montant">Reste</th><th>Situation</th></tr></thead>
+        <tbody>
+        <tr th:each="x : ${factures}" th:classappend="${x.statut().name() == 'ANNULEE'} ? 'a-barre' : ''">
+            <td><a th:href="@{/achats/factures/{id}(id=${x.id()})}" th:text="${x.referenceFournisseur()}">F-1</a>
+                <span class="k-discret" th:text="${x.numero()}">FF</span></td>
+            <td th:text="${x.fournisseurNom()}">Fournisseur</td>
+            <td th:text="${f.jour(x.date())}">01/11/2026</td>
+            <td th:text="${f.jour(x.echeance())}">01/12/2026</td>
+            <td class="a-montant" th:text="${f.montant(x.montantHt() + x.montantTva())}">0</td>
+            <td class="a-montant" th:text="${f.montant(x.reste())}">0</td>
+            <td><span class="k-pastille" th:classappend="${x.situation(aujourdHui) == 'En retard' ? 'k-ko' : (x.situation(aujourdHui) == 'Payée' ? 'k-ok' : '')}"
+                      th:text="${x.situation(aujourdHui)}">À payer</span></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

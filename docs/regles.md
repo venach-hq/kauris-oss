@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`).
+   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune.
 7. CI au vert (`make verify`, `make secrets`).
@@ -162,7 +162,9 @@ empêcher le démarrage, jamais être remplacée par une valeur par défaut.
 Le jar `kauris-ventes` porte deux modules qui partagent le catalogue d'articles : « Ventes » (`ventes`) et
 « Achats et stock » (`achats-stock`, paquet `…ventes.stock`, tables `stock_…`, migrations `db/migration/stock`).
 Une facture émise fait sortir du dépôt principal les articles suivis ; un avoir les y fait revenir. La valeur
-du stock est au coût moyen unitaire pondéré.
+du stock est au coût moyen unitaire pondéré. Les achats (paquet `…ventes.achats`, tables `achats_…`) : une
+réception de commande fait entrer les articles suivis au prix de la commande ; les règlements des fournisseurs
+passent par le port `PortsAchats.Decaissements` (Kauris Cloud y branche sa trésorerie).
 
 ## Ventes : ce que l'application peut y brancher
 

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${c.intitule()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <div class="a-boutons">
+        <span th:replace="~{achats/commun :: statut(${c})}"></span>
+        <a class="k-bouton k-secondaire" th:href="@{/achats/commandes/{id}/imprimer(id=${c.id()})}" target="_blank" rel="noopener">Voir le bon de commande</a>
+        <a class="k-bouton k-secondaire" th:href="@{/achats/commandes/{id}.pdf(id=${c.id()})}">PDF</a>
+        <a class="k-bouton k-secondaire" th:if="${droits.commander() and c.modifiable()}" th:href="@{/achats/commandes/{id}/modifier(id=${c.id()})}">Modifier</a>
+        <form method="post" th:if="${droits.commander() and c.modifiable()}" th:action="@{/achats/commandes/{id}/envoyer(id=${c.id()})}">
+            <button type="submit" class="k-bouton">Envoyer (numéroter)</button></form>
+        <form method="post" th:if="${droits.commander() and c.modifiable()}" th:action="@{/achats/commandes/{id}/supprimer(id=${c.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Supprimer le brouillon</button></form>
+        <form method="post" th:if="${droits.commander() and c.receptionnable()}" th:action="@{/achats/commandes/{id}/annuler(id=${c.id()})}">
+            <button type="submit" class="k-bouton k-secondaire"
+                    th:text="${c.statut().name() == 'ENVOYEE' ? 'Annuler la commande' : 'Clore (le reste n''arrivera pas)'}">Annuler</button></form>
+        <a class="k-bouton k-secondaire" th:if="${droits.payer() and !c.modifiable() and c.statut().name() != 'ANNULEE'}"
+           th:href="@{/achats/factures/nouvelle(commande=${c.id()})}">Enregistrer la facture du fournisseur</a>
+    </div>
+
+    <p><a th:href="@{/achats/fournisseurs/{id}(id=${c.fournisseurId()})}" th:text="${c.fournisseurNom()}">Fournisseur</a>
+        · <span th:text="${f.jour(c.date())}">01/11/2026</span>
+        <span th:if="${c.livraisonPrevue() != null}" th:text="${' · livraison souhaitée le ' + f.jour(c.livraisonPrevue())}"></span>
+        <span th:unless="${c.objet().isEmpty()}" th:text="${' · ' + c.objet()}"></span></p>
+
+    <form method="post" th:action="@{/achats/commandes/{id}/recevoir(id=${c.id()})}">
+    <table class="k-table">
+        <thead><tr><th>Désignation</th><th class="a-montant">Commandé</th><th class="a-montant">Reçu</th>
+            <th class="a-montant">Prix unit. HT</th><th class="a-montant">Montant HT</th>
+            <th th:if="${droits.recevoir() and c.receptionnable()}">Reçu aujourd'hui</th></tr></thead>
+        <tbody>
+        <tr th:each="l, i : ${c.lignes()}">
+            <td th:text="${l.designation()}">Ciment</td>
+            <td class="a-montant" th:text="${f.decimal(l.quantite()) + ' ' + l.unite()}">10</td>
+            <td class="a-montant" th:text="${f.decimal(l.recue())}">0</td>
+            <td class="a-montant" th:text="${f.montant(l.prixUnitaire())}">0</td>
+            <td class="a-montant" th:text="${f.montant(l.ligne().montantHt())}">0</td>
+            <td th:if="${droits.recevoir() and c.receptionnable()}">
+                <input th:name="${'recu.' + i.index}" inputmode="decimal" maxlength="16" style="width:7rem"
+                       th:value="${l.reste().signum() > 0 ? f.decimal(l.reste()) : ''}"
+                       th:attr="aria-label=${'Quantité reçue de ' + l.designation()}"></td>
+        </tr>
+        </tbody>
+        <tfoot>
+        <tr><td colspan="4">Total HT</td><td class="a-montant" th:text="${f.montant(totaux.totalHt())}">0</td></tr>
+        <tr th:if="${totaux.avecTva()}"><td colspan="4">TVA</td><td class="a-montant" th:text="${f.montant(totaux.totalTva())}">0</td></tr>
+        <tr><td colspan="4"><strong>Total TTC</strong></td><td class="a-montant"><strong th:text="${f.montant(totaux.totalTtc())}">0</strong></td></tr>
+        </tfoot>
+    </table>
+    <div class="k-pile" th:if="${droits.recevoir() and c.receptionnable()}">
+        <h2>Réceptionner une livraison</h2>
+        <label>Dépôt
+            <select name="depot" required>
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}">Magasin</option>
+            </select></label>
+        <label>Date <input type="date" name="date" th:value="${aujourdHui}" th:max="${aujourdHui}" required></label>
+        <label>Bon de livraison du fournisseur <input name="reference" maxlength="60"></label>
+        <button type="submit" class="k-bouton">Enregistrer la réception</button>
+        <span class="k-discret">Les articles suivis en stock entrent au prix de la commande.</span>
+    </div>
+    </form>
+
+    <h2>Réceptions</h2>
+    <p class="k-discret" th:if="${receptions.isEmpty()}">Rien reçu pour l'instant.</p>
+    <table class="k-table" th:unless="${receptions.isEmpty()}">
+        <tbody>
+        <tr th:each="r : ${receptions}">
+            <td><a th:href="@{/achats/receptions/{id}(id=${r.id()})}" target="_blank" rel="noopener" th:text="${r.numero()}">BR</a></td>
+            <td th:text="${f.jour(r.date())}">01/11/2026</td>
+            <td th:text="${nomsDepots.get(r.depotId())}">Magasin</td>
+            <td th:text="${r.reference()}">BL</td>
+            <td th:text="${r.lignes().size() + ' ligne(s)'}">1 ligne</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2 th:unless="${factures.isEmpty()}">Factures</h2>
+    <ul th:unless="${factures.isEmpty()}">
+        <li th:each="x : ${factures}"><a th:href="@{/achats/factures/{id}(id=${x.id()})}" th:text="${x.referenceFournisseur() + ' · ' + x.situation(aujourdHui)}">F</a></li>
+    </ul>
+</section>
+</body>
+</html>

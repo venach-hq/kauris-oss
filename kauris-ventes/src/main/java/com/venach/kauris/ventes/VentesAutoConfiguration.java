@@ -10,6 +10,10 @@ import com.venach.kauris.ventes.adapter.persistence.StockageVentes;
 import com.venach.kauris.ventes.adapter.web.DocumentsVentesController;
 import com.venach.kauris.ventes.adapter.web.ModuleVentes;
 import com.venach.kauris.ventes.adapter.web.VentesController;
+import com.venach.kauris.ventes.achats.adapter.persistence.StockageAchats;
+import com.venach.kauris.ventes.achats.adapter.web.AchatsController;
+import com.venach.kauris.ventes.achats.application.AchatsService;
+import com.venach.kauris.ventes.achats.application.PortsAchats;
 import com.venach.kauris.ventes.application.Ports;
 import com.venach.kauris.ventes.application.VentesService;
 import com.venach.kauris.ventes.stock.adapter.persistence.StockageStock;
@@ -78,6 +82,26 @@ public class VentesAutoConfiguration {
     }
 
     @Bean
+    public StockageAchats stockageAchats(EntityManagerFactory fabrique) {
+        return new StockageAchats(SharedEntityManagerCreator.createSharedEntityManager(fabrique));
+    }
+
+    /** Rien à ajouter aux paiements des fournisseurs par défaut ; Kauris Cloud fournit sa trésorerie. */
+    @Bean
+    @ConditionalOnMissingBean(PortsAchats.Decaissements.class)
+    public PortsAchats.Decaissements decaissementsAchats() {
+        return PortsAchats.Decaissements.AUCUN;
+    }
+
+    @Bean
+    public AchatsService achatsService(StockageAchats a, PortsAchats.Decaissements decaissements,
+                                       StockageVentes ventesStockees, StockService stock,
+                                       UniteDeTravail transaction, Clock horloge) {
+        return new AchatsService(a, a, a, a, a, a, decaissements, ventesStockees, ventesStockees, stock, transaction,
+                horloge);
+    }
+
+    @Bean
     public ModuleAchatsStock moduleAchatsStock() {
         return new ModuleAchatsStock();
     }
@@ -98,6 +122,12 @@ public class VentesAutoConfiguration {
         public StockController stockController(ContexteCourant contexte, StockService stock,
                                                GererEntrepriseUseCase entreprises, ProducteurDocuments producteur) {
             return new StockController(contexte, stock, entreprises, producteur);
+        }
+
+        @Bean
+        public AchatsController achatsController(ContexteCourant contexte, AchatsService achats, StockService stock,
+                                                 GererEntrepriseUseCase entreprises, ProducteurDocuments producteur) {
+            return new AchatsController(contexte, achats, stock, entreprises, producteur);
         }
 
         @Bean

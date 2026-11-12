@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${commande == null ? 'Nouvelle commande' : 'Commande (brouillon)'}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <style>
+        .a-lignes { width: 100%; border-collapse: collapse; background: var(--k-carte); border: 1px solid var(--k-bord); }
+        .a-lignes th { font-size: 12px; color: var(--k-discret); text-align: left; padding: .4rem; }
+        .a-lignes td { padding: .25rem; border-top: 1px solid var(--k-bord); }
+        .a-lignes input, .a-lignes select { width: 100%; padding: .35rem .4rem; }
+        .a-entete { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .7rem; margin: 0 0 1rem; }
+        .a-entete label { display: grid; gap: .25rem; font-size: 13px; font-weight: 600; }
+    </style>
+    <form method="post" id="a-edition"
+          th:action="${commande == null} ? @{/achats/commandes} : @{/achats/commandes/{id}(id=${commande.id()})}">
+        <div class="a-entete">
+            <label>Fournisseur
+                <select name="fournisseur" required>
+                    <option value="" th:if="${fournisseurId == null}">Choisir…</option>
+                    <option th:each="x : ${fournisseurs}" th:value="${x.id()}" th:text="${x.nom()}"
+                            th:selected="${x.id() == fournisseurId}">Fournisseur</option>
+                </select>
+                <a class="k-discret" th:if="${fournisseurs.isEmpty()}" th:href="@{/achats/fournisseurs}">Ajoutez d'abord un fournisseur</a>
+            </label>
+            <label>Date <input type="date" name="date" required th:value="${date}"></label>
+            <label>Livraison souhaitée <input type="date" name="livraison" th:value="${livraison}"></label>
+            <label>Objet <input name="objet" maxlength="200" th:value="${objet}"></label>
+        </div>
+        <table class="a-lignes">
+            <thead><tr><th>Article</th><th>Désignation</th><th>Qté</th><th>Unité</th><th>Prix unit. HT</th><th>TVA %</th><th></th></tr></thead>
+            <tbody id="a-corps">
+            <th:block th:each="l : ${lignes}"><tr th:replace="~{achats/edition :: ligne(${l})}"></tr></th:block>
+            <th:block th:each="i : ${#numbers.sequence(1, vides)}"><tr th:replace="~{achats/edition :: ligne(${null})}"></tr></th:block>
+            </tbody>
+        </table>
+        <p><button type="button" class="k-bouton k-secondaire" id="a-ajouter">Ajouter une ligne</button></p>
+        <div class="k-pile">
+            <label>Notes imprimées sur le bon de commande <input name="notes" maxlength="1000" th:value="${notes}"></label>
+        </div>
+        <div class="a-boutons">
+            <button type="submit" class="k-bouton">Enregistrer le brouillon</button>
+            <a class="k-bouton k-secondaire" th:href="${commande == null} ? @{/achats/commandes} : @{/achats/commandes/{id}(id=${commande.id()})}">Annuler</a>
+        </div>
+    </form>
+    <script>
+        (function () {
+            var corps = document.getElementById('a-corps');
+            corps.addEventListener('change', function (e) {
+                if (!e.target.classList.contains('a-article')) { return; }
+                var o = e.target.options[e.target.selectedIndex];
+                var tr = e.target.closest('tr');
+                if (!o.value) { return; }
+                tr.querySelector('[name="ligne.designation"]').value = o.dataset.designation || '';
+                tr.querySelector('[name="ligne.unite"]').value = o.dataset.unite || '';
+                var q = tr.querySelector('[name="ligne.quantite"]');
+                if (!q.value) { q.value = '1'; }
+            });
+            corps.addEventListener('click', function (e) {
+                if (!e.target.classList.contains('a-retirer')) { return; }
+                var lignes = corps.querySelectorAll('tr');
+                if (lignes.length > 1) { e.target.closest('tr').remove(); }
+            });
+            document.getElementById('a-ajouter').addEventListener('click', function () {
+                var copie = corps.querySelector('tr:last-child').cloneNode(true);
+                copie.querySelectorAll('input').forEach(function (i) { if (i.name !== 'ligne.tva') { i.value = ''; } });
+                copie.querySelector('select').value = '';
+                corps.appendChild(copie);
+            });
+        })();
+    </script>
+</section>
+
+<tr th:fragment="ligne(l)">
+    <td>
+        <select name="ligne.article" class="a-article">
+            <option value="">Ligne libre</option>
+            <option th:each="x : ${articles}" th:value="${x.id()}" th:text="${x.designation()}"
+                    th:selected="${l != null and l.articleId() == x.id()}"
+                    th:attr="data-designation=${x.designation()},data-unite=${x.unite()}">Article</option>
+        </select>
+    </td>
+    <td><input name="ligne.designation" maxlength="500" th:value="${l?.designation()}" aria-label="Désignation"></td>
+    <td><input name="ligne.quantite" inputmode="decimal" maxlength="16" th:value="${l == null ? '' : f.decimal(l.quantite())}" aria-label="Quantité" style="width:6rem"></td>
+    <td><input name="ligne.unite" maxlength="20" th:value="${l?.unite()}" aria-label="Unité" style="width:5rem"></td>
+    <td><input name="ligne.prix" inputmode="numeric" maxlength="20" th:value="${l == null ? '' : l.prixUnitaire()}" aria-label="Prix unitaire HT" style="width:8rem"></td>
+    <td><input name="ligne.tva" inputmode="decimal" maxlength="6" th:value="${f.decimal(l == null ? tauxPropose : l.tauxTva())}" aria-label="TVA" style="width:5rem"></td>
+    <td><button type="button" class="k-bouton k-secondaire a-retirer" aria-label="Retirer la ligne">×</button></td>
+</tr>
+</body>
+</html>

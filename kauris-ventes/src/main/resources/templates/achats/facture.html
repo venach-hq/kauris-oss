@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Facture ' + x.referenceFournisseur() + ' · ' + x.fournisseurNom()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <div class="a-chiffres">
+        <div class="a-chiffre"><span>Total TTC</span><strong th:text="${f.montant(x.montantHt() + x.montantTva())}">0</strong></div>
+        <div class="a-chiffre"><span>Réglé</span><strong th:text="${f.montant(x.regle())}">0</strong></div>
+        <div class="a-chiffre" th:classappend="${x.situation(aujourdHui) == 'En retard'} ? 'a-alerte'"><span>Reste à payer</span>
+            <strong th:text="${f.montant(x.reste())}">0</strong></div>
+    </div>
+    <p>
+        Enregistrée sous <strong th:text="${x.numero()}">FF</strong> · facture du
+        <span th:text="${f.jour(x.date())}">01/11/2026</span>
+        <span th:if="${x.echeance() != null}" th:text="${' · échéance ' + f.jour(x.echeance())}"></span>
+        · <span th:text="${x.situation(aujourdHui)}">À payer</span><br>
+        <a th:href="@{/achats/fournisseurs/{id}(id=${x.fournisseurId()})}" th:text="${x.fournisseurNom()}">Fournisseur</a>
+        <span th:if="${x.commandeId() != null}"> · commande
+            <a th:href="@{/achats/commandes/{id}(id=${x.commandeId()})}" th:text="${x.commandeNumero()}">BC</a></span>
+        <span th:unless="${x.objet().isEmpty()}" th:text="${' · ' + x.objet()}"></span>
+        <br>HT <span th:text="${f.montant(x.montantHt())}">0</span> · TVA <span th:text="${f.montant(x.montantTva())}">0</span>
+    </p>
+
+    <h2>Règlements</h2>
+    <p class="k-discret" th:if="${reglements.isEmpty()}">Aucun règlement.</p>
+    <table class="k-table" th:unless="${reglements.isEmpty()}">
+        <tbody>
+        <tr th:each="r : ${reglements}" th:classappend="${r.annule()} ? 'a-barre' : ''">
+            <td th:text="${f.jour(r.date())}">01/11/2026</td>
+            <td th:text="${r.mode().libelle()}">Virement</td>
+            <td th:text="${r.reference()}">Réf</td>
+            <td class="a-montant" th:text="${f.montant(r.montant())}">0</td>
+            <td>
+                <span class="k-discret" th:if="${r.annule()}" th:text="${'Annulé : ' + r.motifAnnulation()}">Annulé</span>
+                <details th:if="${!r.annule() and droits.payer()}">
+                    <summary>Annuler</summary>
+                    <form class="k-ligne" method="post" th:action="@{/achats/factures/{id}/reglements/{r}/annuler(id=${x.id()},r=${r.id()})}">
+                        <input name="motif" required maxlength="200" placeholder="Motif">
+                        <button type="submit" class="k-bouton k-secondaire">Annuler le règlement</button>
+                    </form>
+                </details>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="a-boutons" th:unless="${actions.isEmpty()}">
+        <th:block th:each="y : ${actions}">
+            <a class="k-bouton" th:href="@{${y.chemin()}}" th:text="${y.libelle()}">Payer par PI-SPI</a>
+            <span class="k-discret" th:text="${y.aide()}">Aide</span>
+        </th:block>
+    </div>
+
+    <details th:if="${droits.payer() and x.reste() > 0}" open>
+        <summary><strong>Enregistrer un paiement</strong></summary>
+        <form class="k-pile" method="post" th:action="@{/achats/factures/{id}/reglements(id=${x.id()})}">
+            <label>Date <input type="date" name="date" required th:value="${aujourdHui}" th:max="${aujourdHui}"></label>
+            <label>Montant <input name="montant" required inputmode="numeric" maxlength="20" th:value="${x.reste()}"></label>
+            <label>Mode
+                <select name="mode"><option th:each="m : ${modes}" th:value="${m.name()}" th:text="${m.libelle()}">Espèces</option></select></label>
+            <label>Référence <input name="reference" maxlength="80"></label>
+            <label th:unless="${comptes.isEmpty()}">Payé depuis le compte
+                <select name="compte" required>
+                    <option value="">Choisir…</option>
+                    <option th:each="k : ${comptes}" th:value="${k.id()}" th:text="${k.libelle()}">Caisse</option>
+                </select></label>
+            <button type="submit" class="k-bouton">Enregistrer le paiement</button>
+        </form>
+    </details>
+    <form method="post" th:if="${droits.payer() and x.regle() == 0 and x.statut().name() != 'ANNULEE'}"
+          th:action="@{/achats/factures/{id}/annuler(id=${x.id()})}" style="margin-top:1rem">
+        <button type="submit" class="k-bouton k-secondaire">Annuler cette facture (erreur de saisie)</button>
+    </form>
+</section>
+</body>
+</html>

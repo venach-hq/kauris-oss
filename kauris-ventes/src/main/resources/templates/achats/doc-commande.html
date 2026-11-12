@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- Bon de commande envoyé au fournisseur. Écran et PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div class="k-doc-brouillon" th:if="${brouillon}">Brouillon : commande sans numéro et sans valeur</div>
+    <table class="k-doc-colonnes">
+        <tr>
+            <td><div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+                <p th:unless="${c.objet().isEmpty()}"><strong>Objet :</strong> <span th:text="${c.objet()}">Objet</span></p></td>
+            <td class="k-doc-intervalle"></td>
+            <td style="width: 42%;">
+                <div class="k-doc-destinataire">
+                    <div class="k-doc-etiquette">Fournisseur</div>
+                    <div class="k-doc-nom-tiers" th:text="${fournisseur.nom()}">Fournisseur</div>
+                    <div th:unless="${fournisseur.contact().isEmpty()}" th:text="${'À l''attention de ' + fournisseur.contact()}">Contact</div>
+                    <div th:text="${fournisseur.adresseComplete()}">Adresse</div>
+                    <div th:unless="${fournisseur.nif().isEmpty()}"><strong>NIF :</strong> <span th:text="${fournisseur.nif()}">NIF</span></div>
+                    <div th:unless="${fournisseur.telephone().isEmpty()}"><strong>Tél :</strong> <span th:text="${fournisseur.telephone()}">Tél</span></div>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <table class="k-doc-tableau">
+        <thead><tr><th>Désignation</th><th class="k-doc-montant">Qté</th><th class="k-doc-montant">Prix unit. HT</th>
+            <th class="k-doc-montant" th:if="${t.avecTva()}">TVA</th><th class="k-doc-montant">Montant HT</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${c.lignes()}">
+            <td th:text="${l.designation()}">Article</td>
+            <td class="k-doc-montant" th:text="${f.decimal(l.quantite()) + (l.unite().isEmpty() ? '' : ' ' + l.unite())}">1</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.prixUnitaire())}">0</td>
+            <td class="k-doc-montant" th:if="${t.avecTva()}" th:text="${f.pourcent(l.tauxTva())}">18 %</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.ligne().montantHt())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+    <table class="k-doc-totaux">
+        <tr><td>Total HT</td><td class="k-doc-montant" th:text="${f.montant(t.totalHt())}">0</td></tr>
+        <th:block th:if="${t.avecTva()}">
+            <tr th:each="x : ${t.tva()}" th:if="${x.taux().signum() > 0}">
+                <td th:text="${'TVA ' + f.pourcent(x.taux())}">TVA</td><td class="k-doc-montant" th:text="${f.montant(x.montant())}">0</td></tr>
+        </th:block>
+        <tr class="k-doc-total"><td th:text="${t.avecTva() ? 'Total TTC' : 'Total'}">Total</td>
+            <td class="k-doc-montant" th:text="${f.montant(t.totalTtc())}">0</td></tr>
+    </table>
+    <p>Arrêté le présent bon de commande à la somme de <strong th:text="${enLettres}">…</strong>.</p>
+    <p class="k-doc-note" th:unless="${c.notes().isEmpty()}" th:text="${c.notes()}">Notes</p>
+    <p class="k-doc-note">Merci de rappeler le numéro de cette commande sur votre bon de livraison et votre facture.</p>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>
