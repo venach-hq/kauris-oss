@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${fiche.article().designation()}, contenu=~{::section})}">
+<body>
+<section th:with="x=${fiche.article()},p=${fiche.position()}">
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <div class="s-boutons">
+        <a class="k-bouton" th:if="${droits.mouvementer()}" th:href="@{/stock/mouvement(article=${x.id()})}">Entrée ou sortie</a>
+        <a class="k-bouton k-secondaire" th:href="@{/stock/articles/{id}/fiche(id=${x.id()})}" target="_blank" rel="noopener">Fiche de stock (PDF)</a>
+        <span class="k-pastille" th:unless="${x.actif()}">Archivé</span>
+    </div>
+
+    <div class="s-chiffres">
+        <div class="s-chiffre" th:classappend="${p.quantite().signum() < 0} ? 's-alerte'"><span>Quantité en stock</span>
+            <strong th:text="${f.decimal(p.quantite()) + ' ' + x.unite()}">0</strong></div>
+        <div class="s-chiffre"><span>Coût moyen</span><strong th:text="${f.montant(p.cmup())}">0</strong></div>
+        <div class="s-chiffre"><span>Valeur</span><strong th:text="${f.montant(p.valeur())}">0</strong></div>
+        <div class="s-chiffre"><span>Seuil d'alerte</span>
+            <strong th:text="${x.seuilAlerte() == null ? '—' : f.decimal(x.seuilAlerte())}">—</strong></div>
+    </div>
+
+    <h2>Par dépôt</h2>
+    <table class="k-table">
+        <tbody>
+        <tr th:each="e : ${fiche.parDepot()}">
+            <td th:text="${e.key.nom()}">Magasin</td>
+            <td class="s-nombre" th:classappend="${e.value.signum() < 0} ? 's-negatif'" th:text="${f.decimal(e.value) + ' ' + x.unite()}">0</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Mouvements</h2>
+    <p class="k-discret" th:if="${fiche.mouvements().isEmpty()}">Aucun mouvement.</p>
+    <table class="k-table" th:unless="${fiche.mouvements().isEmpty()}">
+        <thead><tr><th>Date</th><th>N°</th><th>Mouvement</th><th>Dépôt</th><th class="s-nombre">Quantité</th>
+            <th class="s-nombre">Coût unitaire</th><th>Pièce</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${fiche.mouvements()}">
+            <td th:text="${f.jour(m.date())}">01/11/2026</td>
+            <td th:text="${m.numero()}">MS-2026-000001</td>
+            <td><span th:text="${m.type().libelle()}">Entrée</span><br><span class="k-discret" th:text="${m.libelle()}">libellé</span></td>
+            <td th:text="${nomsDepots.get(m.depotId())}">Magasin</td>
+            <td class="s-nombre" th:classappend="${m.type().entree()} ? 's-entree' : 's-sortie'"
+                th:text="${(m.type().entree() ? '+ ' : '- ') + f.decimal(m.quantite())}">+ 1</td>
+            <td class="s-nombre" th:text="${f.montant(m.coutUnitaire())}">0</td>
+            <td><a th:if="${m.documentId() != null}" th:href="@{/ventes/documents/{id}(id=${m.documentId()})}" th:text="${m.reference()}">FA</a>
+                <span th:if="${m.documentId() == null}" th:text="${m.reference()}">BL</span></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

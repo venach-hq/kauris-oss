@@ -151,6 +151,9 @@ class ParcoursLocalTest {
         mvc.perform(get("/ventes/documents/nouveau").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("/ventes/ventes.js")));
         mvc.perform(get("/ventes/ventes.js").session(session)).andExpect(status().isOk());
+        assertTrue(registre.present("achats-stock"));
+        mvc.perform(get("/stock").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/stock\"")));
         mvc.perform(post("/ventes/clients").session(session).with(csrf()).param("type", "PARTICULIER")
                         .param("nom", "Yao Kossi"))
                 .andExpect(redirectedUrlPattern("/ventes/clients/*"));

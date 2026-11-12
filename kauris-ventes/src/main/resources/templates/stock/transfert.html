@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Transfert entre dépôts', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+    <form class="k-pile" method="post" th:action="@{/stock/transfert}">
+        <label>Article
+            <select name="article" required>
+                <option value="">Choisir…</option>
+                <option th:each="x : ${articles}" th:value="${x.id()}" th:text="${x.designation() + ' (' + x.unite() + ')'}">Article</option>
+            </select>
+        </label>
+        <label>Depuis
+            <select name="de" required>
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}">Magasin</option>
+            </select>
+        </label>
+        <label>Vers
+            <select name="vers" required>
+                <option th:each="d, i : ${depots}" th:value="${d.id()}" th:text="${d.nom()}" th:selected="${i.index == 1}">Boutique</option>
+            </select>
+        </label>
+        <label>Quantité <input name="quantite" required inputmode="decimal" maxlength="16"></label>
+        <label>Date <input type="date" name="date" th:value="${aujourdHui}" th:max="${aujourdHui}" required></label>
+        <label>Libellé <input name="libelle" maxlength="200"></label>
+        <button type="submit" class="k-bouton">Transférer</button>
+    </form>
+</section>
+</body>
+</html>

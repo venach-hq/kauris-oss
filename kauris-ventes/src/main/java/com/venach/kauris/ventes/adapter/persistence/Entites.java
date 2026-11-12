@@ -81,6 +81,10 @@ final class Entites {
         long prixHt;
         @Column(name = "taux_tva", precision = 5, scale = 2, nullable = false)
         BigDecimal tauxTva;
+        @Column(name = "suivi_stock", nullable = false)
+        boolean suiviStock;
+        @Column(name = "seuil_alerte", precision = 15, scale = 3)
+        BigDecimal seuilAlerte;
         @Column(name = "actif", nullable = false)
         boolean actif;
         @JdbcTypeCode(SqlTypes.TIMESTAMP)

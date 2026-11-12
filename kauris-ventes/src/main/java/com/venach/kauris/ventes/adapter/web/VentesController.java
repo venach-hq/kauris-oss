@@ -208,6 +208,8 @@ public class VentesController {
                 FormatsVentes.lireMontant(c.get("prixHt"), "Prix hors taxes"),
                 r.assujettiTva() ? FormatsVentes.lireDecimal(c.get("tauxTva"), "Taux de TVA", r.tauxTva())
                         : BigDecimal.ZERO,
+                "on".equals(c.get("suiviStock")),
+                FormatsVentes.lireDecimal(c.get("seuilAlerte"), "Seuil d'alerte", null),
                 true, null);
     }
 

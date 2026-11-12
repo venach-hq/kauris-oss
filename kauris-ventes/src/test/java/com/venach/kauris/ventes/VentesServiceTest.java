@@ -197,7 +197,7 @@ class VentesServiceTest {
                 contenu(JOUR, JOUR, ligne("A", "1", 1_000)));
         assertThrows(AccesRefuse.class, () -> ventes.emettre(vendeur, f.id()), "émettre est une autre permission");
         assertThrows(AccesRefuse.class, () -> ventes.creerArticle(vendeur, new Article.Etat(null, null,
-                Article.Type.SERVICE, "", "Conseil", "h", 10_000, BigDecimal.TEN, true, null)));
+                Article.Type.SERVICE, "", "Conseil", "h", 10_000, BigDecimal.TEN, false, null, true, null)));
         assertThrows(AccesRefuse.class, () -> ventes.definirReglages(vendeur, true, BigDecimal.TEN, "", 0, 30, ""));
     }
 
@@ -222,9 +222,9 @@ class VentesServiceTest {
         assertThrows(ErreurMetier.class, () -> ventes.creerBrouillon(patron, TypeDocument.DEVIS, c.id(),
                 contenu(JOUR, JOUR, ligne("A", "1", 1_000))));
         Article a = ventes.creerArticle(patron, new Article.Etat(null, null, Article.Type.BIEN, "REF-1", "Câble",
-                "m", 1_500, new BigDecimal("18"), true, null));
+                "m", 1_500, new BigDecimal("18"), true, null, true, null));
         assertThrows(ErreurMetier.class, () -> ventes.creerArticle(patron, new Article.Etat(null, null,
-                Article.Type.BIEN, "ref-1", "Autre câble", "m", 1_500, new BigDecimal("18"), true, null)));
+                Article.Type.BIEN, "ref-1", "Autre câble", "m", 1_500, new BigDecimal("18"), true, null, true, null)));
         assertEquals(1_500, a.ligne(BigDecimal.ONE).montantHt());
     }
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Fiche de stock d'un article : ses mouvements, du plus récent au plus ancien. Écran et PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau">
+        <thead><tr><th>Date</th><th>N°</th><th>Mouvement</th><th>Dépôt</th><th>Pièce</th>
+            <th class="k-doc-montant">Entrée</th><th class="k-doc-montant">Sortie</th><th class="k-doc-montant">Coût unit.</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${fiche.mouvements()}">
+            <td th:text="${f.jour(m.date())}">01/11/2026</td>
+            <td th:text="${m.numero()}">MS</td>
+            <td th:text="${m.type().libelle()}">Entrée</td>
+            <td th:text="${nomsDepots.get(m.depotId())}">Magasin</td>
+            <td th:text="${m.reference()}">BL</td>
+            <td class="k-doc-montant" th:text="${m.type().entree() ? f.decimal(m.quantite()) : ''}"></td>
+            <td class="k-doc-montant" th:text="${m.type().entree() ? '' : f.decimal(m.quantite())}"></td>
+            <td class="k-doc-montant" th:text="${f.nombre(m.coutUnitaire())}">0</td>
+        </tr>
+        <tr th:if="${fiche.mouvements().isEmpty()}"><td colspan="8">Aucun mouvement.</td></tr>
+        </tbody>
+    </table>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

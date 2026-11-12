@@ -23,7 +23,8 @@
             <td th:text="${x.reference()}">REF</td>
             <td><span th:text="${x.designation()}">Article</span>
                 <span class="k-discret" th:text="${x.type().libelle()}">Article</span></td>
-            <td th:text="${x.unite()}">u</td>
+            <td><span th:text="${x.unite()}">u</span>
+                <span class="k-pastille" th:if="${x.suiviStock()}">Stock suivi</span></td>
             <td class="v-montant" th:text="${f.montant(x.prixHt())}">0</td>
             <td class="v-montant" th:if="${reglages.assujettiTva()}" th:text="${f.pourcent(x.tauxTva())}">18 %</td>
             <td>
@@ -65,6 +66,11 @@
     <label>Prix hors taxes, sans décimales
         <input name="prixHt" inputmode="numeric" required maxlength="20" placeholder="25 000"
                th:value="${x != null ? x.prixHt() : ''}"></label>
+    <label class="k-choix"><input type="checkbox" name="suiviStock" th:checked="${x != null and x.suiviStock()}">
+        <span>Suivre le stock de cet article (module Achats et stock)</span></label>
+    <label>Seuil d'alerte de stock (facultatif)
+        <input name="seuilAlerte" inputmode="decimal" maxlength="16"
+               th:value="${x != null and x.seuilAlerte() != null ? f.decimal(x.seuilAlerte()) : ''}"></label>
     <label th:if="${reglages.assujettiTva()}">Taux de TVA (%)
         <input name="tauxTva" inputmode="decimal" maxlength="6"
                th:value="${x != null ? f.decimal(x.tauxTva()) : f.decimal(reglages.tauxTva())}"></label>

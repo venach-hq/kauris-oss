@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Inventaire', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+    <form class="s-filtres" method="get" th:action="@{/stock/inventaire}">
+        <label>Dépôt compté
+            <select name="depot" onchange="this.form.submit()">
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}" th:selected="${d.id() == depotId}">Magasin</option>
+            </select>
+        </label>
+        <noscript><button type="submit" class="k-bouton k-secondaire">Changer</button></noscript>
+    </form>
+    <p class="k-discret">Comptez les articles dans le dépôt et saisissez les quantités trouvées. Laissez vide ce que
+        vous n'avez pas compté. Chaque écart devient un ajustement d'inventaire, au coût moyen.</p>
+    <p class="k-discret" th:if="${etat.lignes().isEmpty()}">Aucun article suivi.</p>
+    <form method="post" th:action="@{/stock/inventaire}" th:unless="${etat.lignes().isEmpty()}">
+        <input type="hidden" name="depot" th:value="${depotId}">
+        <table class="k-table">
+            <thead><tr><th>Article</th><th class="s-nombre">Enregistré</th><th>Compté</th></tr></thead>
+            <tbody>
+            <tr th:each="l : ${etat.lignes()}">
+                <td th:text="${l.article().designation()}">Article</td>
+                <td class="s-nombre" th:text="${f.decimal(l.quantite()) + ' ' + l.article().unite()}">0</td>
+                <td><input th:name="${'compte.' + l.article().id()}" inputmode="decimal" maxlength="16" style="width:8rem"
+                           th:attr="aria-label=${'Quantité comptée de ' + l.article().designation()}"></td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="k-pile">
+            <label>Date de l'inventaire <input type="date" name="date" th:value="${aujourdHui}" th:max="${aujourdHui}" required></label>
+            <label>Référence <input name="reference" maxlength="60" placeholder="INV-2026-12"></label>
+            <button type="submit" class="k-bouton">Enregistrer l'inventaire</button>
+        </div>
+    </form>
+</section>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- État du stock valorisé au coût moyen pondéré. Écran et PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau">
+        <thead><tr><th>Référence</th><th>Article</th><th class="k-doc-montant">Quantité</th><th>Unité</th>
+            <th class="k-doc-montant">Coût moyen</th><th class="k-doc-montant">Valeur</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${etat.lignes()}">
+            <td th:text="${l.article().reference()}">REF</td>
+            <td th:text="${l.article().designation() + (l.bas() ? ' (stock bas)' : '')}">Article</td>
+            <td class="k-doc-montant" th:text="${f.decimal(l.quantite())}">0</td>
+            <td th:text="${l.article().unite()}">u</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.cmup())}">0</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.valeur())}">0</td>
+        </tr>
+        <tr th:if="${etat.lignes().isEmpty()}"><td colspan="6">Aucun article suivi.</td></tr>
+        <tr class="k-doc-total"><td colspan="5">Valeur totale du stock</td>
+            <td class="k-doc-montant" th:text="${f.montant(etat.valeurTotale())}">0</td></tr>
+        </tbody>
+    </table>
+    <p class="k-doc-note">Valeur au coût moyen unitaire pondéré (méthode admise par le SYSCOHADA).</p>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

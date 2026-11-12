@@ -12,6 +12,10 @@ import com.venach.kauris.ventes.adapter.web.ModuleVentes;
 import com.venach.kauris.ventes.adapter.web.VentesController;
 import com.venach.kauris.ventes.application.Ports;
 import com.venach.kauris.ventes.application.VentesService;
+import com.venach.kauris.ventes.stock.adapter.persistence.StockageStock;
+import com.venach.kauris.ventes.stock.adapter.web.ModuleAchatsStock;
+import com.venach.kauris.ventes.stock.adapter.web.StockController;
+import com.venach.kauris.ventes.stock.application.StockService;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
@@ -57,6 +61,27 @@ public class VentesAutoConfiguration {
         return new ModuleVentes();
     }
 
+    // ------------------------------------------------------------------ Achats et stock
+
+    @Bean
+    public StockageStock stockageStock(EntityManagerFactory fabrique) {
+        return new StockageStock(SharedEntityManagerCreator.createSharedEntityManager(fabrique));
+    }
+
+    /** Le stock suit les factures et avoirs émis par les Ventes. */
+    @Bean
+    public StockService stockService(StockageVentes ventesStockees, StockageStock stockage, VentesService ventes,
+                                     UniteDeTravail transaction, Clock horloge) {
+        StockService stock = new StockService(ventesStockees, stockage, stockage, stockage, transaction, horloge);
+        ventes.brancherStock(stock);
+        return stock;
+    }
+
+    @Bean
+    public ModuleAchatsStock moduleAchatsStock() {
+        return new ModuleAchatsStock();
+    }
+
     /** Les écrans, quand l'application a l'interface commune (une personne connectée, des documents). */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -67,6 +92,12 @@ public class VentesAutoConfiguration {
         public VentesController ventesController(ContexteCourant contexte, VentesService ventes,
                                                  GererEntrepriseUseCase entreprises) {
             return new VentesController(contexte, ventes, entreprises);
+        }
+
+        @Bean
+        public StockController stockController(ContexteCourant contexte, StockService stock,
+                                               GererEntrepriseUseCase entreprises, ProducteurDocuments producteur) {
+            return new StockController(contexte, stock, entreprises, producteur);
         }
 
         @Bean

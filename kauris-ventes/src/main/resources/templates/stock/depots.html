@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Dépôts', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+    <p class="k-discret">Les magasins, entrepôts ou boutiques où vous gardez la marchandise. Le dépôt principal
+        reçoit les sorties des factures et les retours des avoirs.</p>
+    <table class="k-table">
+        <thead><tr><th>Dépôt</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${tous}">
+            <td><strong th:text="${d.nom()}">Magasin</strong>
+                <span class="k-pastille k-ok" th:if="${d.principal()}">Principal</span>
+                <span class="k-pastille" th:unless="${d.actif()}">Archivé</span></td>
+            <td>
+                <details th:if="${droits.depots()}">
+                    <summary>Modifier</summary>
+                    <form class="k-ligne" method="post" th:action="@{/stock/depots/{id}(id=${d.id()})}">
+                        <input name="nom" th:value="${d.nom()}" maxlength="80" required>
+                        <button type="submit" name="action" value="renommer" class="k-bouton k-secondaire">Renommer</button>
+                    </form>
+                    <form class="k-ligne" method="post" th:action="@{/stock/depots/{id}(id=${d.id()})}">
+                        <button type="submit" name="action" value="principal" class="k-bouton k-secondaire"
+                                th:if="${d.actif() and !d.principal()}">Rendre principal</button>
+                        <button type="submit" name="action" th:value="${d.actif() ? 'archiver' : 'reactiver'}"
+                                class="k-bouton k-secondaire" th:unless="${d.principal()}"
+                                th:text="${d.actif() ? 'Archiver' : 'Réactiver'}">Archiver</button>
+                    </form>
+                </details>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <form class="k-ligne" method="post" th:action="@{/stock/depots}" th:if="${droits.depots()}" style="margin-top:1rem">
+        <input name="nom" maxlength="80" required placeholder="Boutique Bè, Entrepôt du port…">
+        <button type="submit" class="k-bouton">Ajouter un dépôt</button>
+    </form>
+</section>
+</body>
+</html>

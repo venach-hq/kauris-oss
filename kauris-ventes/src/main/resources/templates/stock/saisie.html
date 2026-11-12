@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Entrée ou sortie de stock', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+    <p class="k-discret">Les ventes font sortir le stock seules, à l'émission des factures ; les avoirs le font
+        revenir. Saisissez ici le reste : stock de départ, achats reçus, pertes, casse, consommation interne.</p>
+    <div class="k-message" th:if="${articles.isEmpty()}">Aucun article suivi : cochez « Suivre le stock » dans
+        <a th:href="@{/ventes/catalogue}">le catalogue</a>.</div>
+    <form class="k-pile" method="post" th:action="@{/stock/mouvement}" th:unless="${articles.isEmpty()}">
+        <label>Mouvement
+            <select name="type" id="s-type">
+                <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}"
+                        th:attr="data-entree=${t.entree()}">Entrée</option>
+            </select>
+        </label>
+        <label>Article
+            <select name="article" required>
+                <option value="">Choisir…</option>
+                <option th:each="x : ${articles}" th:value="${x.id()}" th:selected="${x.id() == articleId}"
+                        th:text="${(x.reference().isEmpty() ? '' : x.reference() + ' · ') + x.designation() + ' (' + x.unite() + ')'}">Article</option>
+            </select>
+        </label>
+        <label>Dépôt
+            <select name="depot" required>
+                <option th:each="d : ${depots}" th:value="${d.id()}" th:text="${d.nom()}">Magasin</option>
+            </select>
+        </label>
+        <label>Quantité <input name="quantite" required inputmode="decimal" maxlength="16"></label>
+        <label id="s-cout">Coût unitaire d'achat (sans décimales)
+            <input name="cout" inputmode="numeric" maxlength="20" placeholder="Prix payé au fournisseur, par unité">
+        </label>
+        <label>Date <input type="date" name="date" th:value="${aujourdHui}" th:max="${aujourdHui}" required></label>
+        <label>Libellé <input name="libelle" maxlength="200" placeholder="Achat chez…, casse, perte…"></label>
+        <label>Pièce (bon de livraison, facture fournisseur…) <input name="reference" maxlength="60"></label>
+        <button type="submit" class="k-bouton">Enregistrer</button>
+    </form>
+    <script>
+        (function () {
+            var type = document.getElementById('s-type');
+            var cout = document.getElementById('s-cout');
+            if (!type || !cout) { return; }
+            function voir() {
+                var entree = type.options[type.selectedIndex].dataset.entree === 'true';
+                cout.style.display = entree ? '' : 'none';
+                cout.querySelector('input').required = entree;
+            }
+            type.addEventListener('change', voir);
+            voir();
+        })();
+    </script>
+</section>
+</body>
+</html>

@@ -98,6 +98,8 @@ public class StockageVentes implements Ports.Clients, Ports.Articles, Ports.Docu
         e.unite = a.unite();
         e.prixHt = a.prixHt();
         e.tauxTva = a.tauxTva();
+        e.suiviStock = a.suiviStock();
+        e.seuilAlerte = a.seuilAlerte();
         e.actif = a.actif();
         e.creeLe = a.creeLe();
         em.merge(e);
@@ -117,7 +119,7 @@ public class StockageVentes implements Ports.Clients, Ports.Articles, Ports.Docu
 
     private static Article article(ArticleEntity e) {
         return Article.reconstituer(new Article.Etat(e.id, e.tenantId, Article.Type.valueOf(e.type), e.reference,
-                e.designation, e.unite, e.prixHt, e.tauxTva, e.actif, e.creeLe));
+                e.designation, e.unite, e.prixHt, e.tauxTva, e.suiviStock, e.seuilAlerte, e.actif, e.creeLe));
     }
 
     // ================================================================== documents
