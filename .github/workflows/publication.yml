@@ -38,7 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp kauris-standalone/target/kauris-standalone-"$VERSION".jar kauris-"$VERSION".jar
+          cp kauris-standalone/target/kauris-standalone.jar kauris-"$VERSION".jar
           cp deploy/.env.example kauris.env.example
           gh release create "$GITHUB_REF_NAME" kauris-"$VERSION".jar deploy/docker-compose.yml kauris.env.example \
             --title "Kauris $VERSION" --generate-notes

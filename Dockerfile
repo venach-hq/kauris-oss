@@ -16,7 +16,7 @@ COPY kauris-kernel/src kauris-kernel/src
 COPY kauris-ventes/src kauris-ventes/src
 COPY kauris-standalone/src kauris-standalone/src
 RUN ./mvnw -B -q -DskipTests package -pl kauris-standalone -am \
-    && cp kauris-standalone/target/kauris-standalone-*.jar /kauris.jar
+    && cp kauris-standalone/target/kauris-standalone.jar /kauris.jar
 
 FROM eclipse-temurin:21-jre
 LABEL org.opencontainers.image.title="Kauris" \
