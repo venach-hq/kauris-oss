@@ -4,6 +4,12 @@
 <body>
 <section>
     <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Enregistrez ici les factures reçues de vos fournisseurs, avec leur échéance, puis les paiements.</p>
+        <p>La liste montre ce qui reste à payer et ce qui est en retard.</p>
+    </details>
     <div class="a-boutons" th:if="${droits.payer()}">
         <a class="k-bouton" th:href="@{/achats/factures/nouvelle}">Enregistrer une facture fournisseur</a>
     </div>

@@ -4,6 +4,11 @@
 <body>
 <section>
     <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>« Envoyer (numéroter) » fige le bon de commande. Quand la marchandise arrive, saisissez les quantités reçues puis « Enregistrer la réception » : les articles suivis entrent en stock au prix de la commande.</p>
+    </details>
     <div class="a-boutons">
         <span th:replace="~{achats/commun :: statut(${c})}"></span>
         <a class="k-bouton k-secondaire" th:href="@{/achats/commandes/{id}/imprimer(id=${c.id()})}" target="_blank" rel="noopener">Voir le bon de commande</a>

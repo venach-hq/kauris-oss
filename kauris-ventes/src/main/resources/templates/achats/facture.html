@@ -4,6 +4,11 @@
 <body>
 <section>
     <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Enregistrez chaque paiement fait au fournisseur ; la facture est soldée quand le reste à payer est à zéro.</p>
+    </details>
     <div class="a-chiffres">
         <div class="a-chiffre"><span>Total TTC</span><strong th:text="${f.montant(x.montantHt() + x.montantTva())}">0</strong></div>
         <div class="a-chiffre"><span>Réglé</span><strong th:text="${f.montant(x.regle())}">0</strong></div>

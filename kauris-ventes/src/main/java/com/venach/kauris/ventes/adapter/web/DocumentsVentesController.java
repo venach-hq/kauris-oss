@@ -1,12 +1,15 @@
 package com.venach.kauris.ventes.adapter.web;
 
+import com.venach.kauris.kernel.commun.AccesRefuse;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.kernel.commun.Saisie;
 import com.venach.kauris.kernel.document.Cartouche;
 import com.venach.kauris.kernel.document.Habillage;
 import com.venach.kauris.kernel.document.MontantEnLettres;
 import com.venach.kauris.kernel.document.ProducteurDocuments;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
+import com.venach.kauris.kernel.entreprise.domain.Entreprise;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.ui.ContexteCourant;
 import com.venach.kauris.kernel.ui.entreprise.EntrepriseController;
@@ -29,12 +32,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriUtils;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -43,6 +51,8 @@ import static com.venach.kauris.ventes.adapter.web.VentesController.PAGE;
 import static com.venach.kauris.ventes.adapter.web.VentesController.agir;
 import static com.venach.kauris.ventes.adapter.web.VentesController.commun;
 import static com.venach.kauris.ventes.application.PermissionsVentes.CONSULTER;
+import static com.venach.kauris.ventes.application.PermissionsVentes.ENCAISSER;
+import static com.venach.kauris.ventes.application.PermissionsVentes.SAISIR;
 
 /**
  * Les devis, factures et avoirs : liste, saisie des brouillons, émission, suite (facturer un devis, faire un
@@ -58,9 +68,17 @@ public class DocumentsVentesController {
     private final VentesService ventes;
     private final GererEntrepriseUseCase entreprises;
     private final ProducteurDocuments producteur;
+    private final Ports.Courriels courriels;
 
     public DocumentsVentesController(ContexteCourant contexte, VentesService ventes,
                                      GererEntrepriseUseCase entreprises, ProducteurDocuments producteur) {
+        this(contexte, ventes, entreprises, producteur, Ports.Courriels.AUCUN);
+    }
+
+    public DocumentsVentesController(ContexteCourant contexte, VentesService ventes,
+                                     GererEntrepriseUseCase entreprises, ProducteurDocuments producteur,
+                                     Ports.Courriels courriels) {
+        this.courriels = courriels;
         this.contexte = contexte;
         this.ventes = ventes;
         this.entreprises = entreprises;
@@ -377,6 +395,179 @@ public class DocumentsVentesController {
                 : List.of("Cachet et signature"));
         v.put("nomFichier", brouillon ? d.type().libelle() + " brouillon" : d.type().libelle() + " " + d.numero());
         return v;
+    }
+
+    // ================================================================== envoi par email
+
+    /** Ce que l'écran d'envoi montre et ce qui part. */
+    public record Envoi(String titre, String retour, String action, String destinataire, String sujet, String texte,
+                        String nomPiece, String lienPiece, boolean disponible, String mailto) {
+    }
+
+    @GetMapping("/documents/{id}/envoyer")
+    public String preparerEnvoi(@PathVariable UUID id, HttpServletRequest requete, Model model) {
+        Acces a = contexte.exiger(requete, CONSULTER);
+        DocumentVente d = ventes.document(a, id);
+        commun(model, a, entreprises, d.type().name().toLowerCase());
+        model.addAttribute("envoi", envoiDocument(a, d, requete.getContextPath()));
+        return "ventes/envoi";
+    }
+
+    @PostMapping("/documents/{id}/envoyer")
+    public String envoyer(@PathVariable UUID id, @RequestParam Map<String, String> c, HttpServletRequest requete,
+                          RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, CONSULTER);
+        return agir(flash, () -> {
+            DocumentVente d = ventes.document(a, id);
+            if (d.modifiable()) {
+                throw new ErreurMetier("Émettez le document avant de l'envoyer.");
+            }
+            Map<String, Object> v = piece(a, id, null, true);
+            partir(a, c, new Ports.Courriels.Piece(ProducteurDocuments.nomDeFichier(
+                    String.valueOf(v.get("nomFichier")), null), producteur.pdf("ventes/doc-vente", v)));
+            flash.addFlashAttribute("succes", d.intitule() + " envoyé à " + c.get("destinataire") + ".");
+            return "redirect:" + PAGE + "/documents/" + id;
+        }, PAGE + "/documents/" + id + "/envoyer");
+    }
+
+    @GetMapping("/clients/{id}/relance")
+    public String preparerRelance(@PathVariable UUID id, HttpServletRequest requete, Model model,
+                                  RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, CONSULTER);
+        return agir(flash, () -> {
+            model.addAttribute("envoi", envoiRelance(a, id, requete.getContextPath()));
+            commun(model, a, entreprises, "impayes");
+            return "ventes/envoi";
+        }, PAGE + "/clients/" + id);
+    }
+
+    @PostMapping("/clients/{id}/relance")
+    public String relancer(@PathVariable UUID id, @RequestParam Map<String, String> c, HttpServletRequest requete,
+                           RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, CONSULTER);
+        return agir(flash, () -> {
+            LocalDate debut = debutRelance(a, id);
+            Map<String, Object> v = releve(a, id, debut.toString(), ventes.aujourdHui().toString(), null, true);
+            partir(a, c, new Ports.Courriels.Piece(ProducteurDocuments.nomDeFichier("releve client",
+                    String.valueOf(v.get("suffixe"))), producteur.pdf("ventes/doc-releve", v)));
+            flash.addFlashAttribute("succes", "Relance envoyée à " + c.get("destinataire") + ", relevé joint.");
+            return "redirect:" + PAGE + "/clients/" + id;
+        }, PAGE + "/clients/" + id + "/relance");
+    }
+
+    /** Envoie l'email saisi ; seules les personnes qui peuvent encaisser ou saisir envoient. */
+    private void partir(Acces a, Map<String, String> c, Ports.Courriels.Piece piece) {
+        if (!a.peut(SAISIR)
+                && !a.peut(ENCAISSER)) {
+            throw new AccesRefuse("Vos rôles ne vous permettent pas d'écrire aux "
+                    + "clients.");
+        }
+        if (!courriels.disponible()) {
+            throw new ErreurMetier("L'envoi d'emails n'est pas disponible ici : utilisez « Ouvrir dans ma "
+                    + "messagerie ».");
+        }
+        String destinataire = Saisie.email(c.get("destinataire"));
+        String sujet = c.getOrDefault("sujet", "").strip();
+        String texte = c.getOrDefault("texte", "").strip();
+        if (sujet.isEmpty() || sujet.length() > 200 || texte.isEmpty() || texte.length() > 5000) {
+            throw new ErreurMetier("Objet (200 caractères au plus) et message (5 000 au plus) obligatoires.");
+        }
+        var e = entreprises.consulter(a.tenantId());
+        courriels.envoyer(a.tenantId(), destinataire, e.email(), e.raisonSociale(), sujet, texte, piece);
+    }
+
+    private Envoi envoiDocument(Acces a, DocumentVente d, String contexteWeb) {
+        var e = entreprises.consulter(a.tenantId());
+        FormatsVentes f = new FormatsVentes(e.devise());
+        String quoi = switch (d.type()) {
+            case DEVIS -> "notre devis";
+            case AVOIR -> "notre avoir";
+            case FACTURE -> "notre facture";
+        };
+        StringBuilder t = new StringBuilder("Bonjour")
+                .append(d.client().contact().isEmpty() ? "" : " " + d.client().contact()).append(",\n\n")
+                .append("Veuillez trouver ci-joint ").append(quoi).append(" ").append(d.numero() == null ? "" : d.numero())
+                .append(" du ").append(f.jour(d.contenu().date())).append(", d'un montant de ")
+                .append(f.montant(d.totaux().totalTtc())).append(d.totaux().avecTva() ? " TTC" : "");
+        if (d.type() == TypeDocument.DEVIS && d.contenu().echeance() != null) {
+            t.append(", valable jusqu'au ").append(f.jour(d.contenu().echeance()));
+        }
+        if (d.type() == TypeDocument.FACTURE && d.contenu().echeance() != null && d.resteAPayer() > 0) {
+            t.append(", à régler au plus tard le ").append(f.jour(d.contenu().echeance()));
+        }
+        t.append(".\n");
+        if (d.type() == TypeDocument.FACTURE && e.banque().renseignees() && d.resteAPayer() > 0) {
+            t.append("\nRèglement par virement : ").append(e.banque().ligne()).append("\n");
+        }
+        t.append(signature(a, e));
+        String sujet = d.intitule() + " · " + e.raisonSociale();
+        return new Envoi("Envoyer " + d.intitule().toLowerCase(Locale.FRENCH), PAGE + "/documents/" + d.id(),
+                PAGE + "/documents/" + d.id() + "/envoyer", d.client().email(), sujet, t.toString(),
+                d.intitule() + " (PDF)", contexteWeb + PAGE + "/documents/" + d.id() + ".pdf", courriels.disponible(),
+                mailto(d.client().email(), sujet, t.toString()));
+    }
+
+    private Envoi envoiRelance(Acces a, UUID clientId, String contexteWeb) {
+        var e = entreprises.consulter(a.tenantId());
+        FormatsVentes f = new FormatsVentes(e.devise());
+        Client c = ventes.client(a, clientId);
+        List<DocumentVente> dues = ventes.documents(a, new Ports.Filtre(TypeDocument.FACTURE, clientId, null, null,
+                        null, true, 0)).stream().filter(d -> d.resteAPayer() > 0)
+                .sorted(Comparator.comparing(d -> d.contenu().date())).toList();
+        if (dues.isEmpty()) {
+            throw new ErreurMetier("Ce client n'a aucune facture à régler.");
+        }
+        LocalDate jour = ventes.aujourdHui();
+        long total = 0;
+        StringBuilder t = new StringBuilder("Bonjour")
+                .append(c.etat().contact().isEmpty() ? "" : " " + c.etat().contact()).append(",\n\n")
+                .append("Sauf erreur de notre part, les factures suivantes restent à régler :\n\n");
+        for (DocumentVente d : dues) {
+            total += d.resteAPayer();
+            t.append("- ").append(d.numero()).append(" du ").append(f.jour(d.contenu().date()));
+            if (d.contenu().echeance() != null) {
+                long retard = ChronoUnit.DAYS.between(d.contenu().echeance(), jour);
+                t.append(", échéance ").append(f.jour(d.contenu().echeance()))
+                        .append(retard > 0 ? " (en retard de " + retard + " jour" + (retard > 1 ? "s" : "") + ")" : "");
+            }
+            t.append(" : ").append(f.montant(d.resteAPayer())).append("\n");
+        }
+        t.append("\nTotal à régler : ").append(f.montant(total)).append(".\n")
+                .append("Vous trouverez ci-joint votre relevé de compte.\n");
+        if (e.banque().renseignees()) {
+            t.append("\nRèglement par virement : ").append(e.banque().ligne()).append("\n");
+        }
+        t.append("\nSi votre paiement est déjà parti, merci de ne pas tenir compte de ce message.\n").append(signature(a, e));
+        String sujet = "Factures en attente de règlement · " + e.raisonSociale();
+        return new Envoi("Relancer " + c.nom(), PAGE + "/clients/" + clientId, PAGE + "/clients/" + clientId + "/relance",
+                c.email(), sujet, t.toString(), "Relevé de compte (PDF)",
+                contexteWeb + PAGE + "/clients/" + clientId + "/releve.pdf?du=" + debutRelance(a, clientId),
+                courriels.disponible(), mailto(c.email(), sujet, t.toString()));
+    }
+
+    /** Le relevé joint à une relance part de la plus ancienne facture impayée. */
+    private LocalDate debutRelance(Acces a, UUID clientId) {
+        return ventes.documents(a, new Ports.Filtre(TypeDocument.FACTURE, clientId, null, null, null, true, 0)).stream()
+                .filter(d -> d.resteAPayer() > 0).map(d -> d.contenu().date()).min(Comparator.naturalOrder())
+                .orElse(ventes.aujourdHui().withDayOfYear(1));
+    }
+
+    private static String signature(Acces a, Entreprise e) {
+        StringBuilder s = new StringBuilder("\nNous restons à votre disposition.\n\nCordialement,\n")
+                .append(a.nomMembre()).append("\n").append(e.raisonSociale());
+        if (!e.telephone().isEmpty()) {
+            s.append("\n").append(e.telephone());
+        }
+        return s.toString();
+    }
+
+    /** Un lien « mailto: » pour ouvrir l'email dans la messagerie de la personne (texte coupé s'il est très long). */
+    static String mailto(String destinataire, String sujet, String texte) {
+        String corps = texte.length() > 1500 ? texte.substring(0, 1500) + "…" : texte;
+        return "mailto:" + (destinataire == null ? "" : destinataire) + "?subject="
+                + UriUtils.encodeQueryParam(sujet, StandardCharsets.UTF_8)
+                + "&body=" + UriUtils.encodeQueryParam(corps,
+                StandardCharsets.UTF_8);
     }
 
     // ================================================================== relevé de compte client

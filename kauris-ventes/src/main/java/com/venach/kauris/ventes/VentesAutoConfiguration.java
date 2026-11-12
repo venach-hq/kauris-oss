@@ -46,6 +46,13 @@ public class VentesAutoConfiguration {
         return new StockageVentes(SharedEntityManagerCreator.createSharedEntityManager(fabrique));
     }
 
+    /** Pas d'envoi d'emails par défaut : l'écran ouvre la messagerie de la personne ; Kauris Cloud envoie lui-même. */
+    @Bean
+    @ConditionalOnMissingBean(Ports.Courriels.class)
+    public Ports.Courriels courrielsVentes() {
+        return Ports.Courriels.AUCUN;
+    }
+
     /** Rien à ajouter aux encaissements par défaut ; Kauris Cloud fournit le sien (sa trésorerie). */
     @Bean
     @ConditionalOnMissingBean(Ports.Encaissements.class)
@@ -133,8 +140,9 @@ public class VentesAutoConfiguration {
         @Bean
         public DocumentsVentesController documentsVentesController(ContexteCourant contexte, VentesService ventes,
                                                                    GererEntrepriseUseCase entreprises,
-                                                                   ProducteurDocuments producteur) {
-            return new DocumentsVentesController(contexte, ventes, entreprises, producteur);
+                                                                   ProducteurDocuments producteur,
+                                                                   Ports.Courriels courriels) {
+            return new DocumentsVentesController(contexte, ventes, entreprises, producteur, courriels);
         }
     }
 }

@@ -77,7 +77,29 @@ class VentesMySqlTest {
         SessionKauris sessionDeTest() {
             return () -> Optional.ofNullable(CONNECTE.get());
         }
+
+        /** Les emails « envoyés » sont gardés ici au lieu de partir. */
+        @Bean
+        Ports.Courriels courrielsDeTest() {
+            return new Ports.Courriels() {
+                @Override
+                public boolean disponible() {
+                    return true;
+                }
+
+                @Override
+                public void envoyer(UUID tenantId, String destinataire, String repondreA, String nomExpediteur,
+                                    String sujet, String texte, Piece piece) {
+                    ENVOYES.add(new Envoye(destinataire, nomExpediteur, sujet, texte, piece));
+                }
+            };
+        }
     }
+
+    record Envoye(String destinataire, String nom, String sujet, String texte, Ports.Courriels.Piece piece) {
+    }
+
+    static final List<Envoye> ENVOYES = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     @Container
     @ServiceConnection
@@ -257,6 +279,59 @@ class VentesMySqlTest {
         ouvrir("Autre entreprise");
         mvc.perform(get(fiche)).andExpect(status().isNotFound());
         mvc.perform(get(fiche + ".pdf")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void uneFactureSEnvoieParEmailEtLeClientSeRelanceAvecSonReleve() throws Exception {
+        Acces a = ouvrir("Pharmacie de la Plage");
+        Client c = client(a, "Clinique Espoir");
+        DocumentVente brouillon = ventes.creerBrouillon(a, TypeDocument.FACTURE, c.id(), new Contenu(jour.minusDays(40),
+                jour.minusDays(10), "", "", List.of(new Ligne(null, "Gants (boîte)", new BigDecimal("10"), "",
+                15_000, null, null)), null, ""));
+        String page = "/ventes/documents/" + brouillon.id();
+
+        // Un brouillon ne part pas.
+        mvc.perform(post(page + "/envoyer").param("destinataire", "compta@exemple.test").param("sujet", "x")
+                .param("texte", "y")).andExpect(flash().attribute("erreur", containsString("Émettez")));
+
+        DocumentVente facture = ventes.emettre(a, brouillon.id());
+        mvc.perform(get(page)).andExpect(content().string(containsString("Envoyer par email")));
+        mvc.perform(get(page + "/envoyer")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("compta@exemple.test")))
+                .andExpect(content().string(containsString(facture.numero())))
+                .andExpect(content().string(containsString("Ouvrir dans ma messagerie")));
+
+        ENVOYES.clear();
+        mvc.perform(post(page + "/envoyer").param("destinataire", "compta@exemple.test")
+                        .param("sujet", "Votre facture").param("texte", "Bonjour, ci-joint la facture."))
+                .andExpect(redirectedUrl(page)).andExpect(flash().attribute("succes", containsString("envoyé")));
+        assertEquals(1, ENVOYES.size());
+        Envoye e = ENVOYES.get(0);
+        assertEquals("compta@exemple.test", e.destinataire());
+        assertEquals("Votre facture", e.sujet());
+        assertTrue(e.piece().nom().endsWith(".pdf"), e.piece().nom());
+        assertTrue(texte(e.piece().contenu()).contains(facture.numero()));
+
+        // Adresse fausse : rien ne part.
+        mvc.perform(post(page + "/envoyer").param("destinataire", "pas-un-email").param("sujet", "s")
+                .param("texte", "t")).andExpect(flash().attributeExists("erreur"));
+        assertEquals(1, ENVOYES.size());
+
+        // Relance : la facture en retard est listée, le relevé est joint.
+        String relance = "/ventes/clients/" + c.id() + "/relance";
+        mvc.perform(get(relance)).andExpect(status().isOk())
+                .andExpect(content().string(containsString(facture.numero())))
+                .andExpect(content().string(containsString("en retard de 10 jours")));
+        mvc.perform(post(relance).param("destinataire", "compta@exemple.test").param("sujet", "Relance")
+                        .param("texte", "Merci de régler."))
+                .andExpect(redirectedUrl("/ventes/clients/" + c.id()));
+        assertEquals(2, ENVOYES.size());
+        assertTrue(texte(ENVOYES.get(1).piece().contenu()).contains("RELEVÉ DE COMPTE CLIENT"));
+
+        // Tout est réglé : plus de relance possible.
+        ventes.encaisser(a, facture.id(), jour, facture.resteAPayer(), ModeReglement.VIREMENT, "VIR-1");
+        mvc.perform(get(relance)).andExpect(redirectedUrl("/ventes/clients/" + c.id()))
+                .andExpect(flash().attribute("erreur", containsString("aucune facture")));
     }
 
     private static String texte(byte[] pdf) throws IOException {

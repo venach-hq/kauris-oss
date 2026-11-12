@@ -4,6 +4,11 @@
 <body>
 <section>
     <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Chaque mouvement est gardé : rien ne s’efface. Une erreur se corrige par un mouvement inverse ou un inventaire.</p>
+    </details>
     <form class="s-filtres" method="get" th:action="@{/stock/mouvements}">
         <label>Dépôt
             <select name="depot">

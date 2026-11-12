@@ -4,6 +4,12 @@
 <body>
 <section>
     <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Tapez un article du catalogue ou une désignation libre. Les montants s’écrivent sans décimale (ex. 25 000).</p>
+        <p>Le document reste un brouillon tant que vous ne l’émettez pas.</p>
+    </details>
     <style>
         .v-lignes { width: 100%; border-collapse: collapse; background: var(--k-carte); border: 1px solid var(--k-bord); }
         .v-lignes th { font-size: 12px; color: var(--k-discret); text-align: left; padding: .4rem; }

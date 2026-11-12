@@ -10,14 +10,16 @@
     <th:block th:unless="${factures.isEmpty()}">
         <h2>Par client</h2>
         <table class="k-table">
-            <thead><tr><th>Client</th><th>Factures</th><th class="v-montant">Reste dû</th><th class="v-montant">Dont en retard</th><th></th></tr></thead>
+            <thead><tr><th>Client</th><th>Factures</th><th class="v-montant">Reste dû</th><th class="v-montant">Dont en retard</th><th></th><th></th></tr></thead>
             <tbody>
             <tr th:each="c : ${parClient}">
                 <td><a th:href="@{/ventes/clients/{id}(id=${c.clientId()})}" th:text="${c.nom()}">Client</a></td>
                 <td th:text="${c.factures()}">1</td>
                 <td class="v-montant" th:text="${f.montant(c.montant())}">0</td>
                 <td class="v-montant" th:text="${c.enRetard() > 0 ? f.montant(c.enRetard()) : ''}">0</td>
-                <td><a th:href="@{/ventes/clients/{id}/releve(id=${c.clientId()})}" target="_blank" rel="noopener">Relevé à envoyer</a></td>
+                <td><a th:href="@{/ventes/clients/{id}/releve(id=${c.clientId()})}" target="_blank" rel="noopener">Relevé</a></td>
+                <td><a th:if="${droits.saisir() or droits.encaisser()}"
+                       th:href="@{/ventes/clients/{id}/relance(id=${c.clientId()})}">Relancer par email</a></td>
             </tr>
             </tbody>
         </table>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${envoi.titre()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <p><a th:href="@{${envoi.retour()}}">← Retour</a></p>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Relisez l’objet et le message, corrigez-les si besoin, puis envoyez. Le PDF est joint automatiquement.</p>
+        <p>Les réponses du client arrivent sur l’adresse email de l’entreprise (Entreprise → Coordonnées).</p>
+        <p th:unless="${envoi.disponible()}">Ici, Kauris n’envoie pas d’email lui-même : « Ouvrir dans ma messagerie »
+            prépare le message dans votre messagerie ; téléchargez le PDF et joignez-le avant d’envoyer.</p>
+    </details>
+
+    <form class="k-pile k-large" method="post" th:action="@{${envoi.action()}}">
+        <label>Destinataire <input name="destinataire" type="email" th:value="${envoi.destinataire()}" required
+                                   maxlength="190" id="v-destinataire"></label>
+        <p class="k-discret" th:if="${envoi.destinataire() == null or envoi.destinataire().isEmpty()}">
+            Aucun email sur la fiche du client : saisissez-le ici (pensez à compléter la fiche).</p>
+        <label>Objet <input name="sujet" th:value="${envoi.sujet()}" required maxlength="200" id="v-sujet"></label>
+        <label>Message <textarea name="texte" rows="16" required maxlength="5000" id="v-texte"
+                                 th:text="${envoi.texte()}"></textarea></label>
+        <p>Pièce jointe : <a th:href="${envoi.lienPiece()}" th:text="${envoi.nomPiece()}">PDF</a></p>
+        <div class="v-boutons">
+            <button type="submit" class="k-bouton" th:if="${envoi.disponible()}">Envoyer</button>
+            <a class="k-bouton" th:classappend="${envoi.disponible() ? 'k-secondaire' : ''}" th:href="${envoi.mailto()}"
+               id="v-mailto">Ouvrir dans ma messagerie</a>
+            <a class="k-bouton k-secondaire" th:href="${envoi.lienPiece()}">Télécharger le PDF</a>
+        </div>
+    </form>
+    <script>
+        // Le lien « messagerie » reprend ce qui a été corrigé dans le formulaire.
+        (function () {
+            var lien = document.getElementById('v-mailto');
+            lien.addEventListener('click', function () {
+                var texte = document.getElementById('v-texte').value;
+                if (texte.length > 1500) { texte = texte.substring(0, 1500) + '…'; }
+                lien.href = 'mailto:' + encodeURIComponent(document.getElementById('v-destinataire').value).replace('%40', '@')
+                    + '?subject=' + encodeURIComponent(document.getElementById('v-sujet').value)
+                    + '&body=' + encodeURIComponent(texte);
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>

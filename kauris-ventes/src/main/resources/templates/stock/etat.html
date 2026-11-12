@@ -5,6 +5,13 @@
 <section>
     <th:block th:replace="~{stock/commun :: navigation}"></th:block>
 
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>La quantité et la valeur de chaque article suivi, par dépôt. La valeur est au coût moyen pondéré (CMUP).</p>
+        <p>Le stock bouge tout seul : facture émise (sortie), avoir (retour), réception fournisseur (entrée).</p>
+        <p>Pour le reste : « Entrée ou sortie », « Transfert » entre dépôts, « Inventaire » pour caler sur le comptage réel.</p>
+    </details>
+
     <div class="s-chiffres">
         <div class="s-chiffre"><span>Valeur du stock (coût moyen)</span><strong th:text="${f.montant(etat.valeurTotale())}">0</strong></div>
         <div class="s-chiffre"><span>Articles suivis</span><strong th:text="${etat.lignes().size()}">0</strong></div>
