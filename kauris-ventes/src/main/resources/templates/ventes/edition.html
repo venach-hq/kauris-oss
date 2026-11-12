@@ -63,7 +63,7 @@
 
         <div class="v-entete-doc">
             <label>Remise globale (%) <input name="remiseGlobale" inputmode="decimal" maxlength="6"
-                                             th:value="${f.decimal(contenu.remiseGlobale())}"></label>
+                                             th:value="${f.decimal(saisie.remiseGlobale())}"></label>
             <label style="grid-column: span 2">Notes imprimées sur le document
                 <input name="notes" maxlength="1000" th:value="${saisie.notes()}" placeholder="Délai de livraison, garantie…"></label>
         </div>
