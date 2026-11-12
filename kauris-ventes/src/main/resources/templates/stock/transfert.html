@@ -4,6 +4,11 @@
 <body>
 <section>
     <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Déplace une quantité d’un dépôt à l’autre ; la valeur suit, le total ne change pas.</p>
+    </details>
     <form class="k-pile" method="post" th:action="@{/stock/transfert}">
         <label>Article
             <select name="article" required>

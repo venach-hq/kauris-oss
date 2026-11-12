@@ -5,6 +5,12 @@
 <section>
     <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
 
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Ici : la TVA par défaut, les mentions et conditions imprimées sur vos documents, la numérotation.</p>
+        <p>Les réglages valent pour les prochains documents : ceux déjà émis ne changent pas.</p>
+    </details>
+
     <p>L'en-tête, le pied et le thème des documents se règlent dans <a th:href="@{/entreprise}">Entreprise</a>.</p>
     <form class="k-pile k-large" method="post" th:action="@{/ventes/reglages}">
         <fieldset th:disabled="${!droits.reglages()}">

@@ -5,6 +5,12 @@
 <section>
     <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
 
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Le catalogue garde vos articles et services avec leur prix et leur TVA, pour aller plus vite dans les documents.</p>
+        <p>Cochez « Suivre le stock » pour qu’une facture émise sorte la quantité du stock ; le seuil d’alerte signale le réapprovisionnement.</p>
+    </details>
+
     <p>Les articles et prestations que vous vendez, avec leur prix hors taxes. Une facture reprend le prix du moment :
         changer un prix ne change pas les documents déjà faits.</p>
     <form class="v-recherche" method="get" th:action="@{/ventes/catalogue}">

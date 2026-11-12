@@ -5,6 +5,13 @@
 <section>
     <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
 
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Le tableau de bord résume vos ventes du mois et ce que vos clients vous doivent.</p>
+        <p>Pour vendre : créez un devis ou une facture (brouillon), vérifiez-le, puis « Émettre » : le numéro est attribué et le document ne change plus.</p>
+        <p>Pour corriger une facture émise, faites un avoir depuis la facture.</p>
+    </details>
+
     <div class="v-boutons" th:if="${droits.saisir()}">
         <a class="k-bouton" th:href="@{/ventes/documents/nouveau(type='FACTURE')}">Nouvelle facture</a>
         <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/nouveau(type='DEVIS')}">Nouveau devis</a>

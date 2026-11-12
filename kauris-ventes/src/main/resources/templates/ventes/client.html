@@ -12,6 +12,8 @@
            th:href="@{/ventes/documents/nouveau(type='DEVIS',client=${client.id()})}">Nouveau devis</a>
         <a class="k-bouton k-secondaire" th:href="@{/ventes/clients/{id}/releve(id=${client.id()})}"
            target="_blank" rel="noopener">Relevé de compte</a>
+        <a class="k-bouton k-secondaire" th:if="${droits.saisir() or droits.encaisser()}"
+           th:href="@{/ventes/clients/{id}/relance(id=${client.id()})}">Relancer par email</a>
         <span class="k-pastille k-ko" th:unless="${client.actif()}">Archivé</span>
     </div>
 

@@ -174,6 +174,10 @@ enregistré ou annulé. Le mode autonome n'y branche rien ; Kauris Cloud y branc
 paiement PI-SPI, report des règlements). Un paiement constaté par l'application elle-même passe par
 `VentesService.encaisserAutomatiquement`, ramené au reste à payer.
 
+Il déclare aussi `Ports.Courriels` pour envoyer une facture, un devis ou une relance (relevé joint) par email.
+Le mode autonome n'envoie rien lui-même : l'écran d'envoi ouvre la messagerie de la personne (lien `mailto:`) et
+propose le PDF à joindre. Kauris Cloud branche son envoi SMTP ; les réponses vont à l'email de l'entreprise.
+
 ## Paiements
 
 Les modules open source n'appellent aucun prestataire de paiement. Ils exposent une interface de

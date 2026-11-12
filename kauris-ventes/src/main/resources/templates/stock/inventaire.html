@@ -4,6 +4,12 @@
 <body>
 <section>
     <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Saisissez ce que vous avez compté : Kauris crée les écarts (entrée ou sortie) pour caler le stock.</p>
+        <p>Laissez vide un article non compté : il ne bouge pas. Puis « Enregistrer l’inventaire ».</p>
+    </details>
     <form class="s-filtres" method="get" th:action="@{/stock/inventaire}">
         <label>Dépôt compté
             <select name="depot" onchange="this.form.submit()">

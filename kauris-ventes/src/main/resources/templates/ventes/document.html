@@ -10,6 +10,8 @@
         <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/{id}/imprimer(id=${d.id()})}" target="_blank"
            rel="noopener">Voir le document</a>
         <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/{id}.pdf(id=${d.id()})}">PDF</a>
+        <a class="k-bouton k-secondaire" th:if="${!d.modifiable() and (droits.saisir() or droits.encaisser())}"
+           th:href="@{/ventes/documents/{id}/envoyer(id=${d.id()})}">Envoyer par email</a>
     </div>
 
     <!-- Brouillon : modifier, émettre, supprimer -->

@@ -5,6 +5,13 @@
 <section>
     <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
 
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>La fiche client sert à remplir vos documents. Le délai de paiement donne l’échéance des factures.</p>
+        <p>Renseignez l’email du client pour lui envoyer factures et relances depuis Kauris.</p>
+        <p>Un client archivé ne disparaît pas de vos documents ; il ne sort simplement plus dans les listes.</p>
+    </details>
+
     <form class="v-recherche" method="get" th:action="@{/ventes/clients}">
         <label>Rechercher <input name="q" th:value="${q}" placeholder="Nom, téléphone, NIF…" maxlength="80"></label>
         <label style="display:flex;align-items:center;gap:.3rem;font-weight:400">

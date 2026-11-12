@@ -4,6 +4,12 @@
 <body>
 <section>
     <th:block th:replace="~{stock/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Entrée : achat hors module Achats, don, retour. Sortie : casse, perte, consommation interne.</p>
+        <p>Le coût d’une entrée met à jour le coût moyen de l’article.</p>
+    </details>
     <p class="k-discret">Les ventes font sortir le stock seules, à l'émission des factures ; les avoirs le font
         revenir. Saisissez ici le reste : stock de départ, achats reçus, pertes, casse, consommation interne.</p>
     <div class="k-message" th:if="${articles.isEmpty()}">Aucun article suivi : cochez « Suivre le stock » dans

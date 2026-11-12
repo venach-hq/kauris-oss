@@ -145,4 +145,42 @@ public final class Ports {
         Stock AUCUN = document -> {
         };
     }
+
+    /**
+     * L'envoi d'emails aux clients (factures, relances). Le mode autonome n'en a pas ({@link #AUCUN}) : l'écran
+     * propose alors d'ouvrir l'email dans la messagerie de la personne, PDF à joindre à la main. Kauris Cloud envoie
+     * lui-même, PDF joint.
+     */
+    public interface Courriels {
+
+        /** Une pièce jointe. */
+        record Piece(String nom, byte[] contenu) {
+        }
+
+        /** Vrai si l'application sait envoyer elle-même. */
+        boolean disponible();
+
+        /**
+         * Envoie l'email tout de suite.
+         *
+         * @param repondreA     l'adresse de l'entreprise : le client y répond
+         * @param nomExpediteur le nom de l'entreprise, affiché comme expéditeur
+         * @throws com.venach.kauris.kernel.commun.ErreurMetier si l'envoi échoue (message pour l'écran)
+         */
+        void envoyer(UUID tenantId, String destinataire, String repondreA, String nomExpediteur, String sujet,
+                     String texte, Piece piece);
+
+        Courriels AUCUN = new Courriels() {
+            @Override
+            public boolean disponible() {
+                return false;
+            }
+
+            @Override
+            public void envoyer(UUID tenantId, String destinataire, String repondreA, String nomExpediteur,
+                                String sujet, String texte, Piece piece) {
+                throw new com.venach.kauris.kernel.commun.ErreurMetier("L'envoi d'emails n'est pas disponible ici.");
+            }
+        };
+    }
 }
