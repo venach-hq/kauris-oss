@@ -161,7 +161,7 @@ public class StockageCaisse implements PortsCaisse.Sessions, PortsCaisse.Tickets
     public Optional<SessionCaisse> ouverteDe(UUID tenantId, UUID membreId) {
         return em.createQuery("select s from CaisseSession s where s.tenantId = :t and s.ouvertePar = :m",
                         SessionEntity.class)
-                .setParameter("t", tenantId).setParameter("m", membreId).getResultStream().findFirst()
+                .setParameter("t", tenantId).setParameter("m", membreId).getResultList().stream().findFirst()
                 .map(StockageCaisse::session);
     }
 
@@ -226,7 +226,7 @@ public class StockageCaisse implements PortsCaisse.Sessions, PortsCaisse.Tickets
     public Optional<TicketCaisse> ticketDuDocument(UUID tenantId, UUID documentId) {
         return em.createQuery("select t from CaisseTicket t where t.tenantId = :t and t.documentId = :d",
                         TicketEntity.class)
-                .setParameter("t", tenantId).setParameter("d", documentId).getResultStream().findFirst()
+                .setParameter("t", tenantId).setParameter("d", documentId).getResultList().stream().findFirst()
                 .map(StockageCaisse::ticket);
     }
 
