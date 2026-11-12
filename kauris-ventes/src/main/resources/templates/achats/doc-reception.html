@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!-- Bon de réception : ce qui est arrivé d'une commande. Écran et PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau">
+        <thead><tr><th>Désignation</th><th class="k-doc-montant">Quantité reçue</th><th>Unité</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${r.lignes()}">
+            <td th:text="${l.designation()}">Article</td>
+            <td class="k-doc-montant" th:text="${f.decimal(l.quantite())}">1</td>
+            <td th:text="${l.unite()}">u</td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="k-doc-note">Marchandise reçue en bon état, sous réserve des remarques ci-dessous.</p>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

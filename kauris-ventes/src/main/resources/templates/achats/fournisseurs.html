@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Fournisseurs', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <form class="k-ligne" method="get" th:action="@{/achats/fournisseurs}">
+        <input name="q" th:value="${q}" maxlength="80" placeholder="Nom, téléphone, NIF…">
+        <label style="display:flex;align-items:center;gap:.3rem"><input type="checkbox" name="archives" value="true" th:checked="${archives}"> archivés</label>
+        <button type="submit" class="k-bouton k-secondaire">Chercher</button>
+    </form>
+    <p class="k-discret" th:if="${fournisseurs.isEmpty()}">Aucun fournisseur.</p>
+    <table class="k-table" th:unless="${fournisseurs.isEmpty()}">
+        <thead><tr><th>Fournisseur</th><th>Téléphone</th><th>Ville</th><th>NIF</th><th>Délai</th></tr></thead>
+        <tbody>
+        <tr th:each="x : ${fournisseurs}" th:classappend="${x.actif()} ? '' : 'a-barre'">
+            <td><a th:href="@{/achats/fournisseurs/{id}(id=${x.id()})}" th:text="${x.nom()}">Fournisseur</a></td>
+            <td th:text="${x.telephone()}">+228</td>
+            <td th:text="${x.ville()}">Lomé</td>
+            <td th:text="${x.nif()}">NIF</td>
+            <td th:text="${x.delaiPaiement() == 0 ? 'Comptant' : x.delaiPaiement() + ' j'}">30 j</td>
+        </tr>
+        </tbody>
+    </table>
+    <details th:if="${droits.commander()}" th:open="${fournisseurs.isEmpty()}">
+        <summary><strong>Ajouter un fournisseur</strong></summary>
+        <form class="k-pile k-large" method="post" th:action="@{/achats/fournisseurs}">
+            <th:block th:replace="~{achats/fournisseurs :: champs(${null})}"></th:block>
+            <button type="submit" class="k-bouton">Ajouter</button>
+        </form>
+    </details>
+</section>
+
+<th:block th:fragment="champs(e)">
+    <fieldset>
+        <legend>Fournisseur</legend>
+        <label>Nom ou raison sociale <input name="nom" th:value="${e?.nom()}" required minlength="2" maxlength="150"></label>
+        <label>Personne à contacter <input name="contact" th:value="${e?.contact()}" maxlength="120"></label>
+        <label>Téléphone <input name="telephone" type="tel" th:value="${e?.telephone()}" maxlength="40"></label>
+        <label>Email <input name="email" type="email" th:value="${e?.email()}" maxlength="190"></label>
+        <label>Adresse <input name="adresse" th:value="${e?.adresse()}" maxlength="190"></label>
+        <label>Ville <input name="ville" th:value="${e?.ville()}" maxlength="80"></label>
+        <label>Pays <input name="pays" th:value="${e?.pays()}" maxlength="60"></label>
+        <label>NIF <input name="nif" th:value="${e?.nif()}" maxlength="60"></label>
+        <label>RCCM <input name="rccm" th:value="${e?.rccm()}" maxlength="60"></label>
+        <label>Délai de paiement accordé, en jours (0 = comptant)
+            <input name="delaiPaiement" inputmode="numeric" maxlength="3" th:value="${e == null ? 30 : e.delaiPaiement()}"></label>
+        <label>Notes <input name="notes" th:value="${e?.notes()}" maxlength="1000"></label>
+    </fieldset>
+</th:block>
+</body>
+</html>

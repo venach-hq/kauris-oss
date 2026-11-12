@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Commandes fournisseurs', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{achats/commun :: navigation}"></th:block>
+    <div class="a-boutons" th:if="${droits.commander()}">
+        <a class="k-bouton" th:href="@{/achats/commandes/nouvelle}">Nouvelle commande</a>
+    </div>
+    <p class="k-discret" th:if="${commandes.isEmpty()}">Aucune commande.</p>
+    <table class="k-table" th:unless="${commandes.isEmpty()}">
+        <thead><tr><th>Commande</th><th>Date</th><th>Fournisseur</th><th>Objet</th><th class="a-montant">Total TTC</th><th>État</th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${commandes}">
+            <td><a th:href="@{/achats/commandes/{id}(id=${c.id()})}" th:text="${c.numero() ?: 'Brouillon'}">BC</a></td>
+            <td th:text="${f.jour(c.date())}">01/11/2026</td>
+            <td th:text="${c.fournisseurNom()}">Fournisseur</td>
+            <td th:text="${c.objet()}">Objet</td>
+            <td class="a-montant" th:text="${f.montant(c.totaux().totalTtc())}">0</td>
+            <td><span th:replace="~{achats/commun :: statut(${c})}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

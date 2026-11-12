@@ -383,6 +383,31 @@ public class StockService implements Ports.Stock {
         }
     }
 
+    // ================================================================== achats
+
+    /**
+     * L'entrée en stock d'une ligne reçue d'un fournisseur, au coût de la commande ; appelée par les achats (qui ont
+     * vérifié les droits), dans la transaction de la réception. Rien pour un article qui n'est pas suivi.
+     *
+     * @return vrai si le stock a bougé
+     */
+    public boolean entrerAchat(UUID tenantId, UUID articleId, UUID depotId, BigDecimal quantite, long coutUnitaire,
+                               LocalDate date, String libelle, String reference, UUID receptionId, UUID creePar) {
+        Optional<Article> x = articles.article(tenantId, articleId).filter(Article::suiviStock);
+        if (x.isEmpty() || quantite.signum() <= 0) {
+            return false;
+        }
+        Depot d = depotActif(tenantId, depotId);
+        bouger(tenantId, TypeMouvement.RECEPTION_ACHAT, x.get(), d, quantite, coutUnitaire, date, libelle, reference,
+                receptionId, null, creePar);
+        return true;
+    }
+
+    /** Les dépôts actifs, sans contrôle de droits (pour les écrans des achats). */
+    public List<Depot> depotsActifs(UUID tenantId) {
+        return assurerDepots(tenantId).stream().filter(Depot::actif).toList();
+    }
+
     // ================================================================== le mouvement lui-même
 
     private MouvementStock bouger(UUID tenantId, TypeMouvement type, Article x, Depot d, BigDecimal quantite,
