@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Faille de sécurité
+    url: https://github.com/venach-hq/kauris-oss/security/advisories/new
+    about: À signaler en privé, jamais dans un ticket public.
+  - name: Guide d'utilisation
+    url: https://github.com/venach-hq/kauris-oss/blob/main/docs/guide/README.md
+    about: Installation, prise en main, ventes, caisse, stock et achats.

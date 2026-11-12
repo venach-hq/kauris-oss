@@ -14,6 +14,7 @@ import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCa
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.ui.ContexteController;
 import com.venach.kauris.kernel.ui.ContexteCourant;
+import com.venach.kauris.kernel.ui.LiensKauris;
 import com.venach.kauris.kernel.ui.ModeleCommun;
 import com.venach.kauris.kernel.ui.SessionKauris;
 import com.venach.kauris.kernel.ui.entreprise.EntrepriseController;
@@ -64,8 +65,9 @@ public class InterfaceCommuneAutoConfiguration {
     @Bean
     public ModeleCommun modeleCommun(
             ContexteCourant contexte,
-            @Value("${kauris.ui.page-sans-organisation:" + ModeleCommun.PAGE_SANS_ORGANISATION + "}") String page) {
-        return new ModeleCommun(contexte, page);
+            @Value("${kauris.ui.page-sans-organisation:" + ModeleCommun.PAGE_SANS_ORGANISATION + "}") String page,
+            @Value("${kauris.ui.guide:}") String guide, @Value("${kauris.ui.code-source:}") String codeSource) {
+        return new ModeleCommun(contexte, page, new LiensKauris(guide, codeSource));
     }
 
     @Bean

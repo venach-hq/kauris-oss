@@ -9,6 +9,7 @@
         <summary>Comment ça marche ?</summary>
         <p>Saisissez ce que vous avez compté : Kauris crée les écarts (entrée ou sortie) pour caler le stock.</p>
         <p>Laissez vide un article non compté : il ne bouge pas. Puis « Enregistrer l’inventaire ».</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('stock-achats')}" target="_blank" rel="noopener">Guide complet du stock et des achats</a></p>
     </details>
     <form class="s-filtres" method="get" th:action="@{/stock/inventaire}">
         <label>Dépôt compté

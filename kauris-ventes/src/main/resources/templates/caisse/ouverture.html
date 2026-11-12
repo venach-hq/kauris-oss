@@ -12,6 +12,7 @@
         <p>Chaque ticket est une facture des ventes, émise et réglée : le stock sort, les règlements sont inscrits
             dans les comptes choisis ici.</p>
         <p>Un retour de marchandise se fait par un avoir, depuis la facture du ticket.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('caisse')}" target="_blank" rel="noopener">Guide complet de la caisse</a></p>
     </details>
 
     <h2>Ouvrir ma caisse</h2>

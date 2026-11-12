@@ -24,11 +24,12 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`).
+   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
-6. Écrans sur l'interface commune.
-7. CI au vert (`make verify`, `make secrets`).
-8. Déploiement.
+6. Écrans sur l'interface commune, avec leur bloc « Comment ça marche ? » et le lien vers le guide.
+7. Guide d'utilisation (`docs/guide/<module>.md`) à jour.
+8. CI au vert (`make verify`, `make secrets`, `make image`).
+9. Déploiement.
 
 Chaque module déclare un bean `ModuleKauris` avec un code stable (`rh-paie-tg`, `compta-syscohada`…).
 
@@ -145,6 +146,14 @@ perdre sans que rien ne manque. Le lien d'une notification est toujours un chemi
 - `main` est protégée : on y arrive par une pull request dont la CI est verte.
 - Une branche par sujet : `feat/…`, `fix/…`, `docs/…`.
 - Messages : `feat: …`, `fix: …`, `docs: …`, `refactor: …`, `test: …`, `chore: …`.
+- Contributions extérieures : accord de contribution et `Signed-off-by` ([CONTRIBUTING.md](../CONTRIBUTING.md)).
+
+## Publication
+
+Une version se publie par une étiquette `vX.Y.Z` sur `main` (workflow `publication`) : tests, image
+`ghcr.io/venach-hq/kauris:X.Y.Z` et `latest`, version GitHub avec le jar, `docker-compose.yml` et
+`kauris.env.example`. Le dépôt est sous AGPL-3.0 ; les liens « Aide » et « Code source » de chaque page viennent de
+`kauris.ui.guide` et `kauris.ui.code-source` (`KAURIS_GUIDE`, `KAURIS_CODE_SOURCE`).
 
 ## Configuration
 

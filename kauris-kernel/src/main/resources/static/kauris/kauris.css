@@ -159,3 +159,9 @@ input[type=color] { width: 4rem; height: 2.2rem; padding: .15rem; }
 .k-aide summary { font-weight: 700; color: #1a4f8b; }
 .k-aide p, .k-aide ul { margin: .4rem 0; }
 .k-aide li { margin: .15rem 0; }
+
+/* Lien d'aide de l'en-tête et pied de page (licence, code source) */
+.k-aide-lien { color: inherit; font-weight: 600; text-decoration: none; margin-right: .8rem; }
+.k-aide-lien:hover { text-decoration: underline; }
+.k-pied { text-align: center; font-size: 12px; color: var(--k-discret); padding: 1.5rem 1rem 2rem; }
+.k-pied a { color: inherit; }

@@ -1,46 +1,67 @@
-# Kauris — modules open source
+# Kauris
 
-Modules de gestion pour les PME de la zone UEMOA (paie, comptabilité SYSCOHADA, flotte…). Chaque module
-fonctionne **seul**, avec un compte local, ou **dans Kauris Cloud**, avec un compte venach.
+**Gestion des PME de la zone UEMOA** : ventes, caisse, stock et achats, avec des documents conformes (identité
+légale, TVA, numérotation sans trou) et pensés pour le franc CFA. Logiciel libre sous licence
+[AGPL-3.0](LICENSE), édité par Venach.
 
-> Dépôt privé pendant la reconstruction. Il deviendra public (licence AGPL-3.0) quand le premier module
-> sera complet (phase 5).
+- **Ventes** : clients, catalogue, devis → factures → avoirs numérotés par année, TVA par taux, règlements,
+  impayés, relevé de compte, envoi et relance par email.
+- **Caisse** : vente au comptoir, monnaie à rendre, espèces / Mobile Money / carte, ticket 80 mm, clôture avec
+  écart et rapport, calculatrice (TVA, marge, remise).
+- **Stock et achats** : dépôts, entrées, sorties, transferts, inventaires, coût moyen pondéré ; fournisseurs,
+  bons de commande, réceptions, factures et paiements fournisseurs.
+- **Socle** : organisation, établissements, membres, rôles et permissions, paramètres de l'entreprise (Bénin,
+  Burkina Faso, Côte d'Ivoire, Guinée-Bissau, Mali, Niger, Sénégal, Togo), documents PDF au thème de l'entreprise.
 
-## Démarrer
+Kauris s'installe chez vous (ce dépôt) ou s'utilise hébergé : [Kauris Cloud](https://kauris.venach.com) ajoute
+la trésorerie, les paiements instantanés PI-SPI et l'hébergement.
 
-Prérequis : Java 21, Docker (base de développement, tests sur MySQL, recherche de secrets), `make`.
+## Installer
+
+```bash
+curl -LO https://github.com/venach-hq/kauris-oss/releases/latest/download/docker-compose.yml
+curl -L -o .env https://github.com/venach-hq/kauris-oss/releases/latest/download/kauris.env.example
+# remplir les deux mots de passe de .env, puis
+docker compose up -d        # http://localhost:8090
+```
+
+Tout est dans le **[guide d'utilisation](docs/guide/README.md)** : [installation](docs/guide/installation.md),
+mise à jour, sauvegarde, [prise en main](docs/guide/prise-en-main.md), [ventes](docs/guide/ventes.md),
+[caisse](docs/guide/caisse.md), [stock et achats](docs/guide/stock-achats.md).
+
+## Développer
+
+Prérequis : Java 21, Docker (base de développement, tests sur MySQL, recherche de secrets), `make` ; node pour les
+tests des scripts des écrans.
 
 ```bash
 make help      # toutes les commandes
 make verify    # compile et teste, y compris sur un MySQL jetable (identique à la CI)
 make dev-up    # MySQL local sur le port 3308
 make run       # lance le mode autonome sur http://localhost:8090
+make image     # construit l'image Docker
 ```
-
-Au premier démarrage, Kauris ouvre l'écran d'installation : on y crée l'organisation, son premier
-établissement et le compte du propriétaire (email + mot de passe). Cet écran se ferme ensuite pour toujours.
-
-Environnement : `SPRING_PROFILES_ACTIVE=dev` (par défaut) ou `prod`. En production, `DB_URL`, `DB_USERNAME`
-et `DB_PASSWORD` sont obligatoires (MySQL 8).
-
-## Connexion
-
-| Mode | Où | Comment |
-|---|---|---|
-| `local` | ce dépôt (`kauris-standalone`) | email + mot de passe ; seule l'empreinte BCrypt est gardée |
-| `venach` | Kauris Cloud | compte account.venach.com (OpenID Connect) |
-
-Dans les deux cas, le noyau ne retient de la personne qu'une identité (fournisseur + identifiant stable).
-Ses droits viennent de ses rôles de membre : propriétaire, administrateur, gestionnaire ou lecteur, pour
-toute l'organisation ou pour un établissement.
-
-## Organisation
 
 | Dossier | Rôle |
 |---|---|
-| `kauris-kernel` | Socle commun : registre des modules, organisation → établissements → membres → rôles et permissions, paramètres de l'entreprise (identité légale UEMOA, monnaies, compte bancaire, logo, thème des documents), ossature commune des documents et PDF, comptes locaux, interface commune, notifications |
-| `kauris-ventes` | Ventes : clients, catalogue, devis, factures et avoirs numérotés par année, TVA par taux, règlements, impayés, relevé de compte client. Achats et stock : dépôts, entrées, sorties, transferts, inventaires, valeur au coût moyen pondéré, sortie à la facturation. Documents à l'écran et en PDF |
-| `kauris-standalone` | Lanceur autonome des modules, avec la connexion « local » |
-| `docs/` | Règles du projet |
+| `kauris-kernel` | Socle commun : registre des modules, organisation, établissements, membres, rôles et permissions, paramètres de l'entreprise, ossature des documents et PDF, comptes locaux, interface commune, notifications |
+| `kauris-ventes` | Ventes, caisse, stock et achats (ils partagent le catalogue) |
+| `kauris-standalone` | Le lanceur autonome, avec la connexion par email et mot de passe |
+| `deploy/` | Installation par `docker compose` |
+| `docs/guide/` | Guide d'utilisation |
+| `docs/regles.md` | Règles du projet : architecture, conventions, sécurité |
 
-Les règles de travail (procédure par module, conventions, sécurité) sont dans [`docs/regles.md`](docs/regles.md).
+Chaque module fonctionne seul ou dans Kauris Cloud ; un module ne dépend que du socle (`kauris-kernel`). Les
+modules open source n'appellent aucun prestataire de paiement.
+
+## Contribuer
+
+Les contributions sont les bienvenues : lisez [CONTRIBUTING.md](CONTRIBUTING.md) et le
+[code de conduite](CODE_OF_CONDUCT.md). Une faille de sécurité se signale en privé : [SECURITY.md](SECURITY.md).
+
+## Licence
+
+Copyright © 2026 Venach. Kauris est distribué sous la [GNU Affero General Public License v3.0](LICENSE)
+(AGPL-3.0-only) : vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer ; si vous mettez une version
+modifiée à disposition d'autres personnes par le réseau, vous devez leur offrir son code source (variable
+`KAURIS_CODE_SOURCE`, lien « Code source » en bas de chaque page).

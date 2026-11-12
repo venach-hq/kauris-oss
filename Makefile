@@ -6,7 +6,7 @@ COMPOSE := docker compose -f docker-compose.dev.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-up dev-down dev-reset verify test test-js package run install secrets clean
+.PHONY: help dev-up dev-down dev-reset verify test test-js package run install secrets image publier-image version clean
 
 help: ## Affiche cette aide
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-10s\033[0m %s\n", $$1, $$2}'
@@ -38,6 +38,20 @@ install: ## Installe les modules dans le dépôt Maven local (utilisé par kauri
 
 run: install ## Lance le mode autonome en développement (http://localhost:8090, après make dev-up)
 	SPRING_PROFILES_ACTIVE=dev $(MVN) -pl kauris-standalone spring-boot:run
+
+IMAGE ?= kauris
+VERSION ?= dev
+
+image: ## Construit l'image Docker du mode autonome (IMAGE=…, VERSION=… ; Docker requis)
+	docker build -t $(IMAGE):$(VERSION) .
+
+publier-image: image ## Publie l'image (après docker login) sous VERSION et « latest »
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
+
+version: ## Fixe la version de tous les modules (VERSION=0.1.0), avant une publication
+	$(MVN) -q versions:set -DnewVersion=$(VERSION) -DgenerateBackupPoms=false
 
 secrets: ## Cherche des secrets dans le code et tout l'historique git (Docker requis)
 	docker run --rm -v "$(CURDIR)":/repo zricethezav/gitleaks:latest detect --source /repo --redact -v

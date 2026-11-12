@@ -35,3 +35,12 @@ jobs:
           retention-days: 14
       - name: Recherche de secrets
         run: make secrets
+
+  # L'image Docker se construit (sans être publiée) : le Dockerfile ne casse pas en silence.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction de l'image
+        run: make image

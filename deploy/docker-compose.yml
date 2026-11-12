@@ -1,0 +1,47 @@
+# Kauris installé chez vous : MySQL + Kauris (mode autonome, tous les modules).
+#   cp .env.example .env     puis remplir les mots de passe (voir docs/guide/installation.md)
+#   docker compose up -d     Kauris répond sur http://localhost:8090 (sur ce serveur seulement)
+# Mise à jour : docker compose pull && docker compose up -d (les migrations se font au démarrage).
+name: kauris
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: kauris
+      MYSQL_USER: kauris
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD est à définir dans .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD est à définir dans .env}
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - donnees:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -ukauris -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  kauris:
+    image: ${KAURIS_IMAGE:-ghcr.io/venach-hq/kauris}:${KAURIS_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/kauris?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC
+      DB_USERNAME: kauris
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      KAURIS_POLICES: /app/polices
+      KAURIS_GUIDE: ${KAURIS_GUIDE:-}
+      KAURIS_CODE_SOURCE: ${KAURIS_CODE_SOURCE:-}
+    volumes:
+      - ./polices:/app/polices:ro
+    ports:
+      # Par défaut, seulement sur ce serveur (derrière un proxy HTTPS). Pour le réseau du magasin :
+      # KAURIS_ECOUTE=0.0.0.0 dans .env.
+      - "${KAURIS_ECOUTE:-127.0.0.1}:${KAURIS_PORT:-8090}:8090"
+
+volumes:
+  donnees:

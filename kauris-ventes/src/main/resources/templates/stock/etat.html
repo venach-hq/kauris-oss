@@ -10,6 +10,7 @@
         <p>La quantité et la valeur de chaque article suivi, par dépôt. La valeur est au coût moyen pondéré (CMUP).</p>
         <p>Le stock bouge tout seul : facture émise (sortie), avoir (retour), réception fournisseur (entrée).</p>
         <p>Pour le reste : « Entrée ou sortie », « Transfert » entre dépôts, « Inventaire » pour caler sur le comptage réel.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('stock-achats')}" target="_blank" rel="noopener">Guide complet du stock et des achats</a></p>
     </details>
 
     <div class="s-chiffres">

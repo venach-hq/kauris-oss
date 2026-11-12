@@ -16,6 +16,11 @@
         </label>
         <button type="submit" class="k-bouton">Enregistrer</button>
     </form>
+
+    <th:block th:if="${kauris.comptesLocaux()}">
+        <h2>Mon mot de passe</h2>
+        <p><a class="k-bouton k-secondaire" th:href="@{/compte}">Changer mon mot de passe</a></p>
+    </th:block>
 </section>
 </body>
 </html>

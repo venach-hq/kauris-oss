@@ -10,6 +10,7 @@
         <p>La fiche client sert à remplir vos documents. Le délai de paiement donne l’échéance des factures.</p>
         <p>Renseignez l’email du client pour lui envoyer factures et relances depuis Kauris.</p>
         <p>Un client archivé ne disparaît pas de vos documents ; il ne sort simplement plus dans les listes.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('ventes')}" target="_blank" rel="noopener">Guide complet des ventes</a></p>
     </details>
 
     <form class="v-recherche" method="get" th:action="@{/ventes/clients}">
