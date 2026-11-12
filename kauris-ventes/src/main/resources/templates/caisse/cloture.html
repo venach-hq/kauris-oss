@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{kauris/layout :: page(titre=${'Clôturer la caisse ' + session.numero()}, contenu=~{::section})}">
+      th:replace="~{kauris/layout :: page(titre=${'Clôturer la caisse ' + laCaisse.numero()}, contenu=~{::section})}">
 <body>
 <section>
     <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
@@ -25,11 +25,11 @@
         <div class="c-chiffre"><span>dont espèces</span><strong th:text="${f.montant(bilan.especes())}">0</strong></div>
         <div class="c-chiffre"><span>dont Mobile Money</span><strong th:text="${f.montant(bilan.mobile())}">0</strong></div>
         <div class="c-chiffre"><span>dont carte</span><strong th:text="${f.montant(bilan.carte())}">0</strong></div>
-        <div class="c-chiffre"><span>Fond de caisse</span><strong th:text="${f.montant(session.fond())}">0</strong></div>
+        <div class="c-chiffre"><span>Fond de caisse</span><strong th:text="${f.montant(laCaisse.fond())}">0</strong></div>
         <div class="c-chiffre"><span>Espèces attendues</span><strong th:text="${f.montant(bilan.attendu())}">0</strong></div>
     </div>
 
-    <form class="k-pile" method="post" th:action="@{/caisse/sessions/{id}/cloturer(id=${session.id()})}">
+    <form class="k-pile" method="post" th:action="@{/caisse/sessions/{id}/cloturer(id=${laCaisse.id()})}">
         <fieldset>
             <legend>Compter le tiroir (facultatif)</legend>
             <div class="c-billetage" id="c-billetage">

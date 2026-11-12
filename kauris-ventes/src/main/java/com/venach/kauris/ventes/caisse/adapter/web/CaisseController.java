@@ -100,7 +100,7 @@ public class CaisseController {
         }
         SessionCaisse s = ouverte.get();
         ReglagesVentes r = ventes.reglages(a);
-        model.addAttribute("session", s);
+        model.addAttribute("laCaisse", s);
         model.addAttribute("bilan", caisse.bilan(a, s));
         model.addAttribute("perimee", !s.jour().equals(caisse.aujourdHui()));
         model.addAttribute("articles", ventes.articles(a, false).stream().map(x -> article(x, r)).toList());
@@ -174,7 +174,7 @@ public class CaisseController {
         TicketCaisse t = caisse.ticket(a, documentId);
         model.addAttribute("t", t);
         model.addAttribute("d", ventes.document(a, documentId));
-        model.addAttribute("session", caisse.session(a, t.sessionId()));
+        model.addAttribute("laCaisse", caisse.session(a, t.sessionId()));
         model.addAttribute("entreprise", entreprises.consulter(a.tenantId()));
         model.addAttribute("f", formats(a));
         return "caisse/ticket";
@@ -192,7 +192,7 @@ public class CaisseController {
         }
         model.addAttribute("f", formats(a));
         model.addAttribute("onglet", "cloture");
-        model.addAttribute("session", ouverte.get());
+        model.addAttribute("laCaisse", ouverte.get());
         model.addAttribute("bilan", caisse.bilan(a, ouverte.get()));
         return "caisse/cloture";
     }
@@ -234,7 +234,7 @@ public class CaisseController {
     public ResponseEntity<byte[]> rapportPdf(@PathVariable UUID id, HttpServletRequest requete) {
         Acces a = contexte.exiger(requete, CAISSE);
         Map<String, Object> v = rapport(a, id, null, true);
-        SessionCaisse s = (SessionCaisse) v.get("session");
+        SessionCaisse s = (SessionCaisse) v.get("laCaisse");
         return EntrepriseController.enPdf(producteur.pdf("caisse/doc-session", v),
                 ProducteurDocuments.nomDeFichier("rapport de caisse", s.numero()));
     }
@@ -249,7 +249,7 @@ public class CaisseController {
         Map<String, Object> v = new HashMap<>();
         v.put("habillage", h);
         v.put("f", new FormatsVentes(h.entreprise().devise()));
-        v.put("session", s);
+        v.put("laCaisse", s);
         v.put("bilan", b);
         v.put("tickets", caisse.tickets(a, s));
         v.put("cartouche", Cartouche.de(Cartouche.c("Caisse", s.numero()), Cartouche.c("Caissier", s.caissier()),

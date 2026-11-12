@@ -47,7 +47,7 @@
     <div class="t-trait"></div>
     <div class="t-ligne"><span>Facture</span><span th:text="${t.numero()}">FA-2026-0001</span></div>
     <div class="t-ligne"><span>Date</span><span th:text="${f.instant(t.creeLe())}">12/11/2026 à 10:00</span></div>
-    <div class="t-ligne"><span>Caisse</span><span th:text="${session.numero() + ' · ' + session.caissier()}">CA</span></div>
+    <div class="t-ligne"><span>Caisse</span><span th:text="${laCaisse.numero() + ' · ' + laCaisse.caissier()}">CA</span></div>
     <div class="t-ligne" th:if="${d.client().nom() != T(com.venach.kauris.ventes.application.VentesService).CLIENT_COMPTOIR}">
         <span>Client</span><span th:text="${d.client().nom()}">Client</span></div>
     <div class="t-trait"></div>

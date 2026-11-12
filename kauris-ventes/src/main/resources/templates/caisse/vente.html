@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{kauris/layout :: page(titre=${'Caisse ' + session.numero()}, contenu=~{::section})}">
+      th:replace="~{kauris/layout :: page(titre=${'Caisse ' + laCaisse.numero()}, contenu=~{::section})}">
 <body>
 <section>
     <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
@@ -44,12 +44,12 @@
     </style>
 
     <div class="k-message k-ko" role="alert" th:if="${perimee}">
-        Cette caisse est ouverte depuis le <span th:text="${f.jour(session.jour())}">11/11/2026</span> :
+        Cette caisse est ouverte depuis le <span th:text="${f.jour(laCaisse.jour())}">11/11/2026</span> :
         <a th:href="@{/caisse/cloture}">clôturez-la</a>, puis ouvrez celle du jour.
     </div>
 
     <div class="c-haut">
-        <span>Caisse <strong th:text="${session.numero()}">CA</strong> · <span th:text="${session.caissier()}">Kofi</span></span>
+        <span>Caisse <strong th:text="${laCaisse.numero()}">CA</strong> · <span th:text="${laCaisse.caissier()}">Kofi</span></span>
         <span>Tickets : <strong th:text="${bilan.tickets()}">0</strong></span>
         <span>Ventes : <strong th:text="${f.montant(bilan.total())}">0</strong></span>
         <span>Espèces attendues : <strong th:text="${f.montant(bilan.attendu())}">0</strong></span>
