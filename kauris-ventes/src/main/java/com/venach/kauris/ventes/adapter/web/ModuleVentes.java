@@ -30,7 +30,7 @@ public class ModuleVentes implements ModuleKauris {
 
     @Override
     public String description() {
-        return "Clients, catalogue, devis, factures, avoirs, règlements et impayés.";
+        return "Clients, catalogue, devis, factures, avoirs, règlements, impayés et caisse (vente au comptoir).";
     }
 
     @Override
@@ -40,6 +40,7 @@ public class ModuleVentes implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Ventes", VentesController.PAGE, PermissionsVentes.CONSULTER));
+        return List.of(new EntreeMenu("Ventes", VentesController.PAGE, PermissionsVentes.CONSULTER),
+                new EntreeMenu("Caisse", "/caisse", PermissionsVentes.CAISSE));
     }
 }

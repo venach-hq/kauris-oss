@@ -334,6 +334,78 @@ class VentesMySqlTest {
                 .andExpect(flash().attribute("erreur", containsString("aucune facture")));
     }
 
+    @Autowired
+    private com.venach.kauris.ventes.stock.application.StockService stock;
+
+    @Test
+    void laCaisseVendSortLeStockEtSeCloture() throws Exception {
+        Acces a = ouvrir("Supérette du Lac");
+        Article riz = ventes.creerArticle(a, new Article.Etat(null, null, Article.Type.BIEN, "RIZ5",
+                "Riz parfumé 5 kg", "sac", 5_000, new BigDecimal("18"), true, null, true, null));
+
+        mvc.perform(get("/caisse")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Ouvrir ma caisse")));
+        mvc.perform(post("/caisse/ouvrir").param("fond", "20 000")).andExpect(redirectedUrl("/caisse"));
+        mvc.perform(get("/caisse")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Riz parfumé 5 kg")))
+                .andExpect(content().string(containsString("/caisse/caisse.js")))
+                .andExpect(content().string(containsString("TVA du TTC")));
+        mvc.perform(get("/caisse/caisse.js")).andExpect(status().isOk());
+        mvc.perform(get("/caisse/calculatrice.js")).andExpect(status().isOk());
+
+        // 2 sacs : 10 000 HT + 1 800 de TVA = 11 800 ; le client donne 15 000.
+        MvcResult vendu = mvc.perform(post("/caisse/vendre").param("article", riz.id().toString())
+                        .param("quantite", "2").param("especes", "15 000"))
+                .andExpect(redirectedUrlPattern("/caisse/tickets/*")).andReturn();
+        String ticket = vendu.getResponse().getRedirectedUrl();
+        UUID factureId = UUID.fromString(ticket.replace("/caisse/tickets/", ""));
+        DocumentVente f = ventes.document(a, factureId);
+        assertEquals(0, f.resteAPayer());
+        assertEquals(11_800, f.totaux().totalTtc());
+        mvc.perform(get(ticket)).andExpect(status().isOk())
+                .andExpect(content().string(containsString(f.numero())))
+                .andExpect(content().string(containsString("Rendu")))
+                .andExpect(content().string(containsString("3\u00a0200")));
+        assertEquals(0, new BigDecimal("-2.000").compareTo(stock.etat(a, null, null, false).lignes().stream()
+                .filter(l -> l.article().id().equals(riz.id())).findFirst().orElseThrow().quantite()),
+                "le stock suit la vente");
+
+        // Un ticket mal payé : rien n'est vendu, l'erreur est dite.
+        mvc.perform(post("/caisse/vendre").param("article", riz.id().toString()).param("quantite", "1")
+                .param("especes", "1 000")).andExpect(redirectedUrl("/caisse"))
+                .andExpect(flash().attribute("erreur", containsString("Il manque")));
+
+        mvc.perform(get("/caisse/cloture")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("31\u00a0800")));
+        UUID session = jdbcSession(a);
+        mvc.perform(post("/caisse/sessions/" + session + "/cloturer").param("comptees", "31 800"))
+                .andExpect(redirectedUrl("/caisse/sessions/" + session))
+                .andExpect(flash().attribute("succes", containsString("sans écart")));
+        mvc.perform(get("/caisse/sessions/" + session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Rapport de clôture de caisse")));
+        byte[] rapport = mvc.perform(get("/caisse/sessions/" + session + ".pdf")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertTrue(texte(rapport).contains("RAPPORT DE CLÔTURE DE CAISSE"), texte(rapport));
+        enregistrer("rapport-caisse.pdf", rapport);
+        mvc.perform(get("/caisse/sessions")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("CA-")));
+        mvc.perform(get("/caisse/calculatrice")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Taux de marque")));
+        mvc.perform(get("/caisse")).andExpect(content().string(containsString("Ouvrir ma caisse")));
+
+        // Une autre organisation ne voit ni le ticket ni le rapport.
+        ouvrir("Autre supérette");
+        mvc.perform(get(ticket)).andExpect(status().isNotFound());
+        mvc.perform(get("/caisse/sessions/" + session)).andExpect(status().isNotFound());
+    }
+
+    @Autowired
+    private com.venach.kauris.ventes.caisse.application.CaisseService caisse;
+
+    private UUID jdbcSession(Acces a) {
+        return caisse.ouverte(a).orElseThrow().id();
+    }
+
     private static String texte(byte[] pdf) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdf)) {
             return new PDFTextStripper().getText(document);

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Caisse', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Chaque personne ouvre sa caisse en début de journée avec le fond de caisse (les espèces mises dans le
+            tiroir pour rendre la monnaie), vend, puis la clôture le soir en comptant ses espèces.</p>
+        <p>Chaque ticket est une facture des ventes, émise et réglée : le stock sort, les règlements sont inscrits
+            dans les comptes choisis ici.</p>
+        <p>Un retour de marchandise se fait par un avoir, depuis la facture du ticket.</p>
+    </details>
+
+    <h2>Ouvrir ma caisse</h2>
+    <form class="k-pile" method="post" th:action="@{/caisse/ouvrir}">
+        <label>Fond de caisse (espèces dans le tiroir)
+            <input name="fond" inputmode="numeric" placeholder="0" th:value="${derniere != null and derniere.fond() > 0 ? derniere.fond() : ''}">
+        </label>
+        <th:block th:unless="${comptes.isEmpty()}">
+            <label>Les espèces sont inscrites sur le compte
+                <select name="compteEspeces" required>
+                    <option value="">— choisir —</option>
+                    <option th:each="c : ${comptes}" th:value="${c.id()}" th:text="${c.libelle()}"
+                            th:selected="${derniere != null and c.id() == derniere.compteEspeces()}">Caisse</option>
+                </select>
+            </label>
+            <label>Le Mobile Money arrive sur le compte
+                <select name="compteMobile">
+                    <option value="">— pas de Mobile Money à cette caisse —</option>
+                    <option th:each="c : ${comptes}" th:value="${c.id()}" th:text="${c.libelle()}"
+                            th:selected="${derniere != null and c.id() == derniere.compteMobile()}">Mobile Money</option>
+                </select>
+            </label>
+            <label>Les paiements par carte arrivent sur le compte
+                <select name="compteCarte">
+                    <option value="">— pas de carte à cette caisse —</option>
+                    <option th:each="c : ${comptes}" th:value="${c.id()}" th:text="${c.libelle()}"
+                            th:selected="${derniere != null and c.id() == derniere.compteCarte()}">Banque</option>
+                </select>
+            </label>
+        </th:block>
+        <button type="submit" class="k-bouton">Ouvrir la caisse</button>
+    </form>
+
+    <th:block th:unless="${sessions.isEmpty()}">
+        <h2>Dernières caisses</h2>
+        <table class="k-table">
+            <thead><tr><th>Caisse</th><th>Caissier</th><th>Jour</th><th>État</th><th class="c-nombre">Écart</th></tr></thead>
+            <tbody>
+            <tr th:each="s : ${sessions}">
+                <td><a th:href="@{/caisse/sessions/{id}(id=${s.id()})}" th:text="${s.numero()}">CA</a></td>
+                <td th:text="${s.caissier()}">Kofi</td>
+                <td th:text="${f.jour(s.jour())}">12/11/2026</td>
+                <td th:text="${s.ouverte() ? 'ouverte' : 'clôturée'}">clôturée</td>
+                <td class="c-nombre" th:classappend="${s.ecart() != null and s.ecart() != 0} ? 'c-ecart-ko'"
+                    th:text="${s.ecart() == null ? '' : f.montant(s.ecart())}">0</td>
+            </tr>
+            </tbody>
+        </table>
+    </th:block>
+</section>
+</body>
+</html>

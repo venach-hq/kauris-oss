@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Caisse ' + laCaisse.numero()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
+    <style>
+        .c-ecran { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 1rem; align-items: start; }
+        @media (max-width: 860px) { .c-ecran { grid-template-columns: 1fr; } }
+        .c-haut { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; align-items: center; margin: 0 0 .8rem; font-size: 14px; }
+        .c-haut strong { font-size: 1rem; }
+        #c-cherche { width: 100%; font-size: 1.15rem; padding: .6rem .8rem; margin: 0 0 .6rem; }
+        .c-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; max-height: 65vh; overflow-y: auto; }
+        .c-article { min-height: 84px; text-align: left; padding: .5rem .6rem; border-radius: 10px; border: 1px solid var(--k-bord);
+            background: #fff; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; touch-action: manipulation; }
+        .c-article:hover { border-color: var(--k-vert); }
+        .c-article:active { transform: scale(.98); }
+        .c-article b { font-size: 14px; line-height: 1.2; }
+        .c-article span { font-size: 1.05rem; font-weight: 700; color: var(--k-vert-fonce); }
+        .c-article small { color: var(--k-discret); font-size: 11px; }
+        .c-ticket { background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 12px; padding: .8rem; position: sticky; top: .5rem; }
+        .c-ticket table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .c-ticket td { padding: .3rem .2rem; border-bottom: 1px solid #eef0f2; vertical-align: middle; }
+        .c-quantite { white-space: nowrap; }
+        .c-quantite input { width: 3.6rem; text-align: center; font-size: 1rem; }
+        .c-quantite button, .c-retirer { min-width: 36px; min-height: 36px; font-size: 1.1rem; border-radius: 8px; border: 1px solid var(--k-bord); background: #fff; cursor: pointer; }
+        .c-montant { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .c-total { display: flex; justify-content: space-between; align-items: baseline; margin: .8rem 0 0; }
+        .c-total strong { font-size: 2rem; font-variant-numeric: tabular-nums; }
+        #c-detail { font-size: 13px; color: var(--k-discret); text-align: right; min-height: 1em; }
+        .c-paiement { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: .8rem 0 0; }
+        .c-paiement label { display: grid; gap: .15rem; font-size: 13px; font-weight: 600; }
+        .c-paiement input, .c-paiement select { font-size: 1.15rem; padding: .45rem .5rem; }
+        .c-large { grid-column: 1 / -1; }
+        .c-billets { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 0; }
+        .c-billets button { min-height: 44px; padding: 0 .8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--k-bord); background: #fff; cursor: pointer; }
+        .c-a-rendre { display: flex; justify-content: space-between; align-items: baseline; margin: .8rem 0; padding: .5rem .7rem;
+            background: #eaf4ee; border-radius: 8px; }
+        .c-a-rendre strong { font-size: 1.5rem; color: var(--k-vert-fonce); }
+        .c-a-rendre .c-manque { color: var(--k-rouge); font-size: 1.05rem; }
+        #c-encaisser { width: 100%; min-height: 64px; font-size: 1.4rem; }
+        .c-bas { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .6rem 0 0; font-size: 13px; }
+        .c-panneau-calcul { margin: 1rem 0 0; }
+    </style>
+
+    <div class="k-message k-ko" role="alert" th:if="${perimee}">
+        Cette caisse est ouverte depuis le <span th:text="${f.jour(laCaisse.jour())}">11/11/2026</span> :
+        <a th:href="@{/caisse/cloture}">clôturez-la</a>, puis ouvrez celle du jour.
+    </div>
+
+    <div class="c-haut">
+        <span>Caisse <strong th:text="${laCaisse.numero()}">CA</strong> · <span th:text="${laCaisse.caissier()}">Kofi</span></span>
+        <span>Tickets : <strong th:text="${bilan.tickets()}">0</strong></span>
+        <span>Ventes : <strong th:text="${f.montant(bilan.total())}">0</strong></span>
+        <span>Espèces attendues : <strong th:text="${f.montant(bilan.attendu())}">0</strong></span>
+        <button type="button" class="k-bouton k-secondaire" id="c-bascule-calcul" aria-expanded="false"
+                aria-controls="c-panneau-calcul">Calculatrice</button>
+        <a class="k-bouton k-secondaire" th:href="@{/caisse/cloture}">Clôturer</a>
+    </div>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Touchez un article pour l’ajouter (ou tapez son nom ; avec un lecteur de codes-barres, la référence +
+            Entrée l’ajoute). Ajustez les quantités sur le ticket.</p>
+        <p>Saisissez ce que le client donne en espèces : la monnaie à rendre s’affiche. Ce qui est payé par Mobile
+            Money ou par carte est déduit des espèces. Rien saisi en espèces = le compte juste.</p>
+        <p>Les prix sont ceux du catalogue (TTC). Un client nommé reçoit une vraie facture à son nom ; sinon c’est
+            le « Client comptoir ».</p>
+    </details>
+
+    <div class="c-ecran" id="c-vente" th:attr="data-devise=${f.devise().symbole()}">
+        <div>
+            <input id="c-cherche" type="search" placeholder="Chercher un article ou taper sa référence…"
+                   autocomplete="off" aria-label="Chercher un article">
+            <p class="k-discret" th:if="${articles.isEmpty()}">Le catalogue est vide :
+                <a th:href="@{/ventes/catalogue}">ajoutez vos articles</a> pour vendre.</p>
+            <div class="c-tuiles">
+                <button type="button" class="c-article" th:each="x : ${articles}"
+                        th:attr="data-id=${x.id()},data-nom=${x.designation()},data-ref=${x.reference()},data-ht=${x.prixHt()},data-taux=${x.taux().toPlainString()},data-ttc=${x.prixTtc()}">
+                    <b th:text="${x.designation()}">Pain</b>
+                    <small th:text="${x.reference()}" th:if="${!x.reference().isEmpty()}">P1</small>
+                    <span th:text="${f.montant(x.prixTtc())}">295</span>
+                </button>
+            </div>
+            <div class="c-panneau-calcul" id="c-panneau-calcul" hidden>
+                <div th:replace="~{caisse/commun :: calculatrice(${tauxTva})}"></div>
+            </div>
+        </div>
+
+        <form class="c-ticket" id="c-ticket" method="post" th:action="@{/caisse/vendre}">
+            <table>
+                <tbody id="c-lignes"></tbody>
+            </table>
+            <p class="k-discret" id="c-vide">Ticket vide : touchez un article.</p>
+
+            <div class="c-total"><span>Total</span><strong id="c-total">0</strong></div>
+            <div id="c-detail"></div>
+
+            <div class="c-paiement">
+                <label class="c-large">Client
+                    <select name="client">
+                        <option value="">Client comptoir</option>
+                        <option th:each="c : ${clients}" th:unless="${c.nom() == T(com.venach.kauris.ventes.application.VentesService).CLIENT_COMPTOIR}"
+                                th:value="${c.id()}" th:text="${c.nom()}">Client</option>
+                    </select>
+                </label>
+                <label>Remise (%) <input id="c-remise" name="remise" inputmode="decimal" placeholder="0"></label>
+                <label>Espèces reçues <input id="c-especes" name="especes" inputmode="numeric" placeholder="compte juste"></label>
+                <label th:if="${mobile}">Mobile Money <input id="c-mobile" name="mobile" inputmode="numeric" placeholder="0"></label>
+                <label th:if="${mobile}">Référence Mobile Money <input name="referenceMobile" maxlength="80"></label>
+                <label th:if="${carte}">Carte <input id="c-carte" name="carte" inputmode="numeric" placeholder="0"></label>
+            </div>
+            <div class="c-billets">
+                <button type="button" data-billet="juste" hidden>Compte juste</button>
+                <button type="button" data-billet="1000" hidden>1 000</button>
+                <button type="button" data-billet="2000" hidden>2 000</button>
+                <button type="button" data-billet="5000" hidden>5 000</button>
+                <button type="button" data-billet="10000" hidden>10 000</button>
+            </div>
+            <div class="c-a-rendre">
+                <span>En espèces : <b id="c-a-payer">0</b><br>À rendre</span>
+                <strong id="c-rendu">0</strong>
+            </div>
+            <button type="submit" class="k-bouton" id="c-encaisser" disabled>Encaisser</button>
+            <div class="c-bas">
+                <label><input type="checkbox" id="c-impression"> imprimer le ticket tout de suite</label>
+                <button type="button" class="k-bouton k-secondaire" id="c-annuler">Vider</button>
+            </div>
+        </form>
+    </div>
+    <noscript><p class="k-message k-ko">La caisse a besoin de JavaScript.</p></noscript>
+    <script th:src="@{/caisse/calculatrice.js}" defer></script>
+    <script th:src="@{/caisse/caisse.js}" defer></script>
+</section>
+</body>
+</html>

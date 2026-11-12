@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!-- Ticket de caisse, pour une imprimante de tickets de 80 mm (ou 58 mm : il se resserre). -->
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${'Ticket ' + t.numero() + ' · Kauris'}">Ticket</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/kauris/favicon.svg}">
+    <style>
+        @page { size: 80mm auto; margin: 3mm; }
+        body { margin: 0; background: #eef0f2; font-family: "DejaVu Sans Mono", "Courier New", monospace; color: #000; }
+        .t-papier { width: 72mm; max-width: 100%; margin: 1rem auto; background: #fff; padding: 4mm; font-size: 12px;
+            line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
+        .t-centre { text-align: center; }
+        .t-nom { font-size: 15px; font-weight: 700; }
+        .t-trait { border-top: 1px dashed #000; margin: 2mm 0; }
+        .t-ligne { display: flex; justify-content: space-between; gap: 2mm; }
+        .t-ligne span:last-child { text-align: right; white-space: nowrap; }
+        .t-article { margin: 1mm 0; }
+        .t-detail { padding-left: 3mm; }
+        .t-total { font-size: 16px; font-weight: 700; }
+        .t-actions { width: 72mm; max-width: 100%; margin: 0 auto 1rem; display: flex; gap: .5rem; flex-wrap: wrap;
+            font-family: system-ui, sans-serif; }
+        .t-actions a, .t-actions button { flex: 1; padding: .8rem; font-size: 1rem; font-weight: 700; text-align: center;
+            border-radius: 8px; border: 1px solid #0B7A3B; background: #fff; color: #0B7A3B; text-decoration: none; cursor: pointer; }
+        .t-actions .t-principal { background: #0B7A3B; color: #fff; }
+        @media print {
+            body { background: #fff; }
+            .t-papier { margin: 0; box-shadow: none; width: auto; padding: 0; }
+            .t-actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="t-actions">
+    <a class="t-principal" th:href="@{/caisse}" id="t-nouvelle">Nouvelle vente</a>
+    <button type="button" onclick="window.print()">Imprimer</button>
+    <a th:href="@{/ventes/documents/{id}.pdf(id=${d.id()})}">Facture A4</a>
+</div>
+<div class="t-papier">
+    <div class="t-centre">
+        <div class="t-nom" th:text="${entreprise.raisonSociale()}">Boutique</div>
+        <div th:text="${entreprise.adresseComplete()}" th:if="${!entreprise.adresseComplete().isEmpty()}">Adresse</div>
+        <div th:text="${'Tél. ' + entreprise.telephone()}" th:if="${!entreprise.telephone().isEmpty()}">Tél.</div>
+        <div th:each="i : ${entreprise.identifiantsEnTete()}" th:text="${i.sigle() + ' ' + i.valeur()}">NIF</div>
+    </div>
+    <div class="t-trait"></div>
+    <div class="t-ligne"><span>Facture</span><span th:text="${t.numero()}">FA-2026-0001</span></div>
+    <div class="t-ligne"><span>Date</span><span th:text="${f.instant(t.creeLe())}">12/11/2026 à 10:00</span></div>
+    <div class="t-ligne"><span>Caisse</span><span th:text="${laCaisse.numero() + ' · ' + laCaisse.caissier()}">CA</span></div>
+    <div class="t-ligne" th:if="${d.client().nom() != T(com.venach.kauris.ventes.application.VentesService).CLIENT_COMPTOIR}">
+        <span>Client</span><span th:text="${d.client().nom()}">Client</span></div>
+    <div class="t-trait"></div>
+    <div class="t-article" th:each="l : ${d.contenu().lignes()}">
+        <div th:text="${l.designation()}">Pain</div>
+        <div class="t-ligne t-detail">
+            <span th:text="${f.decimal(l.quantite()) + ' × ' + f.nombre(l.prixUnitaire())}">4 × 250</span>
+            <span th:text="${f.nombre(l.montantHt())}">1 000</span>
+        </div>
+    </div>
+    <div class="t-trait"></div>
+    <th:block th:if="${d.totaux().avecTva()}">
+        <div class="t-ligne" th:if="${d.totaux().remiseGlobale() > 0}"><span>Remise</span>
+            <span th:text="${'-' + f.nombre(d.totaux().remiseGlobale())}">0</span></div>
+        <div class="t-ligne"><span>Total HT</span><span th:text="${f.nombre(d.totaux().totalHt())}">3 000</span></div>
+        <div class="t-ligne" th:each="v : ${d.totaux().tva()}">
+            <span th:text="${'TVA ' + f.pourcent(v.taux())}">TVA 18 %</span><span th:text="${f.nombre(v.montant())}">540</span></div>
+    </th:block>
+    <th:block th:unless="${d.totaux().avecTva()}">
+        <div class="t-ligne" th:if="${d.totaux().remiseGlobale() > 0}"><span>Remise</span>
+            <span th:text="${'-' + f.nombre(d.totaux().remiseGlobale())}">0</span></div>
+    </th:block>
+    <div class="t-ligne t-total"><span>TOTAL</span><span th:text="${f.montant(d.totaux().totalTtc())}">3 540</span></div>
+    <div class="t-trait"></div>
+    <div class="t-ligne" th:if="${t.especes() > 0}"><span>Espèces reçues</span><span th:text="${f.nombre(t.recu())}">5 000</span></div>
+    <div class="t-ligne" th:if="${t.mobile() > 0}"><span th:text="${'Mobile Money ' + t.referenceMobile()}">Mobile Money</span>
+        <span th:text="${f.nombre(t.mobile())}">1 000</span></div>
+    <div class="t-ligne" th:if="${t.carte() > 0}"><span>Carte</span><span th:text="${f.nombre(t.carte())}">0</span></div>
+    <div class="t-ligne t-total" th:if="${t.rendu() > 0}"><span>Rendu</span><span th:text="${f.montant(t.rendu())}">2 460</span></div>
+    <div class="t-trait"></div>
+    <div class="t-centre" th:if="${d.mentionTva() != null and !d.mentionTva().isEmpty()}" th:text="${d.mentionTva()}">TVA non applicable</div>
+    <div class="t-centre">Merci de votre visite !</div>
+</div>
+<script>
+    // Impression tout de suite si la caisse l'a demandé (choix gardé sur cet appareil).
+    (function () {
+        try {
+            if (window.localStorage.getItem('kauris.caisse.impression') === 'oui') {
+                window.addEventListener('load', function () { window.print(); });
+            }
+        } catch (e) { /* stockage indisponible */ }
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { document.getElementById('t-nouvelle').click(); }
+        });
+    })();
+</script>
+</body>
+</html>

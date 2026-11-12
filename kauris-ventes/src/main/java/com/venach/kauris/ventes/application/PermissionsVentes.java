@@ -15,6 +15,7 @@ public final class PermissionsVentes {
     public static final String ENCAISSER = "ventes.encaisser";
     public static final String CATALOGUE = "ventes.catalogue";
     public static final String REGLAGES = "ventes.reglages";
+    public static final String CAISSE = "ventes.caisse";
 
     private static final String GROUPE = "Ventes";
 
@@ -26,7 +27,9 @@ public final class PermissionsVentes {
             Permission.modifier(EMETTRE, "Émettre (numéroter) les devis, factures et avoirs", GROUPE),
             Permission.modifier(ENCAISSER, "Enregistrer et annuler les règlements des clients", GROUPE),
             Permission.modifier(CATALOGUE, "Gérer le catalogue des articles et prestations, et leurs prix", GROUPE),
-            Permission.administrer(REGLAGES, "Régler la TVA, les délais et les conditions de vente", GROUPE));
+            Permission.administrer(REGLAGES, "Régler la TVA, les délais et les conditions de vente", GROUPE),
+            Permission.modifier(CAISSE, "Vendre au comptoir : ouvrir sa caisse, encaisser des tickets, la clôturer",
+                    GROUPE));
 
     private PermissionsVentes() {
     }

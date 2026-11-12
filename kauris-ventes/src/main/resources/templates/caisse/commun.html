@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans de la caisse : onglets, style, calculatrice. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .c-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1rem; border-bottom: 1px solid var(--k-bord); }
+        .c-onglets a { padding: .45rem .8rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 14px; }
+        .c-onglets a.c-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .c-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .8rem; margin: 0 0 1rem; }
+        .c-chiffre { border: 1px solid var(--k-bord); border-radius: 8px; padding: .7rem 1rem; background: var(--k-carte); }
+        .c-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .c-chiffre strong { font-size: 1.3rem; }
+        .c-nombre { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .c-ecart-ko { color: var(--k-rouge); font-weight: 700; }
+        .c-boutons { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0 0 1rem; }
+        .c-boutons form { margin: 0; }
+
+        /* Calculatrice : grandes touches, faites pour le doigt */
+        .c-calc { max-width: 430px; background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 12px; padding: .8rem; }
+        .c-afficheur { background: #10261b; color: #e9fff2; border-radius: 8px; padding: .5rem .8rem; margin: 0 0 .6rem; text-align: right; }
+        .c-afficheur .c-attente, .c-afficheur .c-mem { font-size: 14px; min-height: 1.2em; opacity: .75; }
+        .c-afficheur .c-mem { text-align: left; float: left; }
+        .c-afficheur .c-valeur { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-x: auto; white-space: nowrap; }
+        .c-touches { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45rem; }
+        .c-touches button, .c-outils button { min-height: 64px; font-size: 1.45rem; font-weight: 700; border-radius: 10px;
+            border: 1px solid var(--k-bord); background: #fff; color: var(--k-texte); cursor: pointer; touch-action: manipulation; }
+        .c-touches button:active, .c-outils button:active { transform: scale(.97); }
+        .c-touches .c-op { background: #eaf4ee; color: var(--k-vert-fonce); }
+        .c-touches .c-egal { background: var(--k-vert); color: #fff; border-color: var(--k-vert); }
+        .c-touches .c-efface { background: #fdecef; color: #b81c3b; }
+        .c-touches .c-mem-touche { font-size: 1.05rem; min-height: 48px; background: #f5f6f8; }
+        .c-outils { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45rem; margin: .45rem 0 0; }
+        .c-outils button { font-size: 1rem; min-height: 56px; background: #f3f8ff; color: #1a4f8b; }
+        .c-reglage { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: .6rem 0 0; font-size: 14px; }
+        .c-reglage input, .c-reglage select { width: 5.5rem; font-size: 1rem; }
+        .c-ruban { list-style: none; padding: .3rem .5rem; margin: .6rem 0 0; max-height: 8.5rem; overflow-y: auto; font-size: 13px;
+            background: #fafafa; border-radius: 6px; color: var(--k-discret); font-variant-numeric: tabular-nums; }
+        .c-ruban:empty { display: none; }
+        .c-assistants { margin: .8rem 0 0; }
+        .c-assistants summary { font-weight: 700; cursor: pointer; padding: .3rem 0; }
+        .c-assistant { border-top: 1px dashed var(--k-bord); padding: .5rem 0; display: grid; gap: .35rem; }
+        .c-assistant h3 { margin: .2rem 0; font-size: 15px; }
+        .c-assistant label { display: flex; justify-content: space-between; gap: .5rem; align-items: center; font-size: 14px; }
+        .c-assistant input, .c-assistant select { width: 9rem; font-size: 1.05rem; text-align: right; }
+        .c-resultat { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: 14px; }
+        .c-resultat output { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; margin-left: auto; }
+        .c-resultat button { border: 1px solid var(--k-bord); background: #fff; border-radius: 6px; padding: .15rem .45rem; cursor: pointer; }
+        .c-coupures { font-size: 13px; color: var(--k-discret); }
+    </style>
+    <nav class="c-onglets" aria-label="Caisse">
+        <a th:href="@{/caisse}" th:classappend="${onglet == 'vente'} ? 'c-actif'">Vendre</a>
+        <a th:href="@{/caisse/cloture}" th:classappend="${onglet == 'cloture'} ? 'c-actif'">Clôturer</a>
+        <a th:href="@{/caisse/sessions}" th:classappend="${onglet == 'sessions'} ? 'c-actif'">Rapports de caisse</a>
+        <a th:href="@{/caisse/calculatrice}" th:classappend="${onglet == 'calculatrice'} ? 'c-actif'">Calculatrice</a>
+    </nav>
+</th:block>
+
+<!-- La calculatrice ; tauxTva : taux proposé pour les touches TVA (modifiable). -->
+<div th:fragment="calculatrice(tauxTva)" class="c-calc" data-calculatrice>
+    <div class="c-afficheur" aria-live="polite">
+        <div><span class="c-mem" data-c="memoire"></span><span class="c-attente" data-c="attente"></span>&nbsp;</div>
+        <div class="c-valeur" data-c="ecran">0</div>
+    </div>
+    <div class="c-touches">
+        <button type="button" class="c-mem-touche" data-action="mc" title="Effacer la mémoire">MC</button>
+        <button type="button" class="c-mem-touche" data-action="mr" title="Rappeler la mémoire">MR</button>
+        <button type="button" class="c-mem-touche" data-action="m+" title="Ajouter à la mémoire">M+</button>
+        <button type="button" class="c-mem-touche" data-action="m-" title="Retirer de la mémoire">M−</button>
+        <button type="button" class="c-efface" data-action="c" title="Tout effacer (Échap)">C</button>
+        <button type="button" class="c-efface" data-action="retour" title="Effacer un chiffre">⌫</button>
+        <button type="button" class="c-op" data-action="pourcent">%</button>
+        <button type="button" class="c-op" data-op="/" aria-label="Diviser">÷</button>
+        <button type="button" data-chiffre="7">7</button>
+        <button type="button" data-chiffre="8">8</button>
+        <button type="button" data-chiffre="9">9</button>
+        <button type="button" class="c-op" data-op="*" aria-label="Multiplier">×</button>
+        <button type="button" data-chiffre="4">4</button>
+        <button type="button" data-chiffre="5">5</button>
+        <button type="button" data-chiffre="6">6</button>
+        <button type="button" class="c-op" data-op="-" aria-label="Moins">−</button>
+        <button type="button" data-chiffre="1">1</button>
+        <button type="button" data-chiffre="2">2</button>
+        <button type="button" data-chiffre="3">3</button>
+        <button type="button" class="c-op" data-op="+" aria-label="Plus">+</button>
+        <button type="button" data-chiffre="00">00</button>
+        <button type="button" data-chiffre="0">0</button>
+        <button type="button" data-action="virgule" aria-label="Virgule">,</button>
+        <button type="button" class="c-egal" data-action="egal">=</button>
+    </div>
+    <div class="c-outils">
+        <button type="button" data-action="+tva" title="Du prix HT au prix TTC">+ TVA</button>
+        <button type="button" data-action="-tva" title="Du prix TTC au prix HT">− TVA</button>
+        <button type="button" data-action="tva-ttc" title="La TVA comprise dans un prix TTC">TVA du TTC</button>
+        <button type="button" data-action="tva-ht" title="La TVA à ajouter à un prix HT">TVA du HT</button>
+        <button type="button" data-action="signe">±</button>
+        <button type="button" data-action="ce" title="Effacer la saisie seulement">CE</button>
+        <button type="button" data-action="arrondir" title="Arrondir au pas choisi">Arrondir</button>
+        <button type="button" data-action="copier" title="Copier le résultat, pour le coller ailleurs">Copier</button>
+    </div>
+    <div class="c-reglage">
+        <label>TVA <input data-c="taux" inputmode="decimal" th:value="${#strings.replace(tauxTva.stripTrailingZeros().toPlainString(), '.', ',')}"> %</label>
+        <label>Arrondi à
+            <select data-c="pas">
+                <option value="1">1</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select></label>
+    </div>
+    <ul class="c-ruban" data-c="ruban"></ul>
+
+    <details class="c-assistants" open>
+        <summary>Prix, marge, remise, monnaie</summary>
+        <div class="c-assistant">
+            <h3>Prix de vente à partir du coût</h3>
+            <label>Coût d’achat <input data-entree="cout" inputmode="decimal"></label>
+            <label>Marge voulue (%) <input data-entree="taux-voulu" inputmode="decimal"></label>
+            <label>calculée sur
+                <select data-entree="base">
+                    <option value="cout">le coût (taux de marge)</option>
+                    <option value="vente">le prix de vente (taux de marque)</option>
+                </select></label>
+            <div class="c-resultat">Prix de vente HT <output data-sortie="pv-ht">—</output>
+                <button type="button" data-reprendre="pv-ht" title="Mettre à l’écran">→</button></div>
+            <div class="c-resultat">Prix de vente TTC <output data-sortie="pv-ttc">—</output>
+                <button type="button" data-reprendre="pv-ttc" title="Mettre à l’écran">→</button></div>
+        </div>
+        <div class="c-assistant">
+            <h3>Ma marge sur un article</h3>
+            <label>Coût d’achat <input data-entree="m-cout" inputmode="decimal"></label>
+            <label>Prix de vente HT <input data-entree="m-vente" inputmode="decimal"></label>
+            <div class="c-resultat">Marge <output data-sortie="m-marge">—</output>
+                <button type="button" data-reprendre="m-marge" title="Mettre à l’écran">→</button></div>
+            <div class="c-resultat">Taux de marge (sur le coût) <output data-sortie="m-taux-marge">—</output></div>
+            <div class="c-resultat">Taux de marque (sur la vente) <output data-sortie="m-taux-marque">—</output></div>
+            <div class="c-resultat">Coefficient <output data-sortie="m-coef">—</output></div>
+        </div>
+        <div class="c-assistant">
+            <h3>Remise</h3>
+            <label>Prix <input data-entree="r-prix" inputmode="decimal"></label>
+            <label>Remise (%) <input data-entree="r-taux" inputmode="decimal"></label>
+            <div class="c-resultat">Montant de la remise <output data-sortie="r-remise">—</output>
+                <button type="button" data-reprendre="r-remise" title="Mettre à l’écran">→</button></div>
+            <div class="c-resultat">Prix après remise <output data-sortie="r-net">—</output>
+                <button type="button" data-reprendre="r-net" title="Mettre à l’écran">→</button></div>
+            <label>Prix de départ <input data-entree="r-avant" inputmode="decimal"></label>
+            <label>Prix accordé <input data-entree="r-apres" inputmode="decimal"></label>
+            <div class="c-resultat">Remise accordée <output data-sortie="r-taux-trouve">—</output></div>
+        </div>
+        <div class="c-assistant">
+            <h3>Monnaie à rendre</h3>
+            <label>À payer <input data-entree="mo-du" inputmode="decimal"></label>
+            <label>Reçu <input data-entree="mo-recu" inputmode="decimal"></label>
+            <div class="c-resultat">À rendre <output data-sortie="mo-rendu">—</output></div>
+            <div class="c-coupures" data-c="coupures"></div>
+        </div>
+    </details>
+</div>
+</body>
+</html>

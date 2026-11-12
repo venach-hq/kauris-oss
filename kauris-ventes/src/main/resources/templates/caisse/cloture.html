@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Clôturer la caisse ' + laCaisse.numero()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{caisse/commun :: navigation}"></th:block>
+    <style>
+        .c-billetage { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .4rem .8rem; margin: .5rem 0 1rem; }
+        .c-billetage label { display: flex; justify-content: space-between; align-items: center; gap: .4rem; font-size: 14px; }
+        .c-billetage input { width: 4.5rem; font-size: 1.05rem; text-align: right; }
+    </style>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Comptez les espèces du tiroir (fond de caisse compris) et saisissez le total, ou le nombre de billets et
+            de pièces : Kauris fait l’addition.</p>
+        <p>L’écart compare ce total à ce qui devrait y être : fond + ventes payées en espèces. Un écart se note,
+            il ne se corrige pas ici.</p>
+        <p>Après la clôture, imprimez le rapport et rangez-le avec la recette.</p>
+    </details>
+
+    <div class="c-chiffres">
+        <div class="c-chiffre"><span>Tickets</span><strong th:text="${bilan.tickets()}">0</strong></div>
+        <div class="c-chiffre"><span>Ventes</span><strong th:text="${f.montant(bilan.total())}">0</strong></div>
+        <div class="c-chiffre"><span>dont espèces</span><strong th:text="${f.montant(bilan.especes())}">0</strong></div>
+        <div class="c-chiffre"><span>dont Mobile Money</span><strong th:text="${f.montant(bilan.mobile())}">0</strong></div>
+        <div class="c-chiffre"><span>dont carte</span><strong th:text="${f.montant(bilan.carte())}">0</strong></div>
+        <div class="c-chiffre"><span>Fond de caisse</span><strong th:text="${f.montant(laCaisse.fond())}">0</strong></div>
+        <div class="c-chiffre"><span>Espèces attendues</span><strong th:text="${f.montant(bilan.attendu())}">0</strong></div>
+    </div>
+
+    <form class="k-pile" method="post" th:action="@{/caisse/sessions/{id}/cloturer(id=${laCaisse.id()})}">
+        <fieldset>
+            <legend>Compter le tiroir (facultatif)</legend>
+            <div class="c-billetage" id="c-billetage">
+                <label th:each="c : ${ {10000, 5000, 2000, 1000, 500, 250, 200, 100, 50, 25, 10, 5} }">
+                    <span th:text="${f.nombre(c)}">10 000</span>
+                    <input inputmode="numeric" th:attr="data-coupure=${c}" placeholder="0" aria-label="Nombre">
+                </label>
+            </div>
+        </fieldset>
+        <label>Espèces comptées dans le tiroir
+            <input name="comptees" id="c-comptees" inputmode="numeric" required></label>
+        <p>Écart : <strong id="c-ecart" th:attr="data-attendu=${bilan.attendu()}">—</strong></p>
+        <label>Note (facultatif) <input name="note" maxlength="300" placeholder="Explication d'un écart…"></label>
+        <button type="submit" class="k-bouton">Clôturer la caisse</button>
+    </form>
+    <script>
+        (function () {
+            var comptees = document.getElementById('c-comptees');
+            var ecart = document.getElementById('c-ecart');
+            var attendu = parseInt(ecart.dataset.attendu, 10);
+            function texte(x) { return (x < 0 ? '−' : x > 0 ? '+' : '') + String(Math.abs(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+            function montrer() {
+                var v = comptees.value.replace(/[\s  .]/g, '');
+                ecart.textContent = /^\d+$/.test(v) ? texte(parseInt(v, 10) - attendu) : '—';
+            }
+            document.getElementById('c-billetage').addEventListener('input', function () {
+                var total = 0;
+                Array.prototype.forEach.call(document.querySelectorAll('[data-coupure]'), function (x) {
+                    var n = parseInt(x.value, 10);
+                    if (n > 0) { total += n * parseInt(x.dataset.coupure, 10); }
+                });
+                comptees.value = String(total);
+                montrer();
+            });
+            comptees.addEventListener('input', montrer);
+        })();
+    </script>
+</section>
+</body>
+</html>
