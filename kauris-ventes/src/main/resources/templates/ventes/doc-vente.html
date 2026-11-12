@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!-- Devis, facture ou avoir, sur l'ossature commune des documents. Sert à l'écran et au PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div class="k-doc-brouillon" th:if="${brouillon}">Brouillon : document sans numéro et sans valeur</div>
+
+    <table class="k-doc-colonnes">
+        <tr>
+            <td>
+                <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+                <p th:unless="${d.contenu().objet().isEmpty()}"><strong>Objet :</strong>
+                    <span th:text="${d.contenu().objet()}">Objet</span></p>
+            </td>
+            <td class="k-doc-intervalle"></td>
+            <td style="width: 42%;">
+                <div class="k-doc-destinataire" th:with="c=${d.client()}">
+                    <div class="k-doc-etiquette" th:text="${d.type().name() == 'DEVIS' ? 'Client' : 'Facturé à'}">Facturé à</div>
+                    <div class="k-doc-nom-tiers" th:text="${c.nom()}">Client SARL</div>
+                    <div th:unless="${c.contact().isEmpty()}" th:text="${'À l''attention de ' + c.contact()}">Contact</div>
+                    <div th:unless="${c.adresseComplete().isEmpty()}" th:text="${c.adresseComplete()}">Adresse</div>
+                    <div th:unless="${c.nif().isEmpty()}"><strong>NIF :</strong> <span th:text="${c.nif()}">NIF</span></div>
+                    <div th:unless="${c.rccm().isEmpty()}"><strong>RCCM :</strong> <span th:text="${c.rccm()}">RCCM</span></div>
+                    <div th:unless="${c.telephone().isEmpty()}"><strong>Tél :</strong> <span th:text="${c.telephone()}">Tél</span></div>
+                    <div th:unless="${c.email().isEmpty()}"><strong>Email :</strong> <span th:text="${c.email()}">Email</span></div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="k-doc-tableau">
+        <thead>
+        <tr>
+            <th>Désignation</th>
+            <th class="k-doc-montant">Qté</th>
+            <th class="k-doc-montant">Prix unit. HT</th>
+            <th class="k-doc-montant" th:if="${avecRemise}">Remise</th>
+            <th class="k-doc-montant" th:if="${t.avecTva()}">TVA</th>
+            <th class="k-doc-montant">Montant HT</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="l : ${d.contenu().lignes()}">
+            <td th:text="${l.designation()}">Désignation</td>
+            <td class="k-doc-montant" th:text="${f.decimal(l.quantite()) + (l.unite().isEmpty() ? '' : ' ' + l.unite())}">1</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.prixUnitaire())}">0</td>
+            <td class="k-doc-montant" th:if="${avecRemise}" th:text="${l.remise().signum() > 0 ? f.pourcent(l.remise()) : ''}"></td>
+            <td class="k-doc-montant" th:if="${t.avecTva()}" th:text="${f.pourcent(l.tauxTva())}">18 %</td>
+            <td class="k-doc-montant" th:text="${f.nombre(l.montantHt())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table class="k-doc-totaux">
+        <tr th:if="${t.remiseGlobale() > 0}"><td>Total des lignes HT</td>
+            <td class="k-doc-montant" th:text="${f.montant(t.lignesHt())}">0</td></tr>
+        <tr th:if="${t.remiseGlobale() > 0}"><td th:text="${'Remise ' + f.pourcent(d.contenu().remiseGlobale())}">Remise</td>
+            <td class="k-doc-montant" th:text="${'- ' + f.montant(t.remiseGlobale())}">0</td></tr>
+        <tr><td>Total HT</td><td class="k-doc-montant" th:text="${f.montant(t.totalHt())}">0</td></tr>
+        <th:block th:if="${t.avecTva()}">
+            <tr th:each="x : ${t.tva()}" th:if="${x.taux().signum() > 0}">
+                <td th:text="${'TVA ' + f.pourcent(x.taux()) + ' sur ' + f.nombre(x.base())}">TVA 18 %</td>
+                <td class="k-doc-montant" th:text="${f.montant(x.montant())}">0</td></tr>
+        </th:block>
+        <tr class="k-doc-total"><td th:text="${t.avecTva() ? 'Total TTC' : 'Total'}">Total TTC</td>
+            <td class="k-doc-montant" th:text="${f.montant(t.totalTtc())}">0</td></tr>
+        <th:block th:if="${d.type().name() == 'FACTURE' and !brouillon and (d.regle() > 0 or d.credite() > 0)}">
+            <tr th:if="${d.credite() > 0}"><td>Avoirs</td>
+                <td class="k-doc-montant" th:text="${'- ' + f.montant(d.credite())}">0</td></tr>
+            <tr th:if="${d.regle() > 0}"><td>Déjà réglé</td>
+                <td class="k-doc-montant" th:text="${'- ' + f.montant(d.regle())}">0</td></tr>
+            <tr class="k-doc-total"><td>Reste à payer</td>
+                <td class="k-doc-montant" th:text="${f.montant(d.resteAPayer() > 0 ? d.resteAPayer() : 0)}">0</td></tr>
+        </th:block>
+    </table>
+
+    <p>
+        <span th:switch="${d.type().name()}">
+            <span th:case="'DEVIS'">Arrêté le présent devis à la somme de</span>
+            <span th:case="'AVOIR'">Arrêté le présent avoir à la somme de</span>
+            <span th:case="*">Arrêtée la présente facture à la somme de</span>
+        </span>
+        <strong th:text="${enLettres}">cent mille francs CFA</strong><span th:text="${t.avecTva() ? ' toutes taxes comprises.' : '.'}">.</span>
+    </p>
+    <p class="k-doc-note" th:unless="${d.mentionTva().isEmpty()}" th:text="${d.mentionTva()}">TVA non applicable</p>
+    <p class="k-doc-note" th:if="${d.type().name() == 'AVOIR' and d.origineNumero() != null}"
+       th:text="${'Cet avoir annule ou réduit la facture ' + d.origineNumero() + ' du montant ci-dessus.'}">…</p>
+    <p class="k-doc-note" th:if="${d.type().name() == 'DEVIS' and d.contenu().echeance() != null}"
+       th:text="${'Devis valable jusqu''au ' + f.jour(d.contenu().echeance()) + '.'}">…</p>
+    <p class="k-doc-note" th:unless="${d.contenu().notes().isEmpty()}" th:text="${d.contenu().notes()}">Notes</p>
+    <p class="k-doc-note" th:unless="${d.conditions().isEmpty()}">
+        <strong>Conditions de paiement :</strong> <span th:text="${d.conditions()}">Conditions</span></p>
+    <p class="k-doc-note" th:if="${d.type().name() == 'FACTURE' and habillage.entreprise().banque().renseignees()}">
+        <strong>Règlement par virement :</strong> <span th:text="${habillage.entreprise().banque().ligne()}">Banque</span></p>
+
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

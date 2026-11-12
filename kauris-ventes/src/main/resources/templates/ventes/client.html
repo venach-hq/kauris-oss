@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${client.nom()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <div class="v-boutons">
+        <a class="k-bouton" th:if="${droits.saisir() and client.actif()}"
+           th:href="@{/ventes/documents/nouveau(type='FACTURE',client=${client.id()})}">Nouvelle facture</a>
+        <a class="k-bouton k-secondaire" th:if="${droits.saisir() and client.actif()}"
+           th:href="@{/ventes/documents/nouveau(type='DEVIS',client=${client.id()})}">Nouveau devis</a>
+        <a class="k-bouton k-secondaire" th:href="@{/ventes/clients/{id}/releve(id=${client.id()})}"
+           target="_blank" rel="noopener">Relevé de compte</a>
+        <span class="k-pastille k-ko" th:unless="${client.actif()}">Archivé</span>
+    </div>
+
+    <div class="v-chiffres">
+        <div class="v-chiffre"><span>Reste à encaisser</span><strong th:text="${f.montant(du)}">0</strong></div>
+        <div class="v-chiffre"><span>Délai de paiement</span>
+            <strong th:text="${client.delaiPaiement() == 0 ? 'Comptant' : client.delaiPaiement() + ' jours'}">30 jours</strong></div>
+    </div>
+
+    <h2>Documents</h2>
+    <p class="k-discret" th:if="${documents.isEmpty()}">Aucun document pour ce client.</p>
+    <table class="k-table" th:unless="${documents.isEmpty()}">
+        <thead><tr><th>Document</th><th>Date</th><th>Objet</th><th class="v-montant">Total</th><th class="v-montant">Reste</th><th>Situation</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${documents}">
+            <td><a th:href="@{/ventes/documents/{id}(id=${d.id()})}" th:text="${d.intitule()}">Facture</a></td>
+            <td th:text="${f.jour(d.contenu().date())}">01/11/2026</td>
+            <td th:text="${d.contenu().objet()}">Objet</td>
+            <td class="v-montant" th:text="${f.montant(d.totaux().totalTtc())}">0</td>
+            <td class="v-montant" th:text="${d.type().name() == 'FACTURE' and !d.modifiable() ? f.montant(d.resteAPayer()) : ''}">0</td>
+            <td><span th:replace="~{ventes/commun :: situation(${d.situation(aujourdHui)})}"></span></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Fiche</h2>
+    <form class="k-pile k-large" method="post" th:action="@{/ventes/clients/{id}(id=${client.id()})}">
+        <th:block th:replace="~{ventes/clients :: champs(${etat}, ${0})}"></th:block>
+        <button type="submit" class="k-bouton" th:if="${droits.saisir()}">Enregistrer</button>
+    </form>
+    <form method="post" th:action="@{/ventes/clients/{id}/archiver(id=${client.id()})}" th:if="${droits.saisir()}">
+        <input type="hidden" name="archiver" th:value="${client.actif()}">
+        <button type="submit" class="k-bouton k-secondaire"
+                th:text="${client.actif() ? 'Archiver ce client' : 'Réactiver ce client'}">Archiver</button>
+        <span class="k-discret" th:if="${client.actif()}">Un client archivé garde ses documents mais n'est plus proposé.</span>
+    </form>
+</section>
+</body>
+</html>

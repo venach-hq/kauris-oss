@@ -28,7 +28,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: documents-exemple
-          path: kauris-kernel/target/documents-exemple/
+          path: |
+            kauris-kernel/target/documents-exemple/
+            kauris-ventes/target/documents-exemple/
           if-no-files-found: ignore
           retention-days: 14
       - name: Recherche de secrets

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${d.intitule()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{ventes/commun :: navigation}"></th:block>
+
+    <div class="v-boutons">
+        <span th:replace="~{ventes/commun :: situation(${situation})}"></span>
+        <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/{id}/imprimer(id=${d.id()})}" target="_blank"
+           rel="noopener">Voir le document</a>
+        <a class="k-bouton k-secondaire" th:href="@{/ventes/documents/{id}.pdf(id=${d.id()})}">PDF</a>
+    </div>
+
+    <!-- Brouillon : modifier, émettre, supprimer -->
+    <div class="v-boutons" th:if="${d.modifiable()}">
+        <a class="k-bouton k-secondaire" th:if="${droits.saisir()}"
+           th:href="@{/ventes/documents/{id}/modifier(id=${d.id()})}">Modifier</a>
+        <form method="post" th:if="${droits.emettre()}" th:action="@{/ventes/documents/{id}/emettre(id=${d.id()})}">
+            <button type="submit" class="k-bouton">Émettre</button>
+        </form>
+        <form method="post" th:if="${droits.saisir()}" th:action="@{/ventes/documents/{id}/supprimer(id=${d.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Supprimer le brouillon</button>
+        </form>
+    </div>
+    <p class="k-discret" th:if="${d.modifiable()}">À l'émission, le document reçoit son numéro et ne se modifie plus
+        <span th:if="${d.type().name() == 'FACTURE'}">(une facture émise se corrige par un avoir)</span>.</p>
+
+    <!-- Devis émis -->
+    <div class="v-boutons" th:if="${d.type().name() == 'DEVIS' and !d.modifiable()}">
+        <form method="post" th:if="${droits.saisir() and d.facturable() and issus.isEmpty()}"
+              th:action="@{/ventes/documents/{id}/facturer(id=${d.id()})}">
+            <button type="submit" class="k-bouton">Transformer en facture</button>
+        </form>
+        <form method="post" th:if="${droits.emettre() and d.statut().name() == 'EMIS'}"
+              th:action="@{/ventes/documents/{id}/accepter(id=${d.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Accepté par le client</button>
+        </form>
+        <form method="post" th:if="${droits.emettre() and (d.statut().name() == 'EMIS' or d.statut().name() == 'ACCEPTE')}"
+              th:action="@{/ventes/documents/{id}/refuser(id=${d.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Refusé par le client</button>
+        </form>
+        <form method="post" th:if="${droits.emettre() and d.facturable() or droits.emettre() and d.statut().name() == 'REFUSE'}"
+              th:action="@{/ventes/documents/{id}/annuler(id=${d.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Annuler le devis</button>
+        </form>
+    </div>
+
+    <div class="v-deux">
+        <div class="k-carte">
+            <h2>Client</h2>
+            <p><a th:href="@{/ventes/clients/{id}(id=${d.client().id()})}" th:text="${d.client().nom()}">Client</a><br>
+                <span class="k-discret" th:text="${d.client().adresseComplete()}">Adresse</span></p>
+            <p>
+                Date : <strong th:text="${f.jour(d.contenu().date())}">01/11/2026</strong>
+                <span th:if="${d.contenu().echeance() != null}"><br>
+                    <span th:text="${d.type().name() == 'DEVIS' ? 'Valable jusqu''au' : 'Échéance'}">Échéance</span> :
+                    <strong th:text="${f.jour(d.contenu().echeance())}">01/12/2026</strong></span>
+                <span th:unless="${d.contenu().objet().isEmpty()}"><br>Objet : <span th:text="${d.contenu().objet()}">Objet</span></span>
+                <span th:if="${d.origineId() != null}"><br>
+                    <span th:text="${d.type().name() == 'AVOIR' ? 'Corrige la facture' : 'Vient du devis'}">Vient du devis</span>
+                    <a th:href="@{/ventes/documents/{id}(id=${d.origineId()})}" th:text="${d.origineNumero()}">DE-2026-0001</a></span>
+                <span th:if="${d.emisLe() != null}"><br><span class="k-discret" th:text="${'Émis le ' + f.instant(d.emisLe()) + ' (UTC)'}">Émis le</span></span>
+            </p>
+            <p th:each="x : ${issus}">
+                <span th:text="${x.type().name() == 'AVOIR' ? 'Avoir :' : 'Facture :'}">Facture :</span>
+                <a th:href="@{/ventes/documents/{id}(id=${x.id()})}" th:text="${x.intitule()}">FA-2026-0001</a>
+                <span class="k-discret" th:text="${f.montant(x.totaux().totalTtc())}">0</span>
+            </p>
+        </div>
+        <div class="k-carte">
+            <h2>Montants</h2>
+            <table class="k-table">
+                <tr><td>Total HT</td><td class="v-montant" th:text="${f.montant(totaux.totalHt())}">0</td></tr>
+                <tr th:if="${totaux.avecTva()}"><td>TVA</td><td class="v-montant" th:text="${f.montant(totaux.totalTva())}">0</td></tr>
+                <tr><td><strong th:text="${totaux.avecTva() ? 'Total TTC' : 'Total'}">Total</strong></td>
+                    <td class="v-montant"><strong th:text="${f.montant(totaux.totalTtc())}">0</strong></td></tr>
+                <th:block th:if="${d.type().name() == 'FACTURE' and !d.modifiable()}">
+                    <tr th:if="${d.credite() > 0}"><td>Avoirs</td><td class="v-montant" th:text="${'− ' + f.montant(d.credite())}">0</td></tr>
+                    <tr><td>Réglé</td><td class="v-montant" th:text="${f.montant(d.regle())}">0</td></tr>
+                    <tr><td><strong>Reste à payer</strong></td>
+                        <td class="v-montant"><strong th:text="${f.montant(d.resteAPayer())}">0</strong></td></tr>
+                </th:block>
+            </table>
+        </div>
+    </div>
+
+    <h2>Lignes</h2>
+    <table class="k-table">
+        <thead><tr><th>Désignation</th><th class="v-montant">Qté</th><th class="v-montant">Prix unit. HT</th>
+            <th class="v-montant">Remise</th><th class="v-montant">TVA</th><th class="v-montant">Montant HT</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${d.contenu().lignes()}">
+            <td th:text="${l.designation()}">Désignation</td>
+            <td class="v-montant" th:text="${f.decimal(l.quantite()) + ' ' + l.unite()}">1</td>
+            <td class="v-montant" th:text="${f.montant(l.prixUnitaire())}">0</td>
+            <td class="v-montant" th:text="${l.remise().signum() > 0 ? f.pourcent(l.remise()) : ''}"></td>
+            <td class="v-montant" th:text="${f.pourcent(l.tauxTva())}">18 %</td>
+            <td class="v-montant" th:text="${f.montant(l.montantHt())}">0</td>
+        </tr>
+        <tr th:if="${d.contenu().lignes().isEmpty()}"><td colspan="6" class="k-discret">Aucune ligne.</td></tr>
+        </tbody>
+    </table>
+
+    <!-- Facture émise : règlements et avoir -->
+    <th:block th:if="${d.type().name() == 'FACTURE' and !d.modifiable()}">
+        <h2>Règlements</h2>
+        <p class="k-discret" th:if="${reglements.isEmpty()}">Aucun règlement reçu.</p>
+        <table class="k-table" th:unless="${reglements.isEmpty()}">
+            <thead><tr><th>Date</th><th>Mode</th><th>Référence</th><th class="v-montant">Montant</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="r : ${reglements}" th:classappend="${r.annule()} ? 'v-barre' : ''">
+                <td th:text="${f.jour(r.date())}">01/11/2026</td>
+                <td th:text="${r.mode().libelle()}">Espèces</td>
+                <td th:text="${r.reference()}">Réf</td>
+                <td class="v-montant" th:text="${f.montant(r.montant())}">0</td>
+                <td>
+                    <span class="k-discret" th:if="${r.annule()}" th:text="${'Annulé : ' + r.motifAnnulation()}">Annulé</span>
+                    <details th:if="${!r.annule() and droits.encaisser()}">
+                        <summary>Annuler</summary>
+                        <form class="k-ligne" method="post"
+                              th:action="@{/ventes/documents/{id}/reglements/{r}/annuler(id=${d.id()},r=${r.id()})}">
+                            <input name="motif" required maxlength="200" placeholder="Motif (erreur de saisie…)">
+                            <button type="submit" class="k-bouton k-secondaire">Annuler le règlement</button>
+                        </form>
+                    </details>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <details th:if="${droits.encaisser() and d.resteAPayer() > 0}" open>
+            <summary><strong>Enregistrer un règlement</strong></summary>
+            <form class="k-pile" method="post" th:action="@{/ventes/documents/{id}/reglements(id=${d.id()})}">
+                <label>Date <input type="date" name="date" required th:value="${aujourdHui}" th:max="${aujourdHui}"></label>
+                <label>Montant <input name="montant" required inputmode="numeric" maxlength="20"
+                                      th:value="${d.resteAPayer()}"></label>
+                <label>Mode
+                    <select name="mode">
+                        <option th:each="m : ${modes}" th:value="${m.name()}" th:text="${m.libelle()}">Espèces</option>
+                    </select>
+                </label>
+                <label>Référence (n° de chèque, de transaction…) <input name="reference" maxlength="80"></label>
+                <button type="submit" class="k-bouton">Enregistrer le règlement</button>
+            </form>
+        </details>
+
+        <form method="post" th:if="${droits.saisir() and d.creditable() > 0}"
+              th:action="@{/ventes/documents/{id}/avoir(id=${d.id()})}" style="margin-top:1rem">
+            <button type="submit" class="k-bouton k-secondaire">Faire un avoir sur cette facture</button>
+            <span class="k-discret">Pour corriger une erreur, un retour ou une remise accordée après coup.</span>
+        </form>
+    </th:block>
+</section>
+</body>
+</html>

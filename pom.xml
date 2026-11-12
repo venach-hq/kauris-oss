@@ -21,6 +21,7 @@
 
     <modules>
         <module>kauris-kernel</module>
+        <module>kauris-ventes</module>
         <module>kauris-standalone</module>
     </modules>
 
@@ -39,6 +40,11 @@
             <dependency>
                 <groupId>com.venach.kauris</groupId>
                 <artifactId>kauris-kernel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.venach.kauris</groupId>
+                <artifactId>kauris-ventes</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
