@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans de la flotte : onglets, alertes et style. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .f-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1rem; border-bottom: 1px solid var(--k-bord); }
+        .f-onglets a { padding: .5rem .85rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 15px;
+            border-radius: 6px 6px 0 0; }
+        .f-onglets a.f-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .f-onglets .f-compte { background: #fdecef; color: #b81c3b; border-radius: 999px; padding: 0 .45rem; font-size: 12px; margin-left: .2rem; }
+        .f-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .7rem; margin: 0 0 1rem; }
+        .f-chiffre { border: 1px solid var(--k-bord); border-radius: 10px; padding: .7rem 1rem; background: var(--k-carte); }
+        .f-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .f-chiffre strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+        .f-chiffre.f-rouge strong { color: var(--k-rouge); }
+        .f-chiffre.f-vert strong { color: var(--k-vert-fonce); }
+        .f-montant { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .f-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+        .f-boutons form { margin: 0; }
+        .f-barre { text-decoration: line-through; opacity: .6; }
+        .f-filtres { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: 0 0 1rem; }
+        .f-filtres label { display: grid; gap: .2rem; font-size: 13px; font-weight: 600; }
+        .f-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+        .f-retard { background: #fdecef !important; color: #b81c3b !important; }
+        .f-avance { background: #e6f2ff !important; color: #0b4f8a !important; }
+        .f-pause { background: #fff4d6 !important; color: #7a5300 !important; }
+        .f-alertes { border: 1px solid #f3c7cf; background: #fff7f8; border-radius: 10px; padding: .6rem 1rem; margin: 0 0 1rem; font-size: 14px; }
+        .f-alertes ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+        .f-telecharger { display: inline-flex; gap: .3rem; align-items: center; font-size: 13px; }
+        .f-telecharger a { padding: .25rem .55rem; border: 1px solid var(--k-bord); border-radius: 6px; text-decoration: none; font-weight: 600; }
+    </style>
+    <nav class="f-onglets" aria-label="Flotte">
+        <a th:href="@{/flotte}" th:classappend="${onglet == 'caisse'} ? 'f-actif'">Caisse du jour
+            <span class="f-compte" th:if="${alertes.enRetard() > 0}" th:text="${alertes.enRetard()}">2</span></a>
+        <a th:href="@{/flotte/versements}" th:classappend="${onglet == 'versements'} ? 'f-actif'">Versements</a>
+        <a th:href="@{/flotte/contrats}" th:classappend="${onglet == 'contrats'} ? 'f-actif'">Contrats</a>
+        <a th:href="@{/flotte/vehicules}" th:classappend="${onglet == 'vehicules'} ? 'f-actif'">Véhicules</a>
+        <a th:href="@{/flotte/conducteurs}" th:classappend="${onglet == 'conducteurs'} ? 'f-actif'">Conducteurs</a>
+        <a th:href="@{/flotte/papiers}" th:classappend="${onglet == 'papiers'} ? 'f-actif'">Papiers
+            <span class="f-compte" th:if="${!alertes.papiers().isEmpty()}" th:text="${alertes.papiers().size()}">1</span></a>
+        <a th:href="@{/flotte/feries}" th:classappend="${onglet == 'feries'} ? 'f-actif'">Jours fériés</a>
+    </nav>
+</th:block>
+
+<!-- Les liens d'export d'un tableau : CSV, Excel, PDF. -->
+<span th:fragment="exports(quoi, parametres)" class="f-telecharger">Télécharger :
+    <a th:href="@{'/flotte/export/' + ${quoi} + '.xlsx' + ${parametres}}">Excel</a>
+    <a th:href="@{'/flotte/export/' + ${quoi} + '.csv' + ${parametres}}">CSV</a>
+    <a th:href="@{'/flotte/export/' + ${quoi} + '.pdf' + ${parametres}}" target="_blank" rel="noopener">PDF</a>
+</span>
+
+<!-- L'état d'un compte, en pastille. -->
+<span th:fragment="etat(s)" class="k-pastille"
+      th:classappend="${s.etat().name() == 'EN_RETARD' ? 'f-retard' : (s.etat().name() == 'EN_AVANCE' ? 'f-avance' : (s.etat().name() == 'EN_PAUSE' ? 'f-pause' : ((s.etat().name() == 'A_JOUR' or s.etat().name() == 'SOLDE') ? 'k-ok' : '')))}"
+      th:text="${s.etat().name() == 'EN_RETARD' ? 'Retard : ' + s.joursEnRetard() + ' j' : s.etat().libelle()}">À jour</span>
+</body>
+</html>

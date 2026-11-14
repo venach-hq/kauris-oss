@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : versements', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <form class="f-filtres" method="get" th:action="@{/flotte/versements}">
+        <label>Du <input type="date" name="du" th:value="${du}"></label>
+        <label>Au <input type="date" name="au" th:value="${au}"></label>
+        <button type="submit" class="k-bouton k-secondaire">Afficher</button>
+        <span th:replace="~{flotte/commun :: exports('versements', ${'?du=' + du + '&au=' + au})}"></span>
+    </form>
+
+    <div class="f-chiffres">
+        <div class="f-chiffre f-vert"><span>Total encaissé</span><strong th:text="${f.montant(total)}">0</strong></div>
+        <div class="f-chiffre" th:each="m : ${parMode}"><span th:text="${m.key.libelle()}">Espèces</span>
+            <strong th:text="${f.montant(m.value)}">0</strong></div>
+    </div>
+
+    <p class="k-discret" th:if="${versements.isEmpty()}">Aucun versement sur cette période.</p>
+    <table class="k-table" th:unless="${versements.isEmpty()}">
+        <thead><tr><th>Reçu</th><th>Date</th><th>Véhicule · conducteur</th><th>Mode</th><th>Saisi par</th>
+            <th class="f-montant">Montant</th></tr></thead>
+        <tbody>
+        <tr th:each="v : ${versements}" th:classappend="${v.annule()} ? 'f-barre'">
+            <td><a th:href="@{/flotte/versements/{id}(id=${v.id()})}" th:text="${v.numero()}">VR</a></td>
+            <td th:text="${f.jour(v.date())}">14/11/2026</td>
+            <td><a th:href="@{/flotte/contrats/{id}(id=${v.contratId()})}" th:text="${libelles.get(v.contratId())}">AB · Koffi</a></td>
+            <td><span th:text="${v.mode().libelle()}">Espèces</span> <small class="k-discret" th:text="${v.reference()}"></small></td>
+            <td th:text="${v.saisiPar()}">Awa</td>
+            <td class="f-montant" th:text="${f.montant(v.montant())}">5 000</td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="k-discret">Les versements barrés sont annulés et ne comptent pas dans les totaux.</p>
+</section>
+</body>
+</html>

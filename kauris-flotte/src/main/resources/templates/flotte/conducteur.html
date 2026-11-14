@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${d == null ? 'Nouveau conducteur' : d.nom()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <div class="f-deux">
+        <form class="k-pile k-large" method="post"
+              th:action="${d == null} ? @{/flotte/conducteurs} : @{/flotte/conducteurs/{id}(id=${d.id()})}">
+            <fieldset th:disabled="${!droits.gerer()}">
+                <legend th:text="${d == null ? 'Nouveau conducteur' : d.nom()}">Conducteur</legend>
+                <label>Nom et prénoms <input name="nom" required minlength="2" maxlength="120" th:value="${d?.nom()}"></label>
+                <label>Téléphone <input name="telephone" type="tel" maxlength="20" th:value="${d?.telephone()}"
+                                        placeholder="Ex. : 90 12 34 56"></label>
+                <label>Pièce d'identité (n°) <input name="pieceIdentite" maxlength="60" th:value="${d?.pieceIdentite()}"></label>
+                <label>Permis (n°) <input name="permisNumero" maxlength="40" th:value="${d?.permisNumero()}"></label>
+                <label>Catégorie du permis <input name="permisCategorie" maxlength="20" th:value="${d?.permisCategorie()}"
+                                                  placeholder="A, B, C…"></label>
+                <label>Permis valable jusqu'au <input type="date" name="permisExpireLe" th:value="${d?.permisExpireLe()}"></label>
+                <label>Garant (nom) <input name="garantNom" maxlength="120" th:value="${d?.garantNom()}"></label>
+                <label>Téléphone du garant <input name="garantTelephone" type="tel" maxlength="20" th:value="${d?.garantTelephone()}"></label>
+                <label th:if="${d != null}" style="display:flex;gap:.4rem;align-items:center;font-weight:400">
+                    <input type="checkbox" name="actif" value="true" th:checked="${d.actif()}"> Actif (décocher pour archiver)</label>
+                <label>Notes <textarea name="notes" maxlength="1000" th:text="${d?.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton" th:text="${d == null ? 'Ajouter le conducteur' : 'Enregistrer'}">Enregistrer</button>
+            </fieldset>
+        </form>
+
+        <div th:if="${d != null}">
+            <h2>Contrats</h2>
+            <p th:if="${droits.gerer() and d.actif()}">
+                <a class="k-bouton k-secondaire" th:href="@{/flotte/contrats/nouveau(conducteur=${d.id()})}">Nouveau contrat</a></p>
+            <p class="k-discret" th:if="${contrats.isEmpty()}">Aucun contrat.</p>
+            <ul>
+                <li th:each="c : ${contrats}"><a th:href="@{/flotte/contrats/{id}(id=${c.id()})}" th:text="${c.numero()}">CT</a>
+                    · <span th:text="${noms.get(c.vehiculeId())}">AB</span>
+                    · <span th:text="${c.statut().libelle()}">En cours</span></li>
+            </ul>
+        </div>
+    </div>
+</section>
+</body>
+</html>

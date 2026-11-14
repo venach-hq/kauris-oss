@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Contrat ' + c.numero()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+    <style>
+        .c-entete { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; align-items: baseline; margin: 0 0 .8rem; }
+        .c-entete h1 { margin: 0; font-size: 1.4rem; }
+        .c-gestes { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+        .c-gestes .k-bouton { min-height: 48px; display: inline-flex; align-items: center; font-size: 1.05rem; }
+        .c-gestes form { margin: 0; }
+        .c-barre { height: 14px; background: #eef0f2; border-radius: 999px; overflow: hidden; margin: .3rem 0; }
+        .c-barre div { height: 100%; background: var(--k-vert); }
+        .c-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; max-width: 560px; margin: .5rem 0 .4rem; }
+        .c-cal .c-tete { font-size: 11px; text-align: center; color: var(--k-discret); text-transform: uppercase; }
+        .c-jour { border-radius: 6px; min-height: 46px; padding: 3px 4px; font-size: 12px; background: #f4f5f6; color: #555; }
+        .c-jour b { display: block; font-size: 13px; }
+        .c-jour.PAYE { background: #d8f0e0; color: #0b5a2c; }
+        .c-jour.PARTIEL { background: #ffe8b3; color: #6b4a00; }
+        .c-jour.IMPAYE { background: #f9c9d2; color: #8c1430; }
+        .c-jour.AUJOURDHUI { background: #fff; outline: 2px solid var(--k-vert); color: #000; }
+        .c-jour.REPOS, .c-jour.HORS_CONTRAT { background: #f4f5f6; color: #999; }
+        .c-jour.FERIE { background: #e3dcf7; color: #3f2a85; }
+        .c-jour.PAUSE { background: #fff4d6; color: #7a5300; }
+        .c-jour.A_VENIR { background: #fff; border: 1px dashed var(--k-bord); color: #999; }
+        .c-legende { display: flex; flex-wrap: wrap; gap: .3rem .8rem; font-size: 12px; margin: 0 0 1rem; }
+        .c-legende span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+        .c-legende .PAYE::before { background: #d8f0e0; } .c-legende .PARTIEL::before { background: #ffe8b3; }
+        .c-legende .IMPAYE::before { background: #f9c9d2; } .c-legende .FERIE::before { background: #e3dcf7; }
+        .c-legende .PAUSE::before { background: #fff4d6; } .c-legende .REPOS::before { background: #f4f5f6; border: 1px solid #ddd; }
+        .c-gestion details { border: 1px solid var(--k-bord); border-radius: 8px; padding: .5rem .8rem; margin: 0 0 .5rem; background: #fff; }
+        .c-gestion summary { font-weight: 600; cursor: pointer; }
+        .c-gestion form { margin: .6rem 0 0; }
+    </style>
+
+    <div class="c-entete">
+        <h1><span th:text="${vehicule.immatriculation()}">AB-1234-RT</span> · <span th:text="${conducteur.nom()}">Koffi</span></h1>
+        <span th:replace="~{flotte/commun :: etat(${compte})}"></span>
+        <span class="k-discret">
+            <a th:href="@{/flotte/vehicules/{id}(id=${vehicule.id()})}" th:text="${vehicule.type().libelle()}">Moto</a> ·
+            <a th:href="@{/flotte/conducteurs/{id}(id=${conducteur.id()})}" th:text="${conducteur.telephone().isEmpty() ? 'fiche' : conducteur.telephone()}">tél.</a> ·
+            <span th:text="${c.numero() + ' · ' + c.type().libelle()}">CT</span> ·
+            <span th:text="${'depuis le ' + f.jour(c.debut())}">depuis</span>
+            <span th:if="${c.fin() != null}" th:text="${' · fin le ' + f.jour(c.fin()) + ' (' + c.statut().libelle().toLowerCase() + ')'}"></span>
+        </span>
+    </div>
+    <p class="k-message k-ko" th:if="${c.fin() != null and !c.motifFin().isEmpty()}" th:text="${'Fin : ' + c.motifFin()}">Motif</p>
+
+    <div class="c-gestes" th:if="${c.type().versements()}">
+        <a th:if="${droits.encaisser() and c.enCours()}" class="k-bouton" th:href="@{/flotte/contrats/{id}/encaisser(id=${c.id()})}">Encaisser</a>
+        <form th:if="${droits.encaisser() and c.enCours() and compte.aEncaisser() > 0}" method="post"
+              th:action="@{/flotte/contrats/{id}/demander(id=${c.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Demander le paiement</button></form>
+        <form th:if="${droits.gerer() and compte.etat().name() == 'SOLDE' and c.enCours()}" method="post"
+              th:action="@{/flotte/contrats/{id}/ceder(id=${c.id()})}"
+              onsubmit="return confirm('Le véhicule est payé : le céder au conducteur et terminer le contrat ?')">
+            <button type="submit" class="k-bouton">Céder le véhicule au conducteur</button></form>
+    </div>
+
+    <th:block th:if="${c.type().versements()}">
+        <div class="f-chiffres">
+            <div class="f-chiffre"><span>Versement par jour</span><strong th:text="${f.montant(compte.tarifDuJour())}">5 000</strong>
+                <small class="k-discret" th:text="${'repos : ' + repos}">repos</small></div>
+            <div class="f-chiffre" th:classappend="${compte.enRetard()} ? 'f-rouge' : 'f-vert'">
+                <span>Payé jusqu'au</span><strong th:text="${compte.payeJusquAu() == null ? '—' : f.jourCourt(compte.payeJusquAu())}">—</strong></div>
+            <div class="f-chiffre" th:classappend="${compte.enRetard()} ? 'f-rouge'"><span>Retard</span>
+                <strong th:text="${compte.joursEnRetard() + ' j · ' + f.montant(compte.montantEnRetard())}">0</strong></div>
+            <div class="f-chiffre"><span>À encaisser aujourd'hui</span><strong th:text="${f.montant(compte.aEncaisser())}">0</strong></div>
+            <div class="f-chiffre" th:classappend="${compte.solde() > 0} ? 'f-vert'">
+                <span th:text="${compte.solde() >= 0 ? 'Avance' : 'Doit au total'}">Solde</span>
+                <strong th:text="${f.montant(compte.solde() >= 0 ? compte.solde() : -compte.solde())}">0</strong></div>
+        </div>
+
+        <div th:if="${compte.prixTotal() != null}" style="max-width:560px;margin:0 0 1rem">
+            <strong>Location-vente</strong> :
+            <span th:text="${f.montant(compte.verseSurPrix()) + ' versés sur ' + f.montant(compte.prixTotal())}">versé</span>
+            <div class="c-barre"><div th:style="${'width:' + (compte.prixTotal() == 0 ? 100 : compte.verseSurPrix() * 100 / compte.prixTotal()) + '%'}"></div></div>
+            <small class="k-discret" th:text="${'Reste ' + f.montant(compte.resteSurPrix()) + (compte.versementsRestants() > 0 ? ' · environ ' + compte.versementsRestants() + ' versements · fin estimée le ' + f.jour(compte.finEstimee()) : '')}">Reste</small>
+        </div>
+
+        <p th:if="${compte.pause().isPresent()}" class="k-message"
+           th:text="${'En pause depuis le ' + f.jour(compte.pause().get().du()) + ' : ' + compte.pause().get().motif()}">Pause</p>
+
+        <h2>Les six dernières semaines</h2>
+        <div class="c-cal">
+            <div class="c-tete">lun</div><div class="c-tete">mar</div><div class="c-tete">mer</div><div class="c-tete">jeu</div>
+            <div class="c-tete">ven</div><div class="c-tete">sam</div><div class="c-tete">dim</div>
+            <div th:each="j : ${compte.calendrier()}" class="c-jour" th:classappend="${j.statut()}"
+                 th:title="${f.jourCourt(j.date()) + (j.detail().isEmpty() ? '' : ' · ' + j.detail()) + (j.du() > 0 ? ' · dû ' + f.nombre(j.du()) + ', payé ' + f.nombre(j.paye()) : '')}">
+                <b th:text="${j.date().getDayOfMonth()}">14</b>
+                <span th:switch="${j.statut()}">
+                    <span th:case="'PAYE'">✓</span>
+                    <span th:case="'PARTIEL'" th:text="${f.nombre(j.paye())}">2 000</span>
+                    <span th:case="'IMPAYE'" th:text="${'-' + f.nombre(j.du() - j.paye())}">-5 000</span>
+                    <span th:case="'AUJOURDHUI'" th:text="${f.nombre(j.du() - j.paye())}">5 000</span>
+                    <span th:case="'FERIE'">férié</span>
+                    <span th:case="'PAUSE'">pause</span>
+                    <span th:case="'REPOS'">repos</span>
+                    <span th:case="*"></span>
+                </span>
+            </div>
+        </div>
+        <div class="c-legende"><span class="PAYE">payé</span><span class="PARTIEL">en partie</span><span class="IMPAYE">impayé</span>
+            <span class="FERIE">férié</span><span class="PAUSE">pause</span><span class="REPOS">repos</span></div>
+    </th:block>
+
+    <div class="f-deux">
+        <div th:if="${c.type().versements()}">
+            <h2>Relevé du compte</h2>
+            <p><span th:replace="~{flotte/commun :: exports('releve', ${'?contrat=' + c.id()})}"></span></p>
+            <table class="k-table">
+                <thead><tr><th>Date</th><th>Opération</th><th class="f-montant">Dû</th><th class="f-montant">Payé</th>
+                    <th class="f-montant">Solde</th></tr></thead>
+                <tbody>
+                <tr th:each="l, i : ${releve}" th:if="${i.index < 60}">
+                    <td th:text="${f.jour(l.date())}">14/11/2026</td>
+                    <td th:text="${l.libelle()}">Versement du jour</td>
+                    <td class="f-montant" th:text="${l.du() == 0 ? '' : f.nombre(l.du())}"></td>
+                    <td class="f-montant" th:text="${l.paye() == 0 ? '' : f.nombre(l.paye())}"></td>
+                    <td class="f-montant" th:text="${f.nombre(l.solde())}" th:classappend="${l.solde() < 0} ? 'k-ko'">0</td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="k-discret" th:if="${releve.size() > 60}">Les 60 dernières lignes ; le relevé complet est dans l'export.</p>
+        </div>
+
+        <div>
+            <h2>Versements</h2>
+            <p class="k-discret" th:if="${versements.isEmpty()}">Aucun versement.</p>
+            <table class="k-table" th:unless="${versements.isEmpty()}">
+                <tbody>
+                <tr th:each="v : ${versements}" th:classappend="${v.annule()} ? 'f-barre'">
+                    <td><a th:href="@{/flotte/versements/{id}(id=${v.id()})}" th:text="${v.numero()}">VR</a></td>
+                    <td th:text="${f.jour(v.date())}">14/11</td>
+                    <td th:text="${v.mode().libelle()}">Espèces</td>
+                    <td class="f-montant" th:text="${f.montant(v.montant())}">5 000</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h2 th:if="${!ajustements.isEmpty()}">Avances, amendes, remises</h2>
+            <table class="k-table" th:if="${!ajustements.isEmpty()}">
+                <tbody>
+                <tr th:each="x : ${ajustements}" th:classappend="${x.annule()} ? 'f-barre'">
+                    <td th:text="${f.jour(x.date())}">14/11</td>
+                    <td><span th:text="${x.type().libelle()}">Amende</span> <small class="k-discret" th:text="${x.motif()}"></small></td>
+                    <td class="f-montant" th:text="${(x.type().du() ? '+' : '-') + f.nombre(x.montant())}">5 000</td>
+                    <td><form th:if="${droits.gerer() and !x.annule()}" method="post"
+                              th:action="@{/flotte/contrats/{id}/ajustements/{x}/annuler(id=${c.id()},x=${x.id()})}"
+                              onsubmit="return confirm('Annuler cette opération ?')">
+                        <input type="hidden" name="motif" value="Annulé depuis le contrat">
+                        <button type="submit" class="k-bouton k-secondaire">Annuler</button></form></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="c-gestion" th:if="${droits.gerer()}">
+        <h2>Gérer le contrat</h2>
+
+        <th:block th:if="${c.type().versements() and c.enCours()}">
+            <details>
+                <summary>Changer le versement par jour</summary>
+                <p class="k-discret">Les jours d'avant gardent leur ancien montant.</p>
+                <ul><li th:each="t : ${c.tarifs()}" th:text="${'Depuis le ' + f.jour(t.depuis()) + ' : ' + f.montant(t.montant())}">tarif</li></ul>
+                <form class="k-pile" method="post" th:action="@{/flotte/contrats/{id}/tarif(id=${c.id()})}">
+                    <label>À partir du <input type="date" name="depuis" required th:value="${aujourdhui}" th:min="${c.debut()}"></label>
+                    <label>Nouveau montant par jour <input name="montant" inputmode="numeric" required></label>
+                    <button type="submit" class="k-bouton">Enregistrer</button>
+                </form>
+            </details>
+
+            <details>
+                <summary>Jours de repos</summary>
+                <form method="post" th:action="@{/flotte/contrats/{id}/repos(id=${c.id()})}">
+                    <label th:each="j : ${semaine}" style="display:inline-flex;gap:.3rem;margin-right:.8rem">
+                        <input type="checkbox" name="repos" th:value="${j.jour().name()}" th:checked="${c.joursRepos().contains(j.jour())}">
+                        <span th:text="${j.libelle()}">lundi</span></label>
+                    <p><button type="submit" class="k-bouton">Enregistrer</button></p>
+                </form>
+            </details>
+
+            <details>
+                <summary>Panne, maladie, véhicule au garage : mettre en pause</summary>
+                <p class="k-discret">Pendant une pause, rien n'est dû, sauf si elle est à la charge du conducteur (accident par sa faute…).</p>
+                <ul th:if="${!c.pauses().isEmpty()}">
+                    <li th:each="p : ${c.pauses()}">
+                        <span th:text="${'Du ' + f.jour(p.du()) + (p.au() == null ? ' (en cours)' : ' au ' + f.jour(p.au())) + ' : ' + p.motif() + (p.aChargeDuConducteur() ? ' · à sa charge' : '')}">pause</span>
+                        <form th:if="${p.au() == null}" method="post" style="display:inline"
+                              th:action="@{/flotte/contrats/{id}/pauses/{p}/finir(id=${c.id()},p=${p.id()})}">
+                            <input type="date" name="au" required th:value="${aujourdhui.minusDays(1)}" th:min="${p.du()}"
+                                   aria-label="Dernier jour de pause">
+                            <button type="submit" class="k-bouton k-secondaire">Reprise le lendemain</button></form>
+                        <form method="post" style="display:inline" onsubmit="return confirm('Retirer cette pause ?')"
+                              th:action="@{/flotte/contrats/{id}/pauses/{p}/retirer(id=${c.id()},p=${p.id()})}">
+                            <button type="submit" class="k-bouton k-secondaire">Retirer</button></form>
+                    </li>
+                </ul>
+                <form class="k-pile" method="post" th:action="@{/flotte/contrats/{id}/pauses(id=${c.id()})}">
+                    <label>Du <input type="date" name="du" required th:value="${aujourdhui}" th:min="${c.debut()}"></label>
+                    <label>Au (vide si on ne sait pas encore) <input type="date" name="au"></label>
+                    <label>Motif <input name="motif" required maxlength="200" placeholder="Ex. : moteur en réparation"></label>
+                    <label style="display:flex;gap:.4rem;align-items:center;font-weight:400">
+                        <input type="checkbox" name="aCharge" value="true"> À la charge du conducteur (les versements restent dus)</label>
+                    <button type="submit" class="k-bouton">Mettre en pause</button>
+                </form>
+            </details>
+
+            <details>
+                <summary>Avance, amende, dommage ou remise</summary>
+                <form class="k-pile" method="post" th:action="@{/flotte/contrats/{id}/ajustements(id=${c.id()})}">
+                    <label>Type
+                        <select name="type">
+                            <option th:each="t : ${typesAjustement}" th:value="${t.name()}"
+                                    th:text="${t.libelle() + (t.du() ? ' (s\'ajoute à ce qu\'il doit)' : ' (se déduit)')}">Avance</option>
+                        </select></label>
+                    <label>Montant <input name="montant" inputmode="numeric" required></label>
+                    <label>Date <input type="date" name="date" th:value="${aujourdhui}"></label>
+                    <label>Motif <input name="motif" required maxlength="200"></label>
+                    <button type="submit" class="k-bouton">Enregistrer</button>
+                </form>
+            </details>
+        </th:block>
+
+        <details>
+            <summary>Corriger le contrat</summary>
+            <form class="k-pile" method="post" th:action="@{/flotte/contrats/{id}/corriger(id=${c.id()})}">
+                <label>Premier jour <input type="date" name="debut" required th:value="${c.debut()}"></label>
+                <label th:if="${c.type().name() == 'LOCATION_VENTE'}">Total à payer pour le véhicule
+                    <input name="prixTotal" inputmode="numeric" required th:value="${c.prixTotal()}"></label>
+                <label>Notes <textarea name="notes" maxlength="1000" th:text="${c.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton">Enregistrer</button>
+            </form>
+        </details>
+
+        <details th:if="${c.enCours()}">
+            <summary>Terminer ou résilier le contrat</summary>
+            <form class="k-pile" method="post" th:action="@{/flotte/contrats/{id}/terminer(id=${c.id()})}"
+                  onsubmit="return confirm('Arrêter ce contrat ? Plus rien ne sera dû après le dernier jour.')">
+                <label>Dernier jour <input type="date" name="dernierJour" required th:value="${aujourdhui}" th:min="${c.debut()}"></label>
+                <label>Motif <input name="motif" maxlength="200"></label>
+                <label style="display:flex;gap:.4rem;align-items:center;font-weight:400">
+                    <input type="checkbox" name="resiliation" value="true"> Résiliation (rupture avant la fin prévue)</label>
+                <button type="submit" class="k-bouton">Arrêter le contrat</button>
+            </form>
+            <p class="k-discret">Ce que le conducteur doit encore reste dans son compte.</p>
+        </details>
+        <form th:unless="${c.enCours()}" method="post" th:action="@{/flotte/contrats/{id}/rouvrir(id=${c.id()})}">
+            <button type="submit" class="k-bouton k-secondaire">Rouvrir le contrat (arrêté par erreur)</button></form>
+    </div>
+</section>
+</body>
+</html>

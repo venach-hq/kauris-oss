@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Encaisser · ' + vehicule.immatriculation()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+    <style>
+        .e-cadre { max-width: 560px; }
+        .e-qui { font-size: 1.15rem; margin: 0 0 .4rem; }
+        .e-etat { margin: 0 0 1rem; font-size: 15px; }
+        .e-montant input { width: 100%; font-size: 2rem; font-weight: 700; padding: .5rem .7rem; text-align: right;
+            font-variant-numeric: tabular-nums; }
+        .e-rapides { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 1rem; }
+        .e-rapides button { min-height: 46px; padding: 0 .9rem; border-radius: 8px; border: 1px solid var(--k-bord);
+            background: #fff; font-weight: 700; cursor: pointer; }
+        .e-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .4rem; margin: .3rem 0 1rem; border: 0; padding: 0; }
+        .e-modes label { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 50px;
+            border: 1px solid var(--k-bord); border-radius: 8px; cursor: pointer; font-weight: 600; background: #fff; }
+        .e-modes input { accent-color: var(--k-vert); }
+        .e-modes label:has(input:checked) { border: 2px solid var(--k-vert); background: #eaf4ee; }
+        .e-valider { width: 100%; min-height: 60px; font-size: 1.3rem; }
+        .e-apres { background: #eaf4ee; border-radius: 8px; padding: .5rem .8rem; margin: 0 0 1rem; font-size: 15px; min-height: 1.2em; }
+    </style>
+
+    <div class="e-cadre">
+        <p class="e-qui"><strong th:text="${vehicule.immatriculation()}">AB-1234-RT</strong> ·
+            <span th:text="${conducteur.nom()}">Koffi</span>
+            <span class="k-discret" th:text="${conducteur.telephone()}">90000000</span></p>
+        <p class="e-etat">
+            <span th:replace="~{flotte/commun :: etat(${compte})}"></span>
+            <span th:if="${compte.payeJusquAu() != null}" th:text="${' Payé jusqu\'au ' + f.jourCourt(compte.payeJusquAu()) + '.'}">Payé jusqu'au</span>
+            <span th:if="${compte.enRetard()}" th:text="${' Retard : ' + f.montant(compte.montantEnRetard()) + '.'}">Retard</span>
+        </p>
+
+        <form method="post" th:action="@{/flotte/contrats/{id}/encaisser(id=${c.id()})}" class="k-pile" id="e-form">
+            <label class="e-montant">Montant reçu
+                <input name="montant" id="e-montant" inputmode="numeric" autocomplete="off" required autofocus
+                       th:value="${compte.aEncaisser() > 0 ? compte.aEncaisser() : compte.tarifDuJour()}"
+                       th:attr="data-tarif=${compte.tarifDuJour()},data-retard=${compte.montantEnRetard()},data-reste=${compte.resteAujourdhui()},data-du-total=${-compte.solde()}">
+            </label>
+            <div class="e-rapides">
+                <button type="button" th:if="${compte.aEncaisser() > 0}" th:attr="data-montant=${compte.aEncaisser()}"
+                        th:text="${'Tout ce qui est dû · ' + f.nombre(compte.aEncaisser())}">Tout</button>
+                <button type="button" th:if="${compte.tarifDuJour() > 0}" th:attr="data-montant=${compte.tarifDuJour()}"
+                        th:text="${'1 jour · ' + f.nombre(compte.tarifDuJour())}">1 jour</button>
+                <button type="button" th:if="${compte.tarifDuJour() > 0}" th:attr="data-montant=${compte.tarifDuJour() * 7}"
+                        th:text="${'1 semaine · ' + f.nombre(compte.tarifDuJour() * 7)}">1 semaine</button>
+            </div>
+            <p class="e-apres" id="e-apres" aria-live="polite"></p>
+
+            <fieldset class="e-modes">
+                <legend>Payé comment ?</legend>
+                <label th:each="m, i : ${modes}"><input type="radio" name="mode" th:value="${m.name()}"
+                       th:checked="${i.first}" required> <span th:text="${m.libelle()}">Espèces</span></label>
+            </fieldset>
+            <label id="e-reference" hidden>Référence de la transaction (sur le SMS)
+                <input name="reference" maxlength="80" autocomplete="off" placeholder="Ex. : MP261114.1530.A12345"></label>
+            <label th:if="${!comptes.isEmpty()}">L'argent arrive sur
+                <select name="compte" required>
+                    <option th:each="k : ${comptes}" th:value="${k.id()}" th:text="${k.libelle()}">Caisse</option>
+                </select></label>
+            <details>
+                <summary>Versement d'un autre jour ?</summary>
+                <label>Date du versement <input type="date" name="date" th:value="${aujourdhui}" th:max="${aujourdhui}"
+                                               th:min="${c.debut()}"></label>
+            </details>
+            <button type="submit" class="k-bouton e-valider">Encaisser et imprimer le reçu</button>
+            <a th:href="@{/flotte}">Annuler</a>
+        </form>
+    </div>
+
+    <script th:inline="javascript">
+        (function () {
+            var champ = document.getElementById('e-montant');
+            var apres = document.getElementById('e-apres');
+            var tarif = Number(champ.dataset.tarif) || 0;
+            var du = Math.max(0, Number(champ.dataset.duTotal) || 0);
+            var devise = /*[[${f.devise()}]]*/ 'F CFA';
+            function lire() { return Number(champ.value.replace(/[\s.  ]/g, '')) || 0; }
+            function nombre(n) { return n.toLocaleString('fr-FR').replace(/ /g, ' '); }
+            function montrer() {
+                var m = lire();
+                if (!m) { apres.textContent = ''; return; }
+                var reste = du - m;
+                if (reste > 0) {
+                    apres.textContent = 'Après ce versement, il restera ' + nombre(reste) + ' ' + devise + ' à payer.';
+                } else if (tarif > 0) {
+                    var jours = Math.floor(-reste / tarif);
+                    apres.textContent = reste === 0 ? 'Le conducteur sera à jour.'
+                        : 'Le conducteur sera à jour, avec ' + nombre(-reste) + ' ' + devise + ' d\'avance'
+                          + (jours > 0 ? ' (environ ' + jours + ' jour' + (jours > 1 ? 's' : '') + ')' : '') + '.';
+                } else {
+                    apres.textContent = 'Le conducteur sera à jour.';
+                }
+            }
+            document.querySelectorAll('.e-rapides button').forEach(function (b) {
+                b.addEventListener('click', function () { champ.value = b.dataset.montant; montrer(); champ.focus(); });
+            });
+            champ.addEventListener('input', montrer);
+            var reference = document.getElementById('e-reference');
+            function mode() {
+                var m = document.querySelector('input[name=mode]:checked');
+                var avecReference = m && (m.value === 'MOBILE_MONEY' || m.value === 'PISPI' || m.value === 'VIREMENT');
+                reference.hidden = !avecReference;
+                reference.querySelector('input').required = m && (m.value === 'MOBILE_MONEY' || m.value === 'PISPI');
+            }
+            document.querySelectorAll('input[name=mode]').forEach(function (r) { r.addEventListener('change', mode); });
+            mode();
+            montrer();
+            document.getElementById('e-form').addEventListener('submit', function (e) {
+                var b = e.target.querySelector('button[type=submit]');
+                if (b.disabled) { e.preventDefault(); return; }
+                b.disabled = true;
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>

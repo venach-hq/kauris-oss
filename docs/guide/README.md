@@ -13,5 +13,6 @@ la version hébergée par Venach, qui ajoute la trésorerie, les paiements PI-SP
 | [Ventes](ventes.md) | Clients, catalogue, devis, factures, avoirs, règlements, impayés, relances par email |
 | [Caisse](caisse.md) | Vente au comptoir, ticket, clôture, calculatrice |
 | [Stock et achats](stock-achats.md) | Dépôts, mouvements, inventaire, fournisseurs, commandes, réceptions, factures fournisseurs |
+| [Flotte](flotte.md) | Motos, taxis, tricycles, bus : conducteurs, contrats, versements journaliers, retards, jours fériés, papiers |
 
 Une question, une erreur dans ce guide : ouvrez une [discussion ou un ticket](https://github.com/venach-hq/kauris-oss/issues).

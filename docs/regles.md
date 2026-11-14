@@ -194,6 +194,29 @@ Il déclare aussi `Ports.Courriels` pour envoyer une facture, un devis ou une re
 Le mode autonome n'envoie rien lui-même : l'écran d'envoi ouvre la messagerie de la personne (lien `mailto:`) et
 propose le PDF à joindre. Kauris Cloud branche son envoi SMTP ; les réponses vont à l'email de l'entreprise.
 
+## Flotte
+
+Le module Flotte (`kauris-flotte`, code `flotte`, tables `flotte_…`, migrations `db/migration/flotte`) suit les
+véhicules, les conducteurs, les contrats (location, location-vente, salarié), les papiers et les versements
+journaliers. Rien n'est saisi jour par jour : le **compte du conducteur** (`Compte.calculer`) se recalcule à chaque
+lecture à partir du contrat, des jours fériés, des versements et des ajustements :
+
+- chaque jour du contrat est dû au tarif en vigueur ce jour-là, sauf jour de repos, jour férié déclaré ou pause
+  qui n'est pas à la charge du conducteur ; en location-vente, plus rien n'est dû une fois le total atteint ;
+- avances, amendes et dommages s'ajoutent ; une remise se retranche ;
+- un versement, de n'importe quel montant, paie d'abord le plus ancien dû ; le jour même n'est jamais en retard.
+
+Les instants (`cree_le`, `saisi_le`, `annule_le`) sont des millisecondes UTC en `BIGINT`. Permissions :
+`flotte.consulter`, `flotte.encaisser` (encaisser, jours fériés, demande de paiement) et `flotte.gerer` (fiches,
+contrats, ajustements, pauses, annulation d'un versement).
+
+Ce que l'application peut y brancher : `PortsFlotte.Encaissements` (comptes où arrive l'argent, appels quand un
+versement est enregistré ou annulé) et `PortsFlotte.Demandes` (demande de paiement au conducteur). Le mode autonome
+n'y branche rien : les versements se font à la caisse ou par Mobile Money avec la référence de la transaction, et
+la demande de paiement est un message tout prêt (WhatsApp, SMS). Kauris Cloud y branche sa trésorerie, un alias
+PI-SPI par véhicule (versements reçus par `FlotteService.recevoir`, sans double saisie grâce à la référence) et la
+demande de paiement PI-SPI.
+
 ## Paiements
 
 Les modules open source n'appellent aucun prestataire de paiement. Ils exposent une interface de

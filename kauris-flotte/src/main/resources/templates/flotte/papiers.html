@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : papiers', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Notez l'assurance, la visite technique, la carte grise et les taxes de chaque véhicule avec leur date de fin.
+            Kauris vous prévient 30 jours avant l'expiration, sur la caisse du jour.</p>
+        <p>Au renouvellement, ajoutez le nouveau papier : l'ancien reste dans l'historique.</p>
+    </details>
+
+    <div class="f-boutons"><span th:replace="~{flotte/commun :: exports('papiers', '')}"></span></div>
+
+    <p class="k-discret" th:if="${papiers.isEmpty()}">Aucun papier enregistré.</p>
+    <table class="k-table" th:unless="${papiers.isEmpty()}">
+        <thead><tr><th>Véhicule</th><th>Papier</th><th>Référence</th><th>Expire le</th><th>État</th><th class="f-montant">Coût</th></tr></thead>
+        <tbody>
+        <tr th:each="p : ${papiers}">
+            <td><a th:href="@{/flotte/vehicules/{id}(id=${p.vehiculeId()})}" th:text="${noms.get(p.vehiculeId())}">AB</a></td>
+            <td><a th:href="@{/flotte/papiers/{id}(id=${p.id()})}" th:text="${p.type().libelle()}">Assurance</a></td>
+            <td th:text="${p.reference()}"></td>
+            <td th:text="${f.jour(p.expireLe())}"></td>
+            <td><span class="k-pastille" th:if="${p.expireLe() != null}"
+                      th:classappend="${p.expire(aujourdhui) ? 'f-retard' : (p.aRenouveler(aujourdhui) ? 'f-pause' : 'k-ok')}"
+                      th:text="${p.expire(aujourdhui) ? 'Expiré' : (p.aRenouveler(aujourdhui) ? 'À renouveler' : 'Valide')}">Valide</span></td>
+            <td class="f-montant" th:text="${f.montant(p.cout())}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <details th:if="${droits.gerer() and !vehicules.isEmpty()}">
+        <summary><strong>Ajouter un papier</strong></summary>
+        <form class="k-pile k-large" method="post" th:action="@{/flotte/papiers}">
+            <label>Véhicule
+                <select name="vehicule" required>
+                    <option th:each="v : ${vehicules}" th:value="${v.id()}" th:text="${v.libelle()}">AB</option>
+                </select></label>
+            <th:block th:replace="~{flotte/papier :: champs(${null})}"></th:block>
+            <button type="submit" class="k-bouton">Ajouter le papier</button>
+        </form>
+    </details>
+</section>
+</body>
+</html>

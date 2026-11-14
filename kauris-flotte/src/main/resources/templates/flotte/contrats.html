@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : contrats', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <div class="f-boutons">
+        <a th:if="${droits.gerer()}" class="k-bouton" th:href="@{/flotte/contrats/nouveau}">Nouveau contrat</a>
+        <a class="k-bouton k-secondaire" th:href="@{/flotte/contrats(tous=${!tous})}"
+           th:text="${tous ? 'Seulement les contrats en cours' : 'Voir aussi les contrats terminés'}">Tous</a>
+    </div>
+
+    <p class="k-discret" th:if="${contrats.isEmpty()}">Aucun contrat.</p>
+    <table class="k-table" th:unless="${contrats.isEmpty()}">
+        <thead><tr><th>Contrat</th><th>Véhicule</th><th>Conducteur</th><th>Type</th><th>Depuis le</th>
+            <th class="f-montant">Par jour</th><th>Statut</th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${contrats}" th:classappend="${c.enCours()} ? '' : 'k-discret'">
+            <td><a th:href="@{/flotte/contrats/{id}(id=${c.id()})}" th:text="${c.numero()}">CT</a></td>
+            <td th:text="${noms.get(c.vehiculeId())}">AB</td>
+            <td th:text="${noms.get(c.conducteurId())}">Koffi</td>
+            <td th:text="${c.type().libelle()}">Location</td>
+            <td th:text="${f.jour(c.debut())}">01/09/2026</td>
+            <td class="f-montant" th:text="${c.type().versements() ? f.montant(c.tarifActuel(aujourdhui)) : ''}">5 000</td>
+            <td th:text="${c.statut().libelle()}">En cours</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

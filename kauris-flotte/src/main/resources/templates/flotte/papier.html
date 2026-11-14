@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${p.type().libelle()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+    <form class="k-pile k-large" method="post" th:action="@{/flotte/papiers/{id}(id=${p.id()})}">
+        <fieldset th:disabled="${!droits.gerer()}">
+            <legend th:text="${p.type().libelle()}">Papier</legend>
+            <label>Véhicule
+                <select name="vehicule" required>
+                    <option th:each="v : ${vehicules}" th:value="${v.id()}" th:text="${v.libelle()}"
+                            th:selected="${v.id() == p.vehiculeId()}">AB</option>
+                </select></label>
+            <th:block th:replace="~{flotte/papier :: champs(${p})}"></th:block>
+            <button type="submit" class="k-bouton">Enregistrer</button>
+        </fieldset>
+    </form>
+    <form th:if="${droits.gerer()}" method="post" th:action="@{/flotte/papiers/{id}/supprimer(id=${p.id()})}"
+          onsubmit="return confirm('Supprimer ce papier ?')">
+        <button type="submit" class="k-bouton k-secondaire">Supprimer (saisi par erreur)</button>
+    </form>
+    <p><a th:href="@{/flotte/papiers}">Tous les papiers</a></p>
+</section>
+
+<!-- Les champs d'un papier, partagés par l'ajout et la modification. -->
+<th:block th:fragment="champs(p)">
+    <label>Papier
+        <select name="type">
+            <option th:each="t : ${typesPapier}" th:value="${t.name()}" th:text="${t.libelle()}"
+                    th:selected="${p != null and p.type() == t}">Assurance</option>
+        </select></label>
+    <label>Référence (n° de police, de carte…) <input name="reference" maxlength="80" th:value="${p?.reference()}"></label>
+    <label>Émis le <input type="date" name="emisLe" th:value="${p?.emisLe()}"></label>
+    <label>Expire le <input type="date" name="expireLe" th:value="${p?.expireLe()}"></label>
+    <label>Coût <input name="cout" inputmode="numeric" th:value="${p?.cout()}"></label>
+    <label>Notes <textarea name="notes" maxlength="1000" th:text="${p?.notes()}"></textarea></label>
+</th:block>
+</body>
+</html>
