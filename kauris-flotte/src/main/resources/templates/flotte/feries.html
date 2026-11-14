@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : jours fériés', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <details class="k-aide" open>
+        <summary>Comment ça marche ?</summary>
+        <p>Un jour férié déclaré ici n'est dû par <strong>aucun conducteur</strong> : il ne compte ni dans les versements
+            ni dans les retards. Déclarez-le même après coup : les comptes se recalculent tout seuls.</p>
+        <p>Pour un seul conducteur (panne, maladie), mettez plutôt une <strong>pause</strong> sur son contrat.</p>
+    </details>
+
+    <div class="f-deux">
+        <div>
+            <h2>Déclarer un jour férié</h2>
+            <form th:if="${droits.encaisser()}" class="k-pile" method="post" th:action="@{/flotte/feries}">
+                <label>Date <input type="date" name="date" required th:value="${aujourdhui}"></label>
+                <label>Nom <input name="libelle" maxlength="80" placeholder="Ex. : Tabaski, Fête de l'indépendance" required></label>
+                <button type="submit" class="k-bouton">Déclarer férié</button>
+            </form>
+            <p class="k-discret" th:unless="${droits.encaisser()}">Vos rôles ne permettent pas de déclarer un jour férié.</p>
+        </div>
+        <div>
+            <h2>Jours fériés déclarés</h2>
+            <p class="k-discret" th:if="${feries.isEmpty()}">Aucun jour férié déclaré.</p>
+            <table class="k-table" th:unless="${feries.isEmpty()}">
+                <tbody>
+                <tr th:each="j : ${feries}" th:classappend="${j.key.isBefore(aujourdhui)} ? 'k-discret'">
+                    <td th:text="${f.jourLong(j.key)}">mardi 1 avril 2026</td>
+                    <td th:text="${j.value}">Lundi de Pâques</td>
+                    <td><form th:if="${droits.encaisser()}" method="post" th:action="@{/flotte/feries/retirer}"
+                              onsubmit="return confirm('Retirer ce jour férié ? Il redeviendra dû.')">
+                        <input type="hidden" name="date" th:value="${j.key}">
+                        <button type="submit" class="k-bouton k-secondaire">Retirer</button></form></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+</body>
+</html>

@@ -164,6 +164,18 @@ class ParcoursLocalTest {
                 .andExpect(content().string(containsString("href=\"/caisse\"")))
                 .andExpect(content().string(containsString("Ouvrir ma caisse")));
         mvc.perform(get("/caisse/calculatrice.js").session(session)).andExpect(status().isOk());
+        // Le module Flotte est installé : menu, caisse du jour, formulaires protégés, exports.
+        assertTrue(registre.present("flotte"));
+        mvc.perform(get("/flotte").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/flotte\"")))
+                .andExpect(content().string(containsString("Caisse du jour")));
+        mvc.perform(post("/flotte/vehicules").session(session).with(csrf()).param("type", "MOTO")
+                        .param("immatriculation", "TG-0001-A"))
+                .andExpect(redirectedUrlPattern("/flotte/vehicules/*"));
+        mvc.perform(post("/flotte/vehicules").session(session).param("type", "MOTO")
+                        .param("immatriculation", "PIRATE"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/flotte/export/vehicules.xlsx").session(session)).andExpect(status().isOk());
         mvc.perform(post("/ventes/clients").session(session).with(csrf()).param("type", "PARTICULIER")
                         .param("nom", "Yao Kossi"))
                 .andExpect(redirectedUrlPattern("/ventes/clients/*"));

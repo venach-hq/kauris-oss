@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Demander le paiement', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+    <style>
+        .m-cadre { max-width: 560px; }
+        .m-texte { width: 100%; min-height: 9rem; font-size: 1rem; padding: .6rem; }
+        .m-boutons { display: grid; gap: .5rem; margin: .8rem 0; }
+        .m-boutons a, .m-boutons button { min-height: 52px; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
+    </style>
+    <div class="m-cadre">
+        <p><strong th:text="${vehicule.immatriculation()}">AB-1234-RT</strong> · <span th:text="${conducteur.nom()}">Koffi</span>
+            <span th:replace="~{flotte/commun :: etat(${compte})}"></span></p>
+        <p class="k-discret" th:if="${conducteur.telephone().isEmpty()}">Pas de téléphone sur la fiche du conducteur :
+            <a th:href="@{/flotte/conducteurs/{id}(id=${conducteur.id()})}">ajoutez-le</a>, ou copiez le message.</p>
+        <label>Message (vous pouvez le modifier)
+            <textarea class="m-texte" id="m-texte" th:text="${texte}"></textarea></label>
+        <div class="m-boutons">
+            <a class="k-bouton" id="m-whatsapp" th:if="${whatsapp != null}" th:href="${whatsapp}" target="_blank" rel="noopener"
+               th:attr="data-base=${'https://wa.me/' + #strings.substringBefore(#strings.substringAfter(whatsapp, 'https://wa.me/'), '?')}">Envoyer par WhatsApp</a>
+            <a class="k-bouton k-secondaire" id="m-sms" th:if="${sms != null}" th:href="${sms}"
+               th:attr="data-base=${'sms:' + conducteur.telephone()}">Envoyer par SMS</a>
+            <button type="button" class="k-bouton k-secondaire" id="m-copier">Copier le message</button>
+        </div>
+        <a th:href="@{/flotte}">Retour à la caisse du jour</a>
+    </div>
+    <script>
+        (function () {
+            var texte = document.getElementById('m-texte');
+            function maj() {
+                var t = encodeURIComponent(texte.value);
+                var w = document.getElementById('m-whatsapp');
+                if (w) { w.href = w.dataset.base + '?text=' + t; }
+                var s = document.getElementById('m-sms');
+                if (s) { s.href = s.dataset.base + '?body=' + t; }
+            }
+            texte.addEventListener('input', maj);
+            document.getElementById('m-copier').addEventListener('click', function (e) {
+                navigator.clipboard.writeText(texte.value).then(function () { e.target.textContent = 'Copié ✓'; });
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : caisse du jour', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+    <style>
+        #f-cherche { width: 100%; font-size: 1.2rem; padding: .65rem .8rem; margin: 0 0 .8rem; }
+        .f-cartes { display: grid; gap: .6rem; }
+        .f-carte { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: center;
+            border: 1px solid var(--k-bord); border-radius: 12px; padding: .75rem 1rem; background: #fff; }
+        .f-carte.f-en-retard { border-left: 6px solid var(--k-rouge); }
+        .f-carte.f-a-jour { border-left: 6px solid var(--k-vert); }
+        .f-qui { display: grid; gap: .15rem; }
+        .f-qui b { font-size: 1.1rem; }
+        .f-qui small { color: var(--k-discret); font-size: 13px; }
+        .f-du { text-align: right; }
+        .f-du strong { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+        .f-du small { color: var(--k-discret); font-size: 12px; }
+        .f-gestes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
+        .f-gestes .k-bouton { min-height: 48px; font-size: 1.05rem; padding: 0 1.2rem; display: inline-flex; align-items: center; }
+        .f-gestes form { margin: 0; }
+        .f-gestes .f-encaisser { flex: 1 1 200px; justify-content: center; }
+        @media (min-width: 900px) { .f-carte { grid-template-columns: minmax(0, 1fr) 200px auto; } .f-gestes { grid-column: auto; } }
+    </style>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Chaque conducteur a un <strong>compte</strong>. Tous les jours de travail, son versement du jour s'ajoute à ce qu'il doit ;
+            les jours de repos, les jours fériés et les pannes ne comptent pas.</p>
+        <p>Quand il paie, appuyez sur <strong>Encaisser</strong> et tapez le montant reçu, même s'il est incomplet ou s'il paie
+            d'avance : Kauris règle d'abord les jours les plus anciens et calcule tout seul jusqu'à quand il a payé.</p>
+        <p>Un conducteur en retard ? Appuyez sur <strong>Demander le paiement</strong> pour lui envoyer un message tout prêt.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('flotte')}" target="_blank" rel="noopener">Guide complet de la flotte</a></p>
+    </details>
+
+    <div class="f-alertes" th:if="${!alertes.papiers().isEmpty() or !alertes.permis().isEmpty()}">
+        <strong>À surveiller</strong>
+        <ul>
+            <li th:each="p : ${alertes.papiers()}">
+                <a th:href="@{/flotte/papiers/{id}(id=${p.id()})}" th:text="${p.type().libelle()}">Assurance</a>
+                <span th:text="${p.expire(aujourdhui) ? 'expiré(e) depuis le ' + f.jour(p.expireLe()) : 'expire le ' + f.jour(p.expireLe())}">expire le</span>
+            </li>
+            <li th:each="d : ${alertes.permis()}">Permis de
+                <a th:href="@{/flotte/conducteurs/{id}(id=${d.id()})}" th:text="${d.nom()}">Koffi</a> :
+                <span th:text="${'expire le ' + f.jour(d.permisExpireLe())}">expire</span></li>
+        </ul>
+    </div>
+
+    <div class="f-chiffres">
+        <div class="f-chiffre f-vert"><span>Encaissé aujourd'hui</span><strong th:text="${f.montant(encaisseAujourdhui)}">0</strong></div>
+        <div class="f-chiffre"><span>Reste à encaisser</span><strong th:text="${f.montant(aEncaisser)}">0</strong></div>
+        <div class="f-chiffre" th:classappend="${enRetard > 0} ? 'f-rouge'"><span>Conducteurs en retard</span>
+            <strong th:text="${enRetard + ' · ' + f.montant(alertes.montantEnRetard())}">0</strong></div>
+    </div>
+
+    <div class="f-boutons">
+        <a class="k-bouton k-secondaire" th:href="@{/flotte}">Tous</a>
+        <a class="k-bouton k-secondaire" th:href="@{/flotte(voir='retard')}">Seulement les retards</a>
+        <span th:replace="~{flotte/commun :: exports('situation', '')}"></span>
+    </div>
+
+    <input id="f-cherche" type="search" placeholder="Chercher : immatriculation, nom, téléphone…" autocomplete="off"
+           th:unless="${lignes.isEmpty()}" aria-label="Chercher un conducteur">
+
+    <p class="k-discret" th:if="${lignes.isEmpty()}">
+        <span th:if="${voir == 'retard'}">Personne n'est en retard. 👍</span>
+        <span th:unless="${voir == 'retard'}">Aucun contrat en cours.
+            <a th:if="${droits.gerer()}" th:href="@{/flotte/contrats/nouveau}">Créer le premier contrat</a></span>
+    </p>
+
+    <div class="f-cartes">
+        <div class="f-carte" th:each="l : ${lignes}" th:with="s=${l.compte()}"
+             th:classappend="${s.enRetard() ? 'f-en-retard' : (s.aEncaisser() == 0 ? 'f-a-jour' : '')}"
+             th:attr="data-cherche=${(l.vehicule().immatriculation() + ' ' + l.conducteur().nom() + ' ' + l.conducteur().telephone() + ' ' + l.contrat().numero()).toLowerCase()}">
+            <div class="f-qui">
+                <b><a th:href="@{/flotte/contrats/{id}(id=${l.contrat().id()})}" th:text="${l.vehicule().immatriculation()}">AB-1234-RT</a>
+                    · <span th:text="${l.conducteur().nom()}">Koffi</span></b>
+                <small>
+                    <span th:replace="~{flotte/commun :: etat(${s})}"></span>
+                    <span th:if="${s.tarifDuJour() > 0}" th:text="${f.montant(s.tarifDuJour()) + ' / jour'}">5 000 / jour</span>
+                    <span th:if="${s.payeJusquAu() != null}" th:text="${' · payé jusqu’au ' + f.jourCourt(s.payeJusquAu())}">payé jusqu'au</span>
+                </small>
+            </div>
+            <div class="f-du">
+                <strong th:text="${f.montant(s.aEncaisser())}" th:classappend="${s.enRetard()} ? 'k-ko'">5 000</strong>
+                <small th:if="${s.enRetard()}" th:text="${'dont retard ' + f.montant(s.montantEnRetard())}">dont retard</small>
+                <small th:if="${!s.enRetard() and s.aEncaisser() == 0}">rien à payer aujourd'hui</small>
+            </div>
+            <div class="f-gestes">
+                <a th:if="${droits.encaisser()}" class="k-bouton f-encaisser"
+                   th:href="@{/flotte/contrats/{id}/encaisser(id=${l.contrat().id()})}">Encaisser</a>
+                <form th:if="${droits.encaisser() and s.aEncaisser() > 0 and s.enRetard()}" method="post"
+                      th:action="@{/flotte/contrats/{id}/demander(id=${l.contrat().id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Demander le paiement</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var champ = document.getElementById('f-cherche');
+            if (!champ) { return; }
+            champ.addEventListener('input', function () {
+                var q = champ.value.trim().toLowerCase();
+                document.querySelectorAll('.f-carte').forEach(function (c) {
+                    c.style.display = !q || c.getAttribute('data-cherche').indexOf(q) >= 0 ? '' : 'none';
+                });
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>

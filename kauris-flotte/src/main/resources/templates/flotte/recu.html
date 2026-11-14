@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!-- Reçu de versement, pour une imprimante de tickets de 80 mm (ou 58 mm : il se resserre). -->
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${'Reçu ' + v.numero() + ' · Kauris'}">Reçu</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/kauris/favicon.svg}">
+    <style>
+        @page { size: 80mm auto; margin: 3mm; }
+        body { margin: 0; background: #eef0f2; font-family: "DejaVu Sans Mono", "Courier New", monospace; color: #000; }
+        .t-papier { width: 72mm; max-width: 100%; margin: 1rem auto; background: #fff; padding: 4mm; font-size: 12px;
+            line-height: 1.35; box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
+        .t-centre { text-align: center; }
+        .t-nom { font-size: 15px; font-weight: 700; }
+        .t-trait { border-top: 1px dashed #000; margin: 2mm 0; }
+        .t-ligne { display: flex; justify-content: space-between; gap: 2mm; }
+        .t-ligne span:last-child { text-align: right; white-space: nowrap; }
+        .t-total { font-size: 17px; font-weight: 700; }
+        .t-annule { border: 2px solid #000; text-align: center; font-weight: 700; padding: 1mm; margin: 2mm 0; }
+        .t-actions { width: 72mm; max-width: 100%; margin: 0 auto 1rem; display: flex; gap: .5rem; flex-wrap: wrap;
+            font-family: system-ui, sans-serif; }
+        .t-actions a, .t-actions button { flex: 1 1 45%; padding: .8rem; font-size: 1rem; font-weight: 700; text-align: center;
+            border-radius: 8px; border: 1px solid #0B7A3B; background: #fff; color: #0B7A3B; text-decoration: none; cursor: pointer; }
+        .t-actions .t-principal { background: #0B7A3B; color: #fff; }
+        .t-gerer { width: 72mm; max-width: 100%; margin: 0 auto 2rem; font-family: system-ui, sans-serif; font-size: 14px; }
+        .t-gerer form { display: grid; gap: .4rem; margin: .5rem 0 0; }
+        .t-gerer input, .t-gerer button { font-size: 1rem; padding: .5rem; }
+        .t-message { width: 72mm; max-width: 100%; margin: 1rem auto 0; font-family: system-ui, sans-serif; padding: .6rem;
+            border-radius: 8px; }
+        .t-ok { background: #eaf4ee; color: #0B7A3B; }
+        .t-ko { background: #fdecef; color: #b81c3b; }
+        @media print {
+            body { background: #fff; }
+            .t-papier { margin: 0; box-shadow: none; width: auto; padding: 0; }
+            .t-actions, .t-gerer, .t-message { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="t-message t-ok" role="status" th:if="${succes}" th:text="${succes}">Fait.</div>
+<div class="t-message t-ko" role="alert" th:if="${erreur}" th:text="${erreur}">Refusé.</div>
+<div class="t-actions">
+    <a class="t-principal" th:href="@{/flotte}" id="t-suivant">Caisse du jour</a>
+    <button type="button" onclick="window.print()">Imprimer</button>
+    <a th:if="${whatsapp != null}" th:href="${whatsapp}" target="_blank" rel="noopener">Envoyer par WhatsApp</a>
+    <a th:href="@{/flotte/contrats/{id}(id=${c.id()})}">Compte du conducteur</a>
+</div>
+<div class="t-papier">
+    <div class="t-centre">
+        <div class="t-nom" th:text="${entreprise.raisonSociale()}">Entreprise</div>
+        <div th:text="${entreprise.adresseComplete()}" th:if="${!entreprise.adresseComplete().isEmpty()}">Adresse</div>
+        <div th:text="${'Tél. ' + entreprise.telephone()}" th:if="${!entreprise.telephone().isEmpty()}">Tél.</div>
+    </div>
+    <div class="t-trait"></div>
+    <div class="t-centre"><strong>REÇU DE VERSEMENT</strong></div>
+    <div class="t-annule" th:if="${v.annule()}">ANNULÉ</div>
+    <div class="t-ligne"><span>Reçu</span><span th:text="${v.numero()}">VR-2026-000001</span></div>
+    <div class="t-ligne"><span>Date</span><span th:text="${f.jour(v.date())}">14/11/2026</span></div>
+    <div class="t-ligne"><span>Saisi le</span><span th:text="${f.instant(v.saisiLe())}">14/11/2026 à 18:00</span></div>
+    <div class="t-ligne"><span>Par</span><span th:text="${v.saisiPar()}">Awa</span></div>
+    <div class="t-trait"></div>
+    <div class="t-ligne"><span>Véhicule</span><span th:text="${vehicule.immatriculation()}">AB-1234-RT</span></div>
+    <div class="t-ligne"><span>Conducteur</span><span th:text="${conducteur.nom()}">Koffi</span></div>
+    <div class="t-ligne"><span>Contrat</span><span th:text="${c.numero()}">CT-2026-0001</span></div>
+    <div class="t-trait"></div>
+    <div class="t-ligne t-total"><span>MONTANT</span><span th:text="${f.montant(v.montant())}">5 000</span></div>
+    <div class="t-ligne"><span th:text="${v.mode().libelle()}">Espèces</span><span th:text="${v.reference()}"></span></div>
+    <div class="t-trait"></div>
+    <th:block th:unless="${v.annule()}">
+        <div class="t-ligne" th:if="${compte.payeJusquAu() != null}"><span>Payé jusqu'au</span>
+            <span th:text="${f.jourCourt(compte.payeJusquAu())}">jeudi 20/11</span></div>
+        <div class="t-ligne" th:if="${compte.montantEnRetard() > 0}"><span>Reste en retard</span>
+            <span th:text="${f.montant(compte.montantEnRetard())}">0</span></div>
+        <div class="t-ligne" th:if="${compte.solde() > 0}"><span>Avance</span>
+            <span th:text="${f.montant(compte.solde())}">0</span></div>
+        <div class="t-ligne" th:if="${compte.prixTotal() != null}"><span>Reste sur le véhicule</span>
+            <span th:text="${f.montant(compte.resteSurPrix())}">0</span></div>
+        <div class="t-trait"></div>
+    </th:block>
+    <div class="t-centre">Merci !</div>
+</div>
+<div class="t-gerer" th:if="${droits.gerer() and !v.annule()}">
+    <details>
+        <summary>Annuler ce versement (erreur de saisie)</summary>
+        <form method="post" th:action="@{/flotte/versements/{id}/annuler(id=${v.id()})}">
+            <label>Motif <input name="motif" required minlength="3" maxlength="200"></label>
+            <button type="submit">Annuler le versement</button>
+        </form>
+    </details>
+</div>
+<p class="t-gerer" th:if="${v.annule()}" th:text="${'Annulé par ' + v.annulePar() + ' le ' + f.instant(v.annuleLe()) + ' : ' + v.motifAnnulation()}">Annulé</p>
+</body>
+</html>

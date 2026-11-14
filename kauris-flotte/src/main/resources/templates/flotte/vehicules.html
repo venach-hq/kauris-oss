@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : véhicules', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <div class="f-boutons">
+        <a th:if="${droits.gerer()}" class="k-bouton" th:href="@{/flotte/vehicules/nouveau}">Ajouter un véhicule</a>
+        <span th:replace="~{flotte/commun :: exports('vehicules', '')}"></span>
+    </div>
+
+    <p class="k-discret" th:if="${vehicules.isEmpty()}">Aucun véhicule. Commencez par ajouter vos motos, taxis, tricycles…</p>
+    <table class="k-table" th:unless="${vehicules.isEmpty()}">
+        <thead><tr><th>Immatriculation</th><th>Type</th><th>Modèle</th><th>Contrat en cours</th><th>Paiement</th><th>Statut</th></tr></thead>
+        <tbody>
+        <tr th:each="v : ${vehicules}" th:classappend="${v.statut().name() == 'CEDE' or v.statut().name() == 'HORS_SERVICE'} ? 'k-discret'">
+            <td><a th:href="@{/flotte/vehicules/{id}(id=${v.id()})}" th:text="${v.immatriculation()}">AB-1234-RT</a></td>
+            <td th:text="${v.type().libelle()}">Moto</td>
+            <td th:text="${v.marque() + ' ' + v.modele()}">Haojue</td>
+            <td th:text="${enContrat.getOrDefault(v.id(), '—')}">CT</td>
+            <td th:text="${v.referencePaiement()}"></td>
+            <td><span class="k-pastille" th:classappend="${v.statut().name() == 'EN_SERVICE'} ? 'k-ok'" th:text="${v.statut().libelle()}">En service</span></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

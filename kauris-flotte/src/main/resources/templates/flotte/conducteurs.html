@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Flotte : conducteurs', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <div class="f-boutons">
+        <a th:if="${droits.gerer()}" class="k-bouton" th:href="@{/flotte/conducteurs/nouveau}">Ajouter un conducteur</a>
+        <span th:replace="~{flotte/commun :: exports('conducteurs', '')}"></span>
+    </div>
+
+    <p class="k-discret" th:if="${conducteurs.isEmpty()}">Aucun conducteur.</p>
+    <table class="k-table" th:unless="${conducteurs.isEmpty()}">
+        <thead><tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Permis</th><th>Garant</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${conducteurs}" th:classappend="${d.actif()} ? '' : 'f-barre'">
+            <td><a th:href="@{/flotte/conducteurs/{id}(id=${d.id()})}" th:text="${d.nom()}">Koffi</a></td>
+            <td th:text="${d.telephone()}">90000000</td>
+            <td th:text="${vehiculeDe.getOrDefault(d.id(), '—')}">AB</td>
+            <td><span th:text="${d.permisNumero()}"></span>
+                <span class="k-pastille f-retard" th:if="${d.permisExpire(aujourdhui)}">Permis expiré</span></td>
+            <td th:text="${d.garantNom()}"></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

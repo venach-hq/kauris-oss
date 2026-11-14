@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Nouveau contrat', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Quel type de contrat ?</summary>
+        <p><strong>Location</strong> : le conducteur verse chaque jour de travail, sans fin prévue.</p>
+        <p><strong>Location-vente</strong> : il verse chaque jour jusqu'à atteindre le total ; le véhicule devient alors à lui.</p>
+        <p><strong>Salarié</strong> : le conducteur est payé par vous ; pas de versement journalier.</p>
+    </details>
+
+    <p class="k-discret" th:if="${vehicules.isEmpty() or conducteurs.isEmpty()}">
+        Il faut un véhicule libre et un conducteur sans contrat :
+        <a th:href="@{/flotte/vehicules/nouveau}">ajouter un véhicule</a> ·
+        <a th:href="@{/flotte/conducteurs/nouveau}">ajouter un conducteur</a>.</p>
+
+    <form class="k-pile k-large" method="post" th:action="@{/flotte/contrats}" th:unless="${vehicules.isEmpty() or conducteurs.isEmpty()}">
+        <label>Véhicule
+            <select name="vehicule" required>
+                <option th:each="v : ${vehicules}" th:value="${v.id()}" th:text="${v.libelle()}"
+                        th:selected="${v.id() == vehiculeChoisi}">AB</option>
+            </select></label>
+        <label>Conducteur
+            <select name="conducteur" required>
+                <option th:each="d : ${conducteurs}" th:value="${d.id()}" th:text="${d.nom() + ' · ' + d.telephone()}"
+                        th:selected="${d.id() == conducteurChoisi}">Koffi</option>
+            </select></label>
+        <label>Type de contrat
+            <select name="type" id="n-type">
+                <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}">Location</option>
+            </select></label>
+        <label>Premier jour <input type="date" name="debut" required th:value="${aujourdhui}"></label>
+        <label class="n-versements">Versement par jour <input name="parJour" inputmode="numeric" placeholder="Ex. : 5 000"></label>
+        <label class="n-vente" hidden>Total à payer pour le véhicule <input name="prixTotal" inputmode="numeric" placeholder="Ex. : 1 200 000"></label>
+        <fieldset class="n-versements">
+            <legend>Jours de repos (rien à verser)</legend>
+            <label th:each="j : ${semaine}" style="display:inline-flex;gap:.3rem;margin-right:.8rem;font-weight:400">
+                <input type="checkbox" name="repos" th:value="${j.jour().name()}" th:checked="${j.jour().name() == 'SUNDAY'}">
+                <span th:text="${j.libelle()}">lundi</span></label>
+        </fieldset>
+        <label>Notes <textarea name="notes" maxlength="1000"></textarea></label>
+        <button type="submit" class="k-bouton">Créer le contrat</button>
+    </form>
+    <script>
+        (function () {
+            var type = document.getElementById('n-type');
+            if (!type) { return; }
+            function maj() {
+                document.querySelectorAll('.n-versements').forEach(function (e) { e.hidden = type.value === 'SALARIE'; });
+                document.querySelectorAll('.n-vente').forEach(function (e) { e.hidden = type.value !== 'LOCATION_VENTE'; });
+            }
+            type.addEventListener('change', maj);
+            maj();
+        })();
+    </script>
+</section>
+</body>
+</html>

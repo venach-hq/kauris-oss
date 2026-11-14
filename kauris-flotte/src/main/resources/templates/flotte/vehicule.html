@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${v == null ? 'Nouveau véhicule' : 'Véhicule ' + v.immatriculation()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{flotte/commun :: navigation}"></th:block>
+
+    <div class="f-deux">
+        <form class="k-pile k-large" method="post"
+              th:action="${v == null} ? @{/flotte/vehicules} : @{/flotte/vehicules/{id}(id=${v.id()})}">
+            <fieldset th:disabled="${!droits.gerer()}">
+                <legend th:text="${v == null ? 'Nouveau véhicule' : v.libelle()}">Véhicule</legend>
+                <label>Type
+                    <select name="type">
+                        <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}"
+                                th:selected="${v != null and v.type() == t}">Moto</option>
+                    </select></label>
+                <label>Immatriculation <input name="immatriculation" required maxlength="20" th:value="${v?.immatriculation()}"
+                                              placeholder="AB-1234-RT" autocapitalize="characters"></label>
+                <label>Marque <input name="marque" maxlength="60" th:value="${v?.marque()}" placeholder="Haojue, Toyota…"></label>
+                <label>Modèle <input name="modele" maxlength="60" th:value="${v?.modele()}"></label>
+                <label>Couleur <input name="couleur" maxlength="30" th:value="${v?.couleur()}"></label>
+                <label>Année <input name="annee" inputmode="numeric" maxlength="4" th:value="${v?.annee()}"></label>
+                <label>Numéro de châssis <input name="chassis" maxlength="40" th:value="${v?.chassis()}"></label>
+                <label>Mise en service <input type="date" name="miseEnService" th:value="${v?.miseEnService()}"></label>
+                <label>Prix d'achat <input name="prixAchat" inputmode="numeric" th:value="${v?.prixAchat()}"></label>
+                <label>Compteur (km) <input name="compteur" inputmode="numeric" th:value="${v?.compteur()}"></label>
+                <label>Paiement des versements
+                    <input name="referencePaiement" maxlength="80" th:value="${v?.referencePaiement()}"
+                           placeholder="Ex. : numéro Mobile Money où le conducteur verse">
+                    <small class="k-discret">Écrit dans les messages au conducteur. Un seul véhicule par référence.</small></label>
+                <label th:if="${v != null}">Statut
+                    <select name="statut">
+                        <option th:each="s : ${statuts}" th:value="${s.name()}" th:text="${s.libelle()}"
+                                th:selected="${v.statut() == s}">En service</option>
+                    </select></label>
+                <label>Notes <textarea name="notes" maxlength="1000" th:text="${v?.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton" th:text="${v == null ? 'Ajouter le véhicule' : 'Enregistrer'}">Enregistrer</button>
+            </fieldset>
+        </form>
+
+        <div th:if="${v != null}">
+            <h2>Contrats</h2>
+            <p th:if="${droits.gerer() and v.statut().name() != 'CEDE' and v.statut().name() != 'HORS_SERVICE'}">
+                <a class="k-bouton k-secondaire" th:href="@{/flotte/contrats/nouveau(vehicule=${v.id()})}">Nouveau contrat</a></p>
+            <p class="k-discret" th:if="${contrats.isEmpty()}">Aucun contrat.</p>
+            <ul>
+                <li th:each="c : ${contrats}"><a th:href="@{/flotte/contrats/{id}(id=${c.id()})}" th:text="${c.numero()}">CT</a>
+                    · <span th:text="${noms.get(c.conducteurId())}">Koffi</span>
+                    · <span th:text="${c.statut().libelle()}">En cours</span></li>
+            </ul>
+
+            <h2>Papiers</h2>
+            <table class="k-table" th:unless="${papiers.isEmpty()}">
+                <tbody>
+                <tr th:each="p : ${papiers}">
+                    <td><a th:href="@{/flotte/papiers/{id}(id=${p.id()})}" th:text="${p.type().libelle()}">Assurance</a></td>
+                    <td th:text="${p.reference()}"></td>
+                    <td th:text="${p.expireLe() == null ? '' : 'expire le ' + f.jour(p.expireLe())}"></td>
+                    <td><span class="k-pastille" th:if="${p.expireLe() != null}"
+                              th:classappend="${p.expire(aujourdhui) ? 'f-retard' : (p.aRenouveler(aujourdhui) ? 'f-pause' : 'k-ok')}"
+                              th:text="${p.expire(aujourdhui) ? 'Expiré' : (p.aRenouveler(aujourdhui) ? 'À renouveler' : 'Valide')}">Valide</span></td>
+                </tr>
+                </tbody>
+            </table>
+            <details th:if="${droits.gerer()}" th:open="${papiers.isEmpty()}">
+                <summary><strong>Ajouter un papier</strong> (assurance, visite technique…)</summary>
+                <form class="k-pile" method="post" th:action="@{/flotte/papiers}">
+                    <input type="hidden" name="vehicule" th:value="${v.id()}">
+                    <input type="hidden" name="retour" th:value="${'/flotte/vehicules/' + v.id()}">
+                    <th:block th:replace="~{flotte/papier :: champs(${null})}"></th:block>
+                    <button type="submit" class="k-bouton">Ajouter le papier</button>
+                </form>
+            </details>
+        </div>
+    </div>
+</section>
+</body>
+</html>

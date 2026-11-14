@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Un tableau de la flotte en PDF (situation, versements, relevé, véhicules…). Pas de @{…} : vue PDF. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <style>
+        .f-tableau { font-size: 8.5pt; }
+        .f-tableau td.f-code, .f-tableau td.k-doc-montant { white-space: nowrap; }
+    </style>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau f-tableau">
+        <thead><tr><th th:each="col, i : ${t.colonnes()}" th:text="${col}"
+                       th:classappend="${numeriques.get(i.index)} ? 'k-doc-montant'">Colonne</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${lignes}">
+            <td th:each="x, i : ${l}" th:classappend="${numeriques.get(i.index) ? 'k-doc-montant' : (i.first ? 'f-code' : '')}" th:text="${x}">x</td>
+        </tr>
+        <tr th:if="${lignes.isEmpty()}"><td th:colspan="${t.colonnes().size()}">Aucune ligne.</td></tr>
+        <tr class="k-doc-total" th:if="${total != null}">
+            <td th:each="x, i : ${total}" th:classappend="${numeriques.get(i.index)} ? 'k-doc-montant'" th:text="${x}">x</td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>
