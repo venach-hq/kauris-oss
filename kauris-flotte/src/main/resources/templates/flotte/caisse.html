@@ -79,7 +79,7 @@
                 <small>
                     <span th:replace="~{flotte/commun :: etat(${s})}"></span>
                     <span th:if="${s.tarifDuJour() > 0}" th:text="${f.montant(s.tarifDuJour()) + ' / jour'}">5 000 / jour</span>
-                    <span th:if="${s.payeJusquAu() != null}" th:text="${' · payé jusqu\'au ' + f.jourCourt(s.payeJusquAu())}">payé jusqu'au</span>
+                    <span th:if="${s.payeJusquAu() != null}" th:text="${' · payé jusqu’au ' + f.jourCourt(s.payeJusquAu())}">payé jusqu'au</span>
                 </small>
             </div>
             <div class="f-du">

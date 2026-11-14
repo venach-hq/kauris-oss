@@ -214,7 +214,7 @@
                     <label>Type
                         <select name="type">
                             <option th:each="t : ${typesAjustement}" th:value="${t.name()}"
-                                    th:text="${t.libelle() + (t.du() ? ' (s\'ajoute à ce qu\'il doit)' : ' (se déduit)')}">Avance</option>
+                                    th:text="${t.libelle() + (t.du() ? ' (s’ajoute à ce qu’il doit)' : ' (se déduit)')}">Avance</option>
                         </select></label>
                     <label>Montant <input name="montant" inputmode="numeric" required></label>
                     <label>Date <input type="date" name="date" th:value="${aujourdhui}"></label>

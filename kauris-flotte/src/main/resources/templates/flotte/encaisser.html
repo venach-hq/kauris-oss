@@ -28,7 +28,7 @@
             <span class="k-discret" th:text="${conducteur.telephone()}">90000000</span></p>
         <p class="e-etat">
             <span th:replace="~{flotte/commun :: etat(${compte})}"></span>
-            <span th:if="${compte.payeJusquAu() != null}" th:text="${' Payé jusqu\'au ' + f.jourCourt(compte.payeJusquAu()) + '.'}">Payé jusqu'au</span>
+            <span th:if="${compte.payeJusquAu() != null}" th:text="${' Payé jusqu’au ' + f.jourCourt(compte.payeJusquAu()) + '.'}">Payé jusqu'au</span>
             <span th:if="${compte.enRetard()}" th:text="${' Retard : ' + f.montant(compte.montantEnRetard()) + '.'}">Retard</span>
         </p>
 
