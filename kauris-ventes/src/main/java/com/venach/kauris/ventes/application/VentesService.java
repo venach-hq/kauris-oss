@@ -490,7 +490,20 @@ public class VentesService {
      */
     public DocumentVente vendreAuComptoir(Acces a, UUID clientId, Map<UUID, BigDecimal> quantites,
                                           BigDecimal remiseGlobale, List<PaiementComptoir> paiements) {
+        return vendreAuComptoir(a, clientId, quantites, remiseGlobale, paiements, 0);
+    }
+
+    /**
+     * La même vente, dont {@code enAttente} reste à payer par le paiement instantané de l'application (le client
+     * paie par PI-SPI après l'émission ; l'application règle alors la facture).
+     */
+    public DocumentVente vendreAuComptoir(Acces a, UUID clientId, Map<UUID, BigDecimal> quantites,
+                                          BigDecimal remiseGlobale, List<PaiementComptoir> paiements,
+                                          long enAttente) {
         exiger(a, PermissionsVentes.CAISSE);
+        if (enAttente < 0 || (enAttente > 0 && encaissements.paiementInstantane(a.tenantId()).isEmpty())) {
+            throw new ErreurMetier("Le paiement instantané n'est pas disponible ici.");
+        }
         List<Ligne> lignes = lignesComptoir(a, quantites);
         List<Ports.Encaissements.Compte> comptes = encaissements.comptes(a.tenantId());
         for (PaiementComptoir p : paiements) {
@@ -513,8 +526,8 @@ public class VentesService {
             DocumentVente d = DocumentVente.brouillon(a.tenantId(), TypeDocument.FACTURE, c, contenu, null,
                     a.membreId(), Instant.now(horloge));
             long paye = paiements.stream().mapToLong(PaiementComptoir::montant).sum();
-            if (paye != d.totaux().totalTtc()) {
-                throw new ErreurMetier("Les paiements (" + paye + ") ne font pas le total du ticket ("
+            if (paye + enAttente != d.totaux().totalTtc()) {
+                throw new ErreurMetier("Les paiements (" + (paye + enAttente) + ") ne font pas le total du ticket ("
                         + d.totaux().totalTtc() + ").");
             }
             documents.sauvegarder(d);
@@ -570,6 +583,18 @@ public class VentesService {
     }
 
     /** Les autres façons d'encaisser cette facture, si elle a un reste à payer. */
+    /** Le paiement instantané proposé à la caisse (nom du bouton) ; vide sans branchement. */
+    public java.util.Optional<String> paiementInstantane(Acces a) {
+        return a.peut(PermissionsVentes.CAISSE) ? encaissements.paiementInstantane(a.tenantId())
+                : java.util.Optional.empty();
+    }
+
+    /** La page où le client paie ce ticket par paiement instantané ; vide sans branchement. */
+    public java.util.Optional<String> cheminInstantane(Acces a, UUID factureId) {
+        exiger(a, PermissionsVentes.CAISSE);
+        return encaissements.cheminInstantane(a.tenantId(), factureId);
+    }
+
     public List<Ports.Encaissements.Action> actionsDEncaissement(Acces a, DocumentVente facture) {
         exiger(a, CONSULTER);
         if (!a.peut(ENCAISSER) || facture.type() != TypeDocument.FACTURE || facture.modifiable()

@@ -33,6 +33,7 @@
         .c-outils { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45rem; margin: .45rem 0 0; }
         .c-outils button { font-size: 1rem; min-height: 56px; background: #f3f8ff; color: #1a4f8b; }
         .c-reglage { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: .6rem 0 0; font-size: 14px; }
+        .c-reglage label { white-space: nowrap; }
         .c-reglage input, .c-reglage select { width: 5.5rem; font-size: 1rem; }
         .c-ruban { list-style: none; padding: .3rem .5rem; margin: .6rem 0 0; max-height: 8.5rem; overflow-y: auto; font-size: 13px;
             background: #fafafa; border-radius: 6px; color: var(--k-discret); font-variant-numeric: tabular-nums; }
@@ -47,6 +48,31 @@
         .c-resultat output { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; margin-left: auto; }
         .c-resultat button { border: 1px solid var(--k-bord); background: #fff; border-radius: 6px; padding: .15rem .45rem; cursor: pointer; }
         .c-coupures { font-size: 13px; color: var(--k-discret); }
+        .c-calc input, .c-calc select { box-sizing: border-box; min-width: 0; max-width: 100%; }
+        .c-assistant input, .c-assistant select { max-width: 55%; }
+
+        /* Page Calculatrice : un seul écran. Touches à gauche (3/4) ; outils, taux et assistants à droite (1/4). */
+        .c-page-calc .c-calc { max-width: none; display: grid; grid-template-columns: minmax(0, 3fr) minmax(270px, 1fr);
+            grid-template-rows: auto 1fr; grid-template-areas: "principal outils" "principal assistants"; gap: .6rem 1rem; }
+        .c-page-calc .c-calc-principal { grid-area: principal; }
+        .c-page-calc .c-calc-outils { grid-area: outils; }
+        .c-page-calc .c-assistants { grid-area: assistants; margin: 0; overflow-y: auto; max-height: max(14rem, calc(100vh - 640px));
+            min-height: 12rem; }
+        .c-page-calc .c-afficheur { padding: .3rem .8rem; }
+        .c-page-calc .c-afficheur .c-valeur { font-size: clamp(1.9rem, 4.5vh, 2.8rem); }
+        .c-page-calc .c-touches button { min-height: clamp(44px, 6.6vh, 74px); font-size: clamp(1.3rem, 2.6vh, 1.9rem); }
+        .c-page-calc .c-touches .c-mem-touche { min-height: clamp(34px, 4.4vh, 48px); font-size: 1.05rem; }
+        .c-page-calc .c-outils { grid-template-columns: repeat(2, 1fr); margin: 0; }
+        .c-page-calc .c-outils button { min-height: 44px; }
+        .c-page-calc .c-ruban { max-height: 4.5rem; }
+        .c-page-calc .c-assistant label { display: grid; grid-template-columns: minmax(0, 1fr) 7.5rem; }
+        .c-page-calc .c-assistant input, .c-page-calc .c-assistant select { width: 100%; max-width: none; }
+        @media (max-width: 900px) {
+            .c-page-calc .c-calc { grid-template-columns: 1fr; grid-template-areas: "principal" "outils" "assistants"; }
+            .c-page-calc .c-outils { grid-template-columns: repeat(4, 1fr); }
+            .c-page-calc .c-assistants { max-height: none; }
+        }
+        }
     </style>
     <nav class="c-onglets" aria-label="Caisse">
         <a th:href="@{/caisse}" th:classappend="${onglet == 'vente'} ? 'c-actif'">Vendre</a>
@@ -58,6 +84,7 @@
 
 <!-- La calculatrice ; tauxTva : taux proposé pour les touches TVA (modifiable). -->
 <div th:fragment="calculatrice(tauxTva)" class="c-calc" data-calculatrice>
+  <div class="c-calc-principal">
     <div class="c-afficheur" aria-live="polite">
         <div><span class="c-mem" data-c="memoire"></span><span class="c-attente" data-c="attente"></span>&nbsp;</div>
         <div class="c-valeur" data-c="ecran">0</div>
@@ -88,6 +115,8 @@
         <button type="button" data-action="virgule" aria-label="Virgule">,</button>
         <button type="button" class="c-egal" data-action="egal">=</button>
     </div>
+  </div>
+  <div class="c-calc-outils">
     <div class="c-outils">
         <button type="button" data-action="+tva" title="Du prix HT au prix TTC">+ TVA</button>
         <button type="button" data-action="-tva" title="Du prix TTC au prix HT">− TVA</button>
@@ -111,6 +140,7 @@
             </select></label>
     </div>
     <ul class="c-ruban" data-c="ruban"></ul>
+  </div>
 
     <details class="c-assistants" open>
         <summary>Prix, marge, remise, monnaie</summary>

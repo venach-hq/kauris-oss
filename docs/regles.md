@@ -188,7 +188,10 @@ Le module Ventes déclare un port `Ports.Encaissements` : les comptes où dépos
 d'encaisser une facture (boutons sur la facture) et deux appels, dans la transaction, quand un règlement est
 enregistré ou annulé. Le mode autonome n'y branche rien ; Kauris Cloud y branche sa trésorerie (demande de
 paiement PI-SPI, report des règlements). Un paiement constaté par l'application elle-même passe par
-`VentesService.encaisserAutomatiquement`, ramené au reste à payer.
+`VentesService.encaisserAutomatiquement`, ramené au reste à payer. Le port peut aussi proposer un paiement
+instantané à la caisse (`paiementInstantane`, `cheminInstantane`) : le ticket est alors émis non réglé pour la
+part choisie, la caissière est envoyée sur la page de l'application (QR PI-SPI dans Kauris Cloud), et la facture
+se règle quand le client a payé.
 
 Il déclare aussi `Ports.Courriels` pour envoyer une facture, un devis ou une relance (relevé joint) par email.
 Le mode autonome n'envoie rien lui-même : l'écran d'envoi ouvre la messagerie de la personne (lien `mailto:`) et

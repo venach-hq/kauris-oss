@@ -33,6 +33,8 @@
 </head>
 <body>
 <div class="t-actions">
+    <a class="t-principal" th:if="${payerInstantane != null}" th:href="@{${payerInstantane}}"
+       th:text="${'Encaisser ' + f.montant(d.resteAPayer()) + ' par PI-SPI'}">Encaisser par PI-SPI</a>
     <a class="t-principal" th:href="@{/caisse}" id="t-nouvelle">Nouvelle vente</a>
     <button type="button" onclick="window.print()">Imprimer</button>
     <a th:href="@{/ventes/documents/{id}.pdf(id=${d.id()})}">Facture A4</a>
@@ -77,6 +79,10 @@
         <span th:text="${f.nombre(t.mobile())}">1 000</span></div>
     <div class="t-ligne" th:if="${t.carte() > 0}"><span>Carte</span><span th:text="${f.nombre(t.carte())}">0</span></div>
     <div class="t-ligne t-total" th:if="${t.rendu() > 0}"><span>Rendu</span><span th:text="${f.montant(t.rendu())}">2 460</span></div>
+    <div class="t-ligne t-total" th:if="${d.resteAPayer() > 0}"><span>RESTE À PAYER</span>
+        <span th:text="${f.montant(d.resteAPayer())}">0</span></div>
+    <div class="t-ligne" th:if="${d.resteAPayer() <= 0 and t.especes() + t.mobile() + t.carte() < t.total()}">
+        <span>Payé par PI-SPI</span><span th:text="${f.nombre(t.total() - t.especes() - t.mobile() - t.carte())}">0</span></div>
     <div class="t-trait"></div>
     <div class="t-centre" th:if="${d.mentionTva() != null and !d.mentionTva().isEmpty()}" th:text="${d.mentionTva()}">TVA non applicable</div>
     <div class="t-centre">Merci de votre visite !</div>
