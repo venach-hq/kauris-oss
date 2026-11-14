@@ -107,7 +107,6 @@ public class FlotteController {
         model.addAttribute("encaisseAujourdhui", encaisse);
         model.addAttribute("aEncaisser", lignes.stream().mapToLong(l -> l.compte().aEncaisser()).sum());
         model.addAttribute("enRetard", lignes.stream().filter(l -> l.compte().enRetard()).count());
-        model.addAttribute("demandesDisponibles", flotte.demandesDisponibles(a));
         return "flotte/caisse";
     }
 
@@ -186,7 +185,7 @@ public class FlotteController {
     @PostMapping("/contrats/{id}/demander")
     public String demander(@PathVariable UUID id, HttpServletRequest requete, RedirectAttributes flash) {
         Acces a = contexte.exiger(requete, PermissionsFlotte.ENCAISSER);
-        if (!flotte.demandesDisponibles(a)) {
+        if (!flotte.demandeDisponible(a, id)) {
             return "redirect:" + PAGE + "/contrats/" + id + "/message";
         }
         return agir(flash, () -> {

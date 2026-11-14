@@ -376,6 +376,17 @@ public class FlotteService {
         return enregistrer(a.tenantId(), contratId, montant, mode, reference, jour, a.nomMembre(), compteId);
     }
 
+    /** Le contrat en cours d'un véhicule, pour un paiement reçu sans caissière (alias du véhicule). */
+    public Optional<Contrat> contratEnCours(UUID tenantId, UUID vehiculeId) {
+        return contrats.contrats(tenantId).stream().filter(c -> c.enCours() && c.vehiculeId().equals(vehiculeId))
+                .findFirst();
+    }
+
+    /** Un véhicule, sans contrôle d'accès (paiement reçu sans caissière). */
+    public Optional<Vehicule> vehiculeDe(UUID tenantId, UUID vehiculeId) {
+        return vehicules.vehicule(tenantId, vehiculeId);
+    }
+
     /**
      * Un paiement reçu sans caissière (alias de paiement du véhicule, dans Kauris Cloud). Sans effet si un
      * versement porte déjà cette référence.
@@ -486,8 +497,9 @@ public class FlotteService {
 
     // ================================================================== demande de paiement
 
-    public boolean demandesDisponibles(Acces a) {
-        return demandes.disponible(a.tenantId());
+    /** Vrai si la demande de paiement peut partir pour ce contrat ; sinon l'écran propose un message. */
+    public boolean demandeDisponible(Acces a, UUID contratId) {
+        return demandes.disponible(a.tenantId(), contrat(a, contratId));
     }
 
     /** Demande au conducteur de payer son retard et le versement du jour. */
