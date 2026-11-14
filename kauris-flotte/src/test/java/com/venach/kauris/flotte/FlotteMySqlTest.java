@@ -221,9 +221,9 @@ class FlotteMySqlTest {
                             + c.id() : ""))).andExpect(status().isOk())
                     .andExpect(content().contentType("application/pdf")).andReturn().getResponse()
                     .getContentAsByteArray();
-            String texte = texte(pdf);
-            assertTrue(quoi.equals("conducteurs") ? texte.contains("Koffi Mensah") : texte.contains("AB-1234-RT")
-                    || texte.contains("VR-"), quoi + " : " + texte);
+            String texte = texte(pdf).replaceAll("\\s+", "");
+            assertTrue(texte.contains(quoi.equals("conducteurs") ? "KoffiMensah" : quoi.equals("versements")
+                    ? "VR-" : "AB-1234-RT"), quoi + " : " + texte);
             enregistrer("flotte-" + quoi + ".pdf", pdf);
         }
         mvc.perform(get("/flotte/export/inconnu.csv")).andExpect(status().isNotFound());
