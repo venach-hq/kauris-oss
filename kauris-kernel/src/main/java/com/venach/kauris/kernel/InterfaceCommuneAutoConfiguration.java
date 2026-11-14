@@ -73,6 +73,14 @@ public class InterfaceCommuneAutoConfiguration {
                 liensEnPlus.orderedStream().toList());
     }
 
+    /** Le tableau de bord d'accueil : les sections des modules installés, lues à chaque affichage. */
+    @Bean
+    @ConditionalOnMissingBean
+    public com.venach.kauris.kernel.ui.TableauAccueil tableauAccueil(
+            ObjectProvider<com.venach.kauris.kernel.module.SectionAccueil> sections) {
+        return new com.venach.kauris.kernel.ui.TableauAccueil(sections);
+    }
+
     @Bean
     public ContexteController contexteController(ContexteCourant contexte) {
         return new ContexteController(contexte);

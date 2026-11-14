@@ -55,6 +55,12 @@ public class FlotteAutoConfiguration {
     }
 
     @Bean
+    public com.venach.kauris.flotte.adapter.web.SectionAccueilFlotte sectionAccueilFlotte(
+            FlotteService flotte, com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase entreprises) {
+        return new com.venach.kauris.flotte.adapter.web.SectionAccueilFlotte(flotte, entreprises);
+    }
+
+    @Bean
     public ModuleFlotte moduleFlotte() {
         return new ModuleFlotte();
     }

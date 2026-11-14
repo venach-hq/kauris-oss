@@ -102,6 +102,18 @@ class FlotteMySqlTest {
         mvc.perform(get("/flotte")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Aucun contrat en cours")));
 
+        // Une organisation vide : chaque export marche quand même (tableau vide), et une saisie mal formée
+        // donne un message, pas une erreur.
+        for (String quoi : new String[]{"situation", "versements", "vehicules", "conducteurs", "papiers"}) {
+            for (String format : new String[]{"csv", "xlsx", "pdf"}) {
+                mvc.perform(get("/flotte/export/" + quoi + "." + format + (quoi.equals("versements")
+                        ? "?du=" + jour.minusDays(30) + "&au=" + jour : ""))).andExpect(status().isOk());
+            }
+        }
+        mvc.perform(get("/flotte/versements").param("du", "pas une date")).andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("date invalide")));
+        mvc.perform(get("/flotte/export/releve.pdf")).andExpect(status().isNotFound());
+
         // Le véhicule, le conducteur et le contrat, par les écrans.
         mvc.perform(post("/flotte/vehicules").param("type", "MOTO").param("immatriculation", "ab 1234 rt")
                         .param("marque", "Haojue").param("referencePaiement", "90 00 00 01"))

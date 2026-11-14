@@ -129,6 +129,32 @@ public class VentesAutoConfiguration {
         return new ModuleAchatsStock();
     }
 
+    // ------------------------------------------------------------------ Tableau de bord d'accueil
+
+    @Bean
+    public com.venach.kauris.kernel.module.SectionAccueil sectionAccueilVentes(VentesService ventes,
+                                                                             GererEntrepriseUseCase entreprises) {
+        return com.venach.kauris.ventes.adapter.web.SectionsAccueilVentes.ventes(ventes, entreprises);
+    }
+
+    @Bean
+    public com.venach.kauris.kernel.module.SectionAccueil sectionAccueilCaisse(CaisseService caisse,
+                                                                             GererEntrepriseUseCase entreprises) {
+        return com.venach.kauris.ventes.adapter.web.SectionsAccueilVentes.caisse(caisse, entreprises);
+    }
+
+    @Bean
+    public com.venach.kauris.kernel.module.SectionAccueil sectionAccueilStock(StockService stock,
+                                                                            GererEntrepriseUseCase entreprises) {
+        return com.venach.kauris.ventes.adapter.web.SectionsAccueilVentes.stock(stock, entreprises);
+    }
+
+    @Bean
+    public com.venach.kauris.kernel.module.SectionAccueil sectionAccueilAchats(AchatsService achats,
+                                                                             GererEntrepriseUseCase entreprises) {
+        return com.venach.kauris.ventes.adapter.web.SectionsAccueilVentes.achats(achats, entreprises);
+    }
+
     /** Les écrans, quand l'application a l'interface commune (une personne connectée, des documents). */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
