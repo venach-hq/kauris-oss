@@ -158,6 +158,8 @@
                 : (p.especes < 0 ? 'trop payé par Mobile Money / carte' : 'il manque ' + texte(p.especes - p.recu));
             rendu.classList.toggle('c-manque', !p.possible);
             bouton.disabled = panier.length === 0 || !p.possible;
+            var instantane = document.getElementById('c-instantane');
+            if (instantane) { instantane.disabled = panier.length === 0 || p.especes < 0; }
             Array.prototype.forEach.call(document.querySelectorAll('[data-billet]'), function (b) {
                 b.hidden = panier.length === 0 || p.especes <= 0;
             });
@@ -221,7 +223,12 @@
             } catch (e) { /* rien */ }
         });
 
+        var envoye = false;
         form.addEventListener('submit', function (e) {
+            if (envoye) {
+                e.preventDefault();
+                return;
+            }
             if (!panier.length) {
                 e.preventDefault();
                 return;
@@ -237,6 +244,7 @@
                     form.appendChild(x);
                 });
             });
+            envoye = true;
             bouton.disabled = true;   // pas de double encaissement
         });
 

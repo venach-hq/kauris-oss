@@ -62,3 +62,10 @@ résultat d'outil à l'écran de la calculatrice. La calculatrice n'enregistre r
 
 « Vendre au comptoir » (avec « Voir » des ventes) suffit pour tenir une caisse : un caissier n'a pas besoin de
 pouvoir préparer, émettre ni encaisser des factures ailleurs.
+
+## Paiement PI-SPI à la caisse (Kauris Cloud)
+
+Dans Kauris Cloud, un grand bouton **PI-SPI (QR)** s'ajoute sous **Encaisser**. Le ticket est émis, puis l'écran
+de paiement s'ouvre : le client scanne le QR code affiché avec l'application de sa banque ou de son Mobile Money,
+ou vous scannez le sien pour lui envoyer une demande de paiement. Dès qu'il a payé, le ticket est réglé. Ce qui
+est payé en Mobile Money ou par carte sur le même ticket se saisit comme d'habitude avant d'appuyer sur le bouton.

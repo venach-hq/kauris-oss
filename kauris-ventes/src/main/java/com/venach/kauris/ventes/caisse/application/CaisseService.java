@@ -38,8 +38,23 @@ public class CaisseService {
 
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH);
 
-    /** Ce que le client donne : espèces reçues (0 = le compte juste), Mobile Money et carte. */
-    public record Encaissement(long especesRecues, long mobile, String referenceMobile, long carte) {
+    /**
+     * Ce que le client donne : espèces reçues (0 = le compte juste), Mobile Money et carte.
+     *
+     * @param instantane le reste (hors Mobile Money et carte) sera payé par le paiement instantané de
+     *                   l'application (PI-SPI dans Kauris Cloud) : pas d'espèces, ticket émis non réglé
+     */
+    public record Encaissement(long especesRecues, long mobile, String referenceMobile, long carte,
+                               boolean instantane) {
+
+        public Encaissement(long especesRecues, long mobile, String referenceMobile, long carte) {
+            this(especesRecues, mobile, referenceMobile, carte, false);
+        }
+    }
+
+    /** Le nom du paiement instantané proposé à la caisse (« PI-SPI (QR) ») ; vide sans branchement. */
+    public java.util.Optional<String> paiementInstantane(Acces a) {
+        return ventes.paiementInstantane(a);
     }
 
     /** Les chiffres d'une caisse. {@code attendu} : espèces qui devraient être dans le tiroir. */
@@ -132,7 +147,8 @@ public class CaisseService {
             throw new ErreurMetier("Mobile Money et carte (" + autres + ") dépassent le total du ticket (" + total
                     + ").");
         }
-        long especes = total - autres;
+        long enAttente = e.instantane() ? total - autres : 0;
+        long especes = total - autres - enAttente;
         long recu = especes == 0 ? 0 : (e.especesRecues() == 0 ? especes : e.especesRecues());
         if (recu < especes) {
             throw new ErreurMetier("Il manque " + (especes - recu) + " en espèces (à payer en espèces : " + especes
@@ -160,7 +176,7 @@ public class CaisseService {
             SessionCaisse verrouillee = sessions.verrouillerSession(a.tenantId(), s.id())
                     .filter(SessionCaisse::ouverte)
                     .orElseThrow(() -> new ErreurMetier("Votre caisse vient d'être clôturée : rouvrez-la."));
-            DocumentVente facture = ventes.vendreAuComptoir(a, client, quantites, remise, paiements);
+            DocumentVente facture = ventes.vendreAuComptoir(a, client, quantites, remise, paiements, enAttente);
             TicketCaisse t = new TicketCaisse(UUID.randomUUID(), a.tenantId(), verrouillee.id(), facture.id(),
                     facture.numero(), Instant.now(horloge), facture.totaux().totalTtc(), especes, e.mobile(),
                     e.carte(), recuFinal, recuFinal - especes, e.mobile() > 0 ? e.referenceMobile() : "");

@@ -29,8 +29,9 @@
         .c-total strong { font-size: 2rem; font-variant-numeric: tabular-nums; }
         #c-detail { font-size: 13px; color: var(--k-discret); text-align: right; min-height: 1em; }
         .c-paiement { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: .8rem 0 0; }
-        .c-paiement label { display: grid; gap: .15rem; font-size: 13px; font-weight: 600; }
-        .c-paiement input, .c-paiement select { font-size: 1.15rem; padding: .45rem .5rem; }
+        .c-paiement label { display: grid; gap: .15rem; font-size: 13px; font-weight: 600; min-width: 0; }
+        .c-paiement input, .c-paiement select { font-size: 1.15rem; padding: .45rem .5rem; width: 100%; min-width: 0;
+            box-sizing: border-box; }
         .c-large { grid-column: 1 / -1; }
         .c-billets { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 0; }
         .c-billets button { min-height: 44px; padding: 0 .8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--k-bord); background: #fff; cursor: pointer; }
@@ -38,7 +39,11 @@
             background: #eaf4ee; border-radius: 8px; }
         .c-a-rendre strong { font-size: 1.5rem; color: var(--k-vert-fonce); }
         .c-a-rendre .c-manque { color: var(--k-rouge); font-size: 1.05rem; }
-        #c-encaisser { width: 100%; min-height: 64px; font-size: 1.4rem; }
+        #c-encaisser, #c-instantane { width: 100%; min-height: 64px; font-size: 1.5rem; font-weight: 800; }
+        #c-instantane { margin: .5rem 0 0; background: #0b4f8a; border-color: #0b4f8a; color: #fff; }
+        #c-instantane:disabled { opacity: .5; }
+        .c-ticket { min-width: 0; }
+        @media (max-width: 480px) { .c-paiement { grid-template-columns: 1fr; } }
         .c-bas { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .6rem 0 0; font-size: 13px; }
         .c-panneau-calcul { margin: 1rem 0 0; }
     </style>
@@ -123,6 +128,9 @@
                 <strong id="c-rendu">0</strong>
             </div>
             <button type="submit" class="k-bouton" id="c-encaisser" disabled>Encaisser</button>
+            <button type="submit" class="k-bouton" id="c-instantane" name="instantane" value="on" disabled
+                    th:if="${instantane != null}" th:text="${instantane}"
+                    title="Le client paie par QR code ou reçoit une demande de paiement">PI-SPI (QR)</button>
             <div class="c-bas">
                 <label><input type="checkbox" id="c-impression"> imprimer le ticket tout de suite</label>
                 <button type="button" class="k-bouton k-secondaire" id="c-annuler">Vider</button>

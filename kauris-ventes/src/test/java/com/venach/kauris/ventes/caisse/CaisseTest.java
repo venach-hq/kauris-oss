@@ -66,6 +66,17 @@ class CaisseTest {
     /** Une trésorerie imitée : deux comptes, et le journal des règlements reportés. */
     static class Tresorerie implements Ports.Encaissements {
         final List<String> journal = new ArrayList<>();
+        boolean instantane;
+
+        @Override
+        public java.util.Optional<String> paiementInstantane(UUID tenantId) {
+            return instantane ? java.util.Optional.of("PI-SPI (QR)") : java.util.Optional.empty();
+        }
+
+        @Override
+        public java.util.Optional<String> cheminInstantane(UUID tenantId, UUID factureId) {
+            return instantane ? java.util.Optional.of("/payer/" + factureId) : java.util.Optional.empty();
+        }
 
         @Override
         public List<Compte> comptes(UUID tenantId) {
@@ -153,6 +164,27 @@ class CaisseTest {
         assertEquals(2, b.tickets());
         assertEquals(3_835, b.total());
         assertEquals(10_000 + 2_540 + 295, b.attendu());
+    }
+
+    @Test
+    void unTicketPayeParPaiementInstantaneResteAReglerApresLEmission() {
+        SessionCaisse s = caisse.ouvrir(caissier, 0, ESPECES, MOMO, null);
+        assertThrows(ErreurMetier.class, () -> caisse.vendre(caissier, null, panier(lait, 1), null,
+                new Encaissement(0, 0, "", 0, true)), "pas de paiement instantané sans branchement");
+        assertTrue(caisse.paiementInstantane(caissier).isEmpty());
+
+        tresorerie.instantane = true;
+        assertEquals("PI-SPI (QR)", caisse.paiementInstantane(caissier).orElseThrow());
+        // 1 180 : 180 en Mobile Money, le reste (1 000) par PI-SPI après l'émission ; pas d'espèces.
+        TicketCaisse t = caisse.vendre(caissier, null, panier(lait, 1), null,
+                new Encaissement(5_000, 180, "MM-9", 0, true));
+        assertEquals(0, t.especes());
+        assertEquals(0, t.rendu());
+        DocumentVente f = ventes.document(patron, t.documentId());
+        assertEquals(1_000, f.resteAPayer());
+        assertEquals(List.of("MOBILE_MONEY 180@momo"), tresorerie.journal);
+        assertEquals("/payer/" + f.id(), ventes.cheminInstantane(caissier, f.id()).orElseThrow());
+        assertEquals(0, caisse.bilan(caissier, s).attendu(), "rien dans le tiroir");
     }
 
     @Test

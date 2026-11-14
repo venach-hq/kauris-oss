@@ -14,7 +14,9 @@
             remise et monnaie à rendre. La flèche → met un résultat à l’écran.</p>
         <p th:if="${liens != null}"><a th:href="${liens.page('caisse')}" target="_blank" rel="noopener">Guide complet de la caisse</a></p>
     </details>
-    <div th:replace="~{caisse/commun :: calculatrice(${tauxTva})}"></div>
+    <div class="c-page-calc">
+        <div th:replace="~{caisse/commun :: calculatrice(${tauxTva})}"></div>
+    </div>
     <script th:src="@{/caisse/calculatrice.js}" defer></script>
 </section>
 </body>

@@ -115,6 +115,20 @@ public final class Ports {
         /** Appelé dans la transaction de l'annulation. */
         void reglementAnnule(DocumentVente facture, Reglement reglement);
 
+        /**
+         * Un paiement instantané possible à la caisse (Kauris Cloud : « PI-SPI (QR) ») : son nom sur le bouton ;
+         * vide sans branchement. Le ticket est alors émis non réglé, puis réglé par l'application quand le client
+         * a payé (première action de la facture).
+         */
+        default java.util.Optional<String> paiementInstantane(UUID tenantId) {
+            return java.util.Optional.empty();
+        }
+
+        /** La page où le client paie ce ticket par paiement instantané (QR, demande) ; vide sans branchement. */
+        default java.util.Optional<String> cheminInstantane(UUID tenantId, UUID factureId) {
+            return java.util.Optional.empty();
+        }
+
         Encaissements AUCUN = new Encaissements() {
             @Override
             public List<Compte> comptes(UUID tenantId) {

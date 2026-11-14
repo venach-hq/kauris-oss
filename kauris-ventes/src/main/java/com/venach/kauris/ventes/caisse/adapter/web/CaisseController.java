@@ -107,6 +107,7 @@ public class CaisseController {
         model.addAttribute("clients", ventes.clients(a, null, false));
         model.addAttribute("mobile", s.compteMobile() != null || caisse.comptes(a).isEmpty());
         model.addAttribute("carte", s.compteCarte() != null || caisse.comptes(a).isEmpty());
+        model.addAttribute("instantane", caisse.paiementInstantane(a).orElse(null));
         return "caisse/vente";
     }
 
@@ -159,8 +160,13 @@ public class CaisseController {
                     FormatsVentes.lireDecimal(c.get("remise"), "Remise", BigDecimal.ZERO),
                     new Encaissement(montant(c.get("especes"), "Espèces reçues"),
                             montant(c.get("mobile"), "Mobile Money"), c.getOrDefault("referenceMobile", ""),
-                            montant(c.get("carte"), "Carte")));
-            return "redirect:" + PAGE + "/tickets/" + t.documentId();
+                            montant(c.get("carte"), "Carte"), "on".equals(c.get("instantane"))));
+            String recu = PAGE + "/tickets/" + t.documentId();
+            if ("on".equals(c.get("instantane"))) {
+                return ventes.cheminInstantane(a, t.documentId())
+                        .map(chemin -> "redirect:" + chemin + "?retour=" + recu).orElse("redirect:" + recu);
+            }
+            return "redirect:" + recu;
         }, PAGE);
     }
 
@@ -173,7 +179,11 @@ public class CaisseController {
         Acces a = contexte.exiger(requete, CAISSE);
         TicketCaisse t = caisse.ticket(a, documentId);
         model.addAttribute("t", t);
-        model.addAttribute("d", ventes.document(a, documentId));
+        com.venach.kauris.ventes.domain.DocumentVente doc = ventes.document(a, documentId);
+        model.addAttribute("d", doc);
+        model.addAttribute("payerInstantane", doc.resteAPayer() <= 0 ? null
+                : ventes.cheminInstantane(a, documentId).map(c -> c + "?retour=" + PAGE + "/tickets/" + documentId)
+                .orElse(null));
         model.addAttribute("laCaisse", caisse.session(a, t.sessionId()));
         model.addAttribute("entreprise", entreprises.consulter(a.tenantId()));
         model.addAttribute("f", formats(a));
