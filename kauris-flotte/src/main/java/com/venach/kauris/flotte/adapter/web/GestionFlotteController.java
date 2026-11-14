@@ -298,7 +298,6 @@ public class GestionFlotteController {
         model.addAttribute("typesAjustement", Ajustement.Type.values());
         model.addAttribute("semaine", semaine());
         model.addAttribute("aujourdhui", jour);
-        model.addAttribute("demandesDisponibles", flotte.demandesDisponibles(a));
         return "flotte/contrat";
     }
 

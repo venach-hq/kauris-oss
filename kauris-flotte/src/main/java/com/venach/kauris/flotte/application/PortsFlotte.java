@@ -128,7 +128,8 @@ public final class PortsFlotte {
      * branchement, l'écran propose un message WhatsApp ou SMS tout prêt.
      */
     public interface Demandes {
-        boolean disponible(UUID tenantId);
+        /** Vrai si la demande peut partir pour ce contrat (dans Kauris Cloud : alias du véhicule et du conducteur). */
+        boolean disponible(UUID tenantId, Contrat contrat);
 
         /** Envoie la demande ; rend une phrase pour la caissière (« Demande envoyée au 90 00 00 00 »). */
         String demander(Acces acces, Contrat contrat, Conducteur conducteur, Vehicule vehicule, long montant,
@@ -136,7 +137,7 @@ public final class PortsFlotte {
 
         Demandes AUCUN = new Demandes() {
             @Override
-            public boolean disponible(UUID tenantId) {
+            public boolean disponible(UUID tenantId, Contrat contrat) {
                 return false;
             }
 
