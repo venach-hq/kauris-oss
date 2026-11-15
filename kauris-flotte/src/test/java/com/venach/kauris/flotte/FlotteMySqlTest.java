@@ -110,6 +110,10 @@ class FlotteMySqlTest {
                         ? "?du=" + jour.minusDays(30) + "&au=" + jour : ""))).andExpect(status().isOk());
             }
         }
+        // Les liens d'export portent des dates ISO (pas « 11/15/26 » selon la langue du navigateur).
+        mvc.perform(get("/flotte/versements").header("Accept-Language", "en-US")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("versements.xlsx?du=" + jour + "&amp;au=" + jour)));
+        mvc.perform(get("/flotte/versements").param("du", "15/11/2026")).andExpect(status().isOk());
         mvc.perform(get("/flotte/versements").param("du", "pas une date")).andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("date invalide")));
         mvc.perform(get("/flotte/export/releve.pdf")).andExpect(status().isNotFound());
@@ -233,7 +237,9 @@ class FlotteMySqlTest {
                             + c.id() : ""))).andExpect(status().isOk())
                     .andExpect(content().contentType("application/pdf")).andReturn().getResponse()
                     .getContentAsByteArray();
-            String texte = texte(pdf).replaceAll("\\s+", "");
+            String brut = texte(pdf);
+            assertTrue(!brut.contains("white-space") && !brut.contains("font-size"), "pas de CSS imprimé : " + brut);
+            String texte = brut.replaceAll("\\s+", "");
             assertTrue(texte.contains(quoi.equals("conducteurs") ? "KoffiMensah" : quoi.equals("versements")
                     ? "VR-" : "AB-1234-RT"), quoi + " : " + texte);
             enregistrer("flotte-" + quoi + ".pdf", pdf);

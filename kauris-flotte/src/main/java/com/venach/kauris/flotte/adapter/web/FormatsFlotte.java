@@ -95,10 +95,15 @@ public final class FormatsFlotte {
         if (saisie == null || saisie.isBlank()) {
             return null;
         }
+        String s = saisie.strip();
         try {
-            return LocalDate.parse(saisie.strip());
+            return LocalDate.parse(s);
         } catch (DateTimeParseException e) {
-            throw new ErreurMetier(champ + " : date invalide.");
+            try {
+                return LocalDate.parse(s, JOUR);   // 15/11/2026, tapé à la main
+            } catch (DateTimeParseException e2) {
+                throw new ErreurMetier(champ + " : date invalide (jj/mm/aaaa).");
+            }
         }
     }
 

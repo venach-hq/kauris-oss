@@ -9,7 +9,7 @@
         <label>Du <input type="date" name="du" th:value="${du}"></label>
         <label>Au <input type="date" name="au" th:value="${au}"></label>
         <button type="submit" class="k-bouton k-secondaire">Afficher</button>
-        <span th:replace="~{flotte/commun :: exports('versements', ${'?du=' + du + '&au=' + au})}"></span>
+        <span th:replace="~{flotte/commun :: exports('versements', ${'?du=' + du.toString() + '&au=' + au.toString()})}"></span>
     </form>
 
     <div class="f-chiffres">
