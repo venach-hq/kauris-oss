@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- Page d'erreur de dernier recours (hors des écrans : sécurité, filtres). Pas de menu ni de modèle commun. -->
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kauris</title>
+    <link rel="stylesheet" th:href="@{/kauris/kauris.css}">
+    <link rel="icon" type="image/svg+xml" th:href="@{/kauris/favicon.svg}">
+</head>
+<body>
+<main class="k-contenu" style="max-width:640px;margin:3rem auto">
+    <h1>Kauris</h1>
+    <div class="k-message k-ko" role="alert" th:switch="${status}">
+        <span th:case="404">Cette page n'existe pas (ou plus). Vérifiez l'adresse, ou repartez de l'accueil.</span>
+        <span th:case="403">Vous n'avez pas accès à cette page, ou votre session a expiré : reconnectez-vous.</span>
+        <span th:case="400">La demande est incomplète ou mal formée : revenez en arrière et réessayez.</span>
+        <span th:case="405">Cette page ne s'ouvre pas de cette façon : revenez à la page précédente.</span>
+        <span th:case="413">Le fichier envoyé est trop gros.</span>
+        <span th:case="*">Une erreur inattendue est survenue. Réessayez dans un instant ; si elle revient, notez l'heure
+            et prévenez l'assistance.</span>
+    </div>
+    <p style="display:flex;flex-wrap:wrap;gap:.6rem">
+        <button type="button" class="k-bouton" onclick="history.back()">Revenir en arrière</button>
+        <a class="k-bouton k-secondaire" th:href="@{/}">Accueil</a>
+    </p>
+</main>
+</body>
+</html>

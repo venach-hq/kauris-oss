@@ -342,7 +342,7 @@ public class FlotteController {
             case "papiers" -> Exports.papiers(flotte.documents(a), flotte.vehicules(a), f, flotte.aujourdHui());
             default -> throw new com.venach.kauris.kernel.commun.ElementIntrouvable("Export inconnu.");
         };
-        String nom = ProducteurDocuments.nomDeFichier(t.titre(), t.precision());
+        String nom = ProducteurDocuments.nomDeFichier(t.titre(), flotte.aujourdHui().toString());
         return switch (format) {
             case "csv" -> fichier(t.csv(), nom.replaceAll("\\.pdf$", "") + ".csv", "text/csv; charset=UTF-8");
             case "xlsx" -> fichier(t.xlsx(), nom.replaceAll("\\.pdf$", "") + ".xlsx",

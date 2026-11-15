@@ -164,6 +164,17 @@ class ParcoursLocalTest {
                 .andExpect(content().string(containsString("href=\"/caisse\"")))
                 .andExpect(content().string(containsString("Ouvrir ma caisse")));
         mvc.perform(get("/caisse/calculatrice.js").session(session)).andExpect(status().isOk());
+        // L'accueil est un tableau de bord : une section par module, avec ses raccourcis.
+        mvc.perform(get("/").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Reste à encaisser")))
+                .andExpect(content().string(containsString("Ouvrir ma caisse")))
+                .andExpect(content().string(containsString("Valeur du stock")))
+                .andExpect(content().string(containsString("À payer aux fournisseurs")))
+                .andExpect(content().string(containsString("Ajouter un véhicule")));
+        // Une page inconnue : un message lisible.
+        mvc.perform(get("/nexiste-pas").session(session)).andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("existe pas")));
+
         // Le module Flotte est installé : menu, caisse du jour, formulaires protégés, exports.
         assertTrue(registre.present("flotte"));
         mvc.perform(get("/flotte").session(session)).andExpect(status().isOk())

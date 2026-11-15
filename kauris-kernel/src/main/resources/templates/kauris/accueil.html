@@ -3,21 +3,68 @@
       th:replace="~{kauris/layout :: page(titre='Accueil', contenu=~{::section})}">
 <body>
 <section>
-    <p>
-        Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>.
-        Vos rôles : <span th:text="${kauris.acces().resumeRoles()}">Rôle</span>.
-    </p>
-    <h2>Modules installés</h2>
-    <table class="k-table">
-        <thead><tr><th>Module</th><th>Code</th><th>Version</th></tr></thead>
-        <tbody>
-        <tr th:each="m : ${modules}">
-            <td th:text="${m.nom()}">Module</td>
-            <td th:text="${m.code()}">code</td>
-            <td th:text="${m.version()}">1.0</td>
-        </tr>
-        </tbody>
-    </table>
+    <style>
+        .a-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .4rem 1rem; margin: 0 0 1rem; }
+        .a-tete p { margin: 0; }
+        .a-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 1rem; align-items: start; }
+        .a-section { background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 12px; padding: .9rem 1rem; min-width: 0; }
+        .a-section.a-alerte { border-left: 5px solid var(--k-rouge); }
+        .a-section h2 { margin: 0 0 .7rem; font-size: 1.15rem; display: flex; justify-content: space-between; gap: .5rem; }
+        .a-section h2 a { text-decoration: none; color: inherit; }
+        .a-section h2 small { font-size: 13px; font-weight: 600; }
+        .a-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
+        .a-chiffre { display: block; padding: .55rem .7rem; border-radius: 8px; background: #fff; border: 1px solid var(--k-bord);
+            text-decoration: none; color: var(--k-texte); min-width: 0; }
+        .a-chiffre:hover { border-color: var(--k-vert); }
+        .a-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .03em; }
+        .a-chiffre strong { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+        .a-chiffre small { display: block; font-size: 12px; color: var(--k-discret); }
+        .a-chiffre.a-ALERTE { background: #fdecef; border-color: #f3c7cf; }
+        .a-chiffre.a-ALERTE strong { color: #b81c3b; }
+        .a-chiffre.a-BON strong { color: var(--k-vert-fonce); }
+        .a-raccourcis { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0 0; }
+        .a-raccourcis a { min-height: 44px; display: inline-flex; align-items: center; font-size: 1rem; }
+        .a-vide { padding: 1rem; border: 1px dashed var(--k-bord); border-radius: 12px; }
+    </style>
+
+    <div class="a-tete">
+        <p>Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>
+            <span class="k-discret" th:text="${'· ' + kauris.acces().resumeRoles()}">· Rôle</span></p>
+        <p class="k-discret" th:if="${aujourdhui != null}" th:text="${aujourdhui}">samedi 14 novembre 2026</p>
+    </div>
+
+    <div class="a-sections" th:unless="${sections == null or sections.isEmpty()}">
+        <div class="a-section" th:each="s : ${sections}" th:classappend="${s.alerte()} ? 'a-alerte'">
+            <h2><a th:href="@{${s.lien()}}" th:text="${s.titre()}">Ventes</a>
+                <small><a th:href="@{${s.lien()}}">Ouvrir →</a></small></h2>
+            <div class="a-chiffres">
+                <a class="a-chiffre" th:each="c : ${s.chiffres()}" th:href="@{${c.lien()}}" th:classappend="${'a-' + c.ton().name()}">
+                    <span th:text="${c.libelle()}">Reste à encaisser</span>
+                    <strong th:text="${c.valeur()}">0</strong>
+                    <small th:unless="${c.detail().isEmpty()}" th:text="${c.detail()}">dont…</small>
+                </a>
+            </div>
+            <div class="a-raccourcis" th:unless="${s.raccourcis().isEmpty()}">
+                <a class="k-bouton k-secondaire" th:each="r : ${s.raccourcis()}" th:href="@{${r.lien()}}" th:text="${r.libelle()}">Nouvelle facture</a>
+            </div>
+        </div>
+    </div>
+    <p class="a-vide" th:if="${sections == null or sections.isEmpty()}">Rien à afficher pour le moment : vos rôles ne
+        donnent accès à aucun module, ou rien n'a encore été saisi. Utilisez le menu pour commencer.</p>
+
+    <details style="margin-top:1.5rem">
+        <summary class="k-discret">Modules installés</summary>
+        <table class="k-table">
+            <thead><tr><th>Module</th><th>Code</th><th>Version</th></tr></thead>
+            <tbody>
+            <tr th:each="m : ${modules}">
+                <td th:text="${m.nom()}">Module</td>
+                <td th:text="${m.code()}">code</td>
+                <td th:text="${m.version()}">1.0</td>
+            </tr>
+            </tbody>
+        </table>
+    </details>
 </section>
 </body>
 </html>

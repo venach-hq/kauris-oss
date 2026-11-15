@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{kauris/layout :: page(titre='Action impossible', contenu=~{::section})}">
+      th:replace="~{kauris/layout :: page(titre=${statut != null and statut >= 500 ? 'Une erreur est survenue' : 'Action impossible'}, contenu=~{::section})}">
 <body>
 <section>
     <div class="k-message k-ko" role="alert" th:text="${message}">Refusé.</div>
-    <p><a th:href="@{/}">Revenir à l'accueil</a></p>
+    <p th:if="${code != null}">Code de l'erreur : <strong th:text="${code}" style="font-size:1.2rem;letter-spacing:.05em">ERR-7F3A2C</strong></p>
+    <p style="display:flex;flex-wrap:wrap;gap:.6rem">
+        <button type="button" class="k-bouton" onclick="history.back()">Revenir en arrière</button>
+        <a class="k-bouton k-secondaire" th:href="@{/}">Accueil</a>
+    </p>
 </section>
 </body>
 </html>
