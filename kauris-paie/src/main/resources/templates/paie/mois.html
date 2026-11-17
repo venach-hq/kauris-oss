@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${'Paie de ' + p.libelle()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <h2 th:text="${'Paie de ' + p.libelle()}">Paie de novembre 2026</h2>
+    <p>
+        <span class="k-pastille" th:classappend="${p.payeLe() != null ? 'k-ok' : (p.close() ? '' : 'p-jaune')}"
+              th:text="${p.payeLe() != null ? 'Salaires payés le ' + f.jour(p.payeLe()) : (p.close() ? 'Clos' : 'En préparation : les bulletins sont des brouillons')}">Clos</span>
+        <span class="k-discret" th:if="${p.close()}"
+              th:text="${'Clôturé le ' + f.instant(p.closeLe()) + ' par ' + p.closePar()}">Clôturé le</span>
+    </p>
+
+    <div class="p-chiffres">
+        <div class="p-chiffre"><span>Salariés</span><strong th:text="${m.totaux().salaries()}">3</strong></div>
+        <div class="p-chiffre"><span>Brut</span><strong th:text="${f.montant(m.totaux().brut())}">0</strong></div>
+        <div class="p-chiffre"><span>Net à payer</span><strong th:text="${f.montant(m.totaux().net())}">0</strong></div>
+        <div class="p-chiffre"><span>Charges de l'employeur</span><strong th:text="${f.montant(m.totaux().chargesEmployeur())}">0</strong></div>
+        <div class="p-chiffre"><span>Coût total</span><strong th:text="${f.montant(m.totaux().coutEmployeur())}">0</strong></div>
+    </div>
+
+    <div class="p-alertes" th:if="${!problemes.isEmpty()}">
+        <strong>Bulletins à corriger avant la clôture :</strong>
+        <ul><li th:each="x : ${problemes}"><a th:href="@{/paie/mois/{id}/salaries/{s}(id=${p.id()},s=${x.salarie().id()})}"
+                                              th:text="${x.salarie().nomComplet()}">Nom</a> : <span th:text="${x.message()}">problème</span></li></ul>
+    </div>
+
+    <div class="p-boutons">
+        <form th:if="${!p.close() and droits.cloturer()}" method="post" th:action="@{/paie/mois/{id}/clore(id=${p.id()})}"
+              onsubmit="return confirm('Clôturer la paie du mois ? Les bulletins seront numérotés et figés.')">
+            <button type="submit" class="k-bouton" th:disabled="${m.bulletins().isEmpty() or !problemes.isEmpty()}">Clôturer le mois</button>
+        </form>
+        <form th:if="${p.close() and p.payeLe() == null and droits.cloturer() and versementDisponible and !aVirer.isEmpty()}"
+              method="post" th:action="@{/paie/mois/{id}/verser(id=${p.id()})}"
+              onsubmit="return confirm('Lancer le versement des salaires par virement et Mobile Money ?')">
+            <button type="submit" class="k-bouton">Verser les salaires</button>
+        </form>
+        <form th:if="${p.close() and p.payeLe() == null and droits.cloturer()}" method="post"
+              th:action="@{/paie/mois/{id}/payer(id=${p.id()})}">
+            <label>Payés le <input type="date" name="date" th:value="${aujourdhui}" th:max="${aujourdhui}"></label>
+            <button type="submit" class="k-bouton k-secondaire">Marquer les salaires comme payés</button>
+        </form>
+        <form th:if="${p.close() and p.payeLe() == null and droits.cloturer()}" method="post"
+              th:action="@{/paie/mois/{id}/rouvrir(id=${p.id()})}"
+              onsubmit="return confirm('Rouvrir le mois ? Les bulletins redeviennent des brouillons et seront renumérotés à la prochaine clôture.')">
+            <button type="submit" class="k-bouton k-secondaire">Rouvrir</button>
+        </form>
+    </div>
+
+    <p class="k-discret" th:if="${m.bulletins().isEmpty() and problemes.isEmpty()}">Aucun salarié sous contrat ce mois-ci.
+        <a th:href="@{/paie/salaries}">Voir les salariés</a></p>
+    <table class="k-table" th:unless="${m.bulletins().isEmpty()}">
+        <thead><tr><th>Salarié</th><th>Poste</th><th class="p-montant">Jours</th><th class="p-montant">Brut</th>
+            <th class="p-montant">Cotisations</th><th class="p-montant" th:text="${p.pays().impot()}">IRPP</th>
+            <th class="p-montant">Retenues</th><th class="p-montant">Net à payer</th><th class="p-montant">Coût total</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="b : ${m.bulletins()}" th:with="r=${b.resultat()}">
+            <td><a th:href="@{/paie/mois/{id}/salaries/{s}(id=${p.id()},s=${b.salarieId()})}" th:text="${b.nomSalarie()}">Nom</a>
+                <div class="k-discret" th:text="${b.brouillon() ? b.matricule() : b.numero() + ' · ' + b.matricule()}">S-0001</div></td>
+            <td th:text="${b.poste()}">Poste</td>
+            <td class="p-montant" th:text="${b.joursPayes()}">30</td>
+            <td class="p-montant" th:text="${f.nombre(r.brut())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(r.cotisationsSalarie())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(r.impot())}">0</td>
+            <td class="p-montant" th:text="${f.nombreOuRien(r.retenues())}">0</td>
+            <td class="p-montant"><strong th:text="${f.nombre(r.netAPayer())}">0</strong></td>
+            <td class="p-montant" th:text="${f.nombre(r.coutEmployeur())}">0</td>
+            <td><a th:href="@{/paie/mois/{id}/salaries/{s}/bulletin(id=${p.id()},s=${b.salarieId()})}" target="_blank" rel="noopener">Bulletin</a></td>
+        </tr>
+        <tr class="p-total" th:with="t=${m.totaux()}">
+            <td colspan="3">Total</td>
+            <td class="p-montant" th:text="${f.nombre(t.brut())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(t.cotisationsSalarie())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(t.impot())}">0</td>
+            <td class="p-montant" th:text="${f.nombreOuRien(t.retenues())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(t.net())}">0</td>
+            <td class="p-montant" th:text="${f.nombre(t.coutEmployeur())}">0</td>
+            <td></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h3>Documents du mois</h3>
+    <p class="k-discret" th:unless="${p.close()}">Mois non clôturé : les documents portent la mention « brouillon ».</p>
+    <div class="k-pile">
+        <span th:replace="~{paie/commun :: exports(${p}, 'livre', 'Livre de paie')}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'sociale', ${'Cotisations ' + organismes.get(0) + ' et ' + organismes.get(1)})}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'fiscale', ${p.pays().impot() + (p.pays().name() == 'COTE_D_IVOIRE' ? ' et taxes sur les salaires' : ' retenu à la source')})}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'virements', ${'Ordre de virement (' + aVirer.size() + ' salarié(s))'})}"></span>
+    </div>
+    <p class="k-discret">Salaires payés en espèces ou par chèque : voir le mode de paiement sur chaque bulletin.
+        Les déclarations se déposent ensuite sur les portails de la caisse sociale et des impôts.</p>
+</section>
+</body>
+</html>

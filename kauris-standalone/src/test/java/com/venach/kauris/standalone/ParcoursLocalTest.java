@@ -187,6 +187,16 @@ class ParcoursLocalTest {
                         .param("immatriculation", "PIRATE"))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/flotte/export/vehicules.xlsx").session(session)).andExpect(status().isOk());
+
+        // Le module Paie est installé : menu, écrans, formulaires protégés.
+        assertTrue(registre.present("rh-paie"));
+        mvc.perform(get("/paie").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/paie\"")))
+                .andExpect(content().string(containsString("Mois de paie")));
+        mvc.perform(get("/paie/salaries/nouveau").session(session)).andExpect(status().isOk());
+        mvc.perform(post("/paie/salaries").session(session).param("nom", "Pirate").param("situation", "CELIBATAIRE")
+                        .param("modePaiement", "ESPECES"))
+                .andExpect(status().isForbidden());
         mvc.perform(post("/ventes/clients").session(session).with(csrf()).param("type", "PARTICULIER")
                         .param("nom", "Yao Kossi"))
                 .andExpect(redirectedUrlPattern("/ventes/clients/*"));

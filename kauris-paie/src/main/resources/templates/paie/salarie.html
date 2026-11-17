@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${s == null ? 'Nouveau salarié' : s.nomComplet()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <div class="p-deux">
+        <form class="k-pile" method="post"
+              th:action="${s == null} ? @{/paie/salaries} : @{/paie/salaries/{id}(id=${s.id()})}">
+            <fieldset th:disabled="${!droits.preparer()}">
+                <legend th:text="${s == null ? 'Nouveau salarié' : s.matricule() + ' · ' + s.nomComplet()}">Salarié</legend>
+                <label>Nom <input name="nom" required maxlength="80" th:value="${s?.nom()}" autocapitalize="characters"></label>
+                <label>Prénoms <input name="prenoms" maxlength="120" th:value="${s?.prenoms()}"></label>
+                <label>Date de naissance <input type="date" name="naissance" th:value="${s?.naissance()}"></label>
+                <label>Téléphone <input name="telephone" maxlength="25" th:value="${s?.telephone()}" inputmode="tel"></label>
+                <label>Email <input type="email" name="email" maxlength="190" th:value="${s?.email()}"></label>
+                <label>Adresse <input name="adresse" maxlength="190" th:value="${s?.adresse()}"></label>
+                <label>Pièce d'identité <input name="pieceIdentite" maxlength="60" th:value="${s?.pieceIdentite()}"
+                                               placeholder="Carte nationale, passeport…"></label>
+                <label><span th:text="${'Numéro d''assuré ' + (pays == null ? 'social' : pays.caisseSociale())}">Numéro CNSS</span>
+                    <input name="numeroSocial" maxlength="40" th:value="${s?.numeroSocial()}"></label>
+
+                <label>Situation de famille
+                    <select name="situation">
+                        <option th:each="x : ${situations}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.foyer().situation() == x}">Célibataire</option>
+                    </select></label>
+                <label>Enfants à charge <input name="enfants" inputmode="numeric" th:value="${s == null ? 0 : s.foyer().enfants()}">
+                    <small class="k-discret">Mineurs, ou moins de 27 ans qui étudient, sans revenu.</small></label>
+                <label><input type="checkbox" name="conjointACharge" th:checked="${s != null and s.foyer().conjointACharge()}">
+                    Conjoint sans revenu, à charge</label>
+                <label th:if="${pays == null or pays.name() == 'COTE_D_IVOIRE'}">
+                    <input type="checkbox" name="expatrie" th:checked="${s != null and s.expatrie()}">
+                    Salarié expatrié (impôt patronal plus élevé en Côte d'Ivoire)</label>
+
+                <label>Mode de paiement du salaire
+                    <select name="modePaiement">
+                        <option th:each="x : ${modes}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.modePaiement() == x}">Virement</option>
+                    </select></label>
+                <label>Banque ou opérateur <input name="banque" maxlength="80" th:value="${s?.banque()}"
+                                                  placeholder="Ecobank, Orabank, Flooz, Orange Money…"></label>
+                <label>Numéro de compte (RIB, IBAN) ou numéro Mobile Money
+                    <input name="compte" maxlength="60" th:value="${s?.compte()}"></label>
+                <label th:if="${s != null}"><input type="checkbox" name="actif" th:checked="${s.actif()}"> Fiche active
+                    <small class="k-discret">Décochez pour archiver un salarié parti.</small></label>
+                <label>Notes <textarea name="notes" maxlength="500" th:text="${s?.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton" th:text="${s == null ? 'Enregistrer le salarié' : 'Enregistrer'}">Enregistrer</button>
+            </fieldset>
+        </form>
+
+        <div th:if="${s != null}">
+            <h2>Contrats</h2>
+            <p th:if="${droits.preparer() and s.actif()}">
+                <a class="k-bouton k-secondaire" th:href="@{/paie/salaries/{id}/contrats/nouveau(id=${s.id()})}">Nouveau contrat</a></p>
+            <p class="k-discret" th:if="${contrats.isEmpty()}">Aucun contrat.</p>
+            <table class="k-table" th:unless="${contrats.isEmpty()}">
+                <tbody>
+                <tr th:each="c : ${contrats}">
+                    <td><a th:href="@{/paie/contrats/{id}(id=${c.id()})}" th:text="${c.numero()}">CTR</a></td>
+                    <td th:text="${c.type().name() + ' · ' + c.poste()}">CDI</td>
+                    <td th:text="${'depuis le ' + f.jour(c.debut())}"></td>
+                    <td><span class="k-pastille" th:classappend="${c.enCours(aujourdhui)} ? 'k-ok' : ''"
+                              th:text="${c.enCours(aujourdhui) ? 'En cours' : 'Terminé le ' + f.jour(c.sortie())}">En cours</span></td>
+                    <td class="p-montant" th:text="${f.montant(c.salaireBase())}">0</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h2>Bulletins</h2>
+            <p class="k-discret" th:if="${bulletins.isEmpty()}">Aucun bulletin clôturé.</p>
+            <table class="k-table" th:unless="${bulletins.isEmpty()}">
+                <tbody>
+                <tr th:each="b : ${bulletins}">
+                    <td><a th:href="@{/paie/mois/{id}/salaries/{s}/bulletin(id=${b.periodeId()},s=${s.id()})}"
+                           target="_blank" rel="noopener" th:text="${b.numero()}">BP</a></td>
+                    <td th:text="${b.poste()}">Poste</td>
+                    <td class="p-montant" th:text="${'brut ' + f.nombre(b.resultat().brut())}">0</td>
+                    <td class="p-montant"><strong th:text="${'net ' + f.nombre(b.net())}">0</strong></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+</body>
+</html>

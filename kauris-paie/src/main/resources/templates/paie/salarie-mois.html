@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${s.nomComplet() + ' · ' + p.libelle()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <p><a th:href="@{/paie/mois/{id}(id=${p.id()})}" th:text="${'← Paie de ' + p.libelle()}">← Paie</a>
+        <a th:if="${precedent != null}" th:href="@{/paie/mois/{id}/salaries/{s}(id=${p.id()},s=${precedent})}">· Précédent</a>
+        <a th:if="${suivant != null}" th:href="@{/paie/mois/{id}/salaries/{s}(id=${p.id()},s=${suivant})}">· Suivant</a></p>
+    <h2><a th:href="@{/paie/salaries/{id}(id=${s.id()})}" th:text="${s.nomComplet()}">Nom</a>
+        <small class="k-discret" th:text="${p.libelle()}">novembre 2026</small></h2>
+
+    <div class="p-alertes" th:if="${probleme != null}"><strong>Ce bulletin ne se calcule pas :</strong>
+        <span th:text="${probleme}">problème</span></div>
+    <p class="k-discret" th:if="${b == null and probleme == null}">Pas de contrat ce mois-ci : pas de bulletin.</p>
+
+    <div class="p-deux">
+        <div th:if="${b != null}" th:with="r=${b.resultat()}">
+            <table class="k-table">
+                <thead><tr><th>Rubrique</th><th class="p-montant">Base</th><th class="p-montant">Taux</th>
+                    <th class="p-montant">Gain</th><th class="p-montant">Retenue</th><th class="p-montant">Employeur</th></tr></thead>
+                <tbody>
+                <tr th:each="l : ${r.lignes()}">
+                    <td th:text="${l.libelle()}">Salaire de base</td>
+                    <td class="p-montant" th:text="${l.base() == 0 or l.nature().name() == 'GAIN' ? '' : (l.organisme() == 'CMU' ? l.base() + ' pers.' : f.nombre(l.base()))}"></td>
+                    <td class="p-montant" th:text="${f.taux(l.tauxSalarie())}"></td>
+                    <td class="p-montant" th:text="${f.nombreOuRien(l.gain())}"></td>
+                    <td class="p-montant" th:text="${f.nombreOuRien(l.salarie())}"></td>
+                    <td class="p-montant" th:text="${f.nombreOuRien(l.employeur())}"></td>
+                </tr>
+                <tr class="p-total"><td colspan="3">Totaux</td>
+                    <td class="p-montant" th:text="${f.nombre(r.brut())}">0</td>
+                    <td class="p-montant" th:text="${f.nombre(r.cotisationsSalarie() + r.impot() + r.retenues())}">0</td>
+                    <td class="p-montant" th:text="${f.nombre(r.chargesEmployeur())}">0</td></tr>
+                </tbody>
+            </table>
+            <div class="p-chiffres" style="margin-top: 1rem">
+                <div class="p-chiffre"><span>Net à payer</span><strong th:text="${f.montant(r.netAPayer())}">0</strong></div>
+                <div class="p-chiffre"><span>Coût pour l'entreprise</span><strong th:text="${f.montant(r.coutEmployeur())}">0</strong></div>
+            </div>
+            <p class="k-discret" th:text="${p.pays().impot() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
+            <p><a class="k-bouton k-secondaire" target="_blank" rel="noopener"
+                  th:href="@{/paie/mois/{id}/salaries/{s}/bulletin(id=${p.id()},s=${s.id()})}">Voir et imprimer le bulletin</a></p>
+        </div>
+
+        <form class="k-pile" method="post" th:if="${!p.close()}"
+              th:action="@{/paie/mois/{id}/salaries/{s}/variables(id=${p.id()},s=${s.id()})}">
+            <fieldset th:disabled="${!droits.preparer()}">
+                <legend>Ce qui change ce mois-ci</legend>
+                <label>Jours d'absence non payés (sur 30)
+                    <input name="joursAbsence" inputmode="numeric" th:value="${v.joursAbsence()}"></label>
+                <p class="k-discret">Primes du mois, heures supplémentaires, avances et remboursements de prêt.
+                    Les primes fixes se mettent dans le contrat.</p>
+                <table th:replace="~{paie/commun :: elements(${v.elements()}, ${types}, ${lignes})}"></table>
+                <button type="submit" class="k-bouton">Enregistrer et recalculer</button>
+            </fieldset>
+        </form>
+        <div th:if="${p.close()}">
+            <p class="k-discret">Mois clôturé : le bulletin est figé.
+                <span th:if="${droits.cloturer() and p.payeLe() == null}">Pour le changer, rouvrez le mois.</span></p>
+        </div>
+    </div>
+</section>
+</body>
+</html>
