@@ -24,14 +24,19 @@
            th:text="${p.libelle() + (i.last ? '' : ', ')}">octobre 2026</a>
     </div>
 
-    <form class="p-alertes" style="background:#f4fbf6;border-color:#bfe3c9" method="post" th:action="@{/paie/regles/activer}"
-          th:if="${alertes.sansRegles() and modele != null and droits.parametrer()}">
-        <strong th:text="${modele.nom()}">Règles recommandées</strong> :
-        <span th:text="${#lists.size(modele.contenu().cotisations()) + ' cotisations, ' + modele.contenu().impot().nom() + ', '
-              + #lists.size(modele.contenu().taxes()) + ' taxe(s) de l''employeur.'}">…</span>
-        <input type="hidden" name="modele" th:value="${modele.code()}">
-        <button type="submit" class="k-bouton">Activer et vérifier ces règles</button>
-    </form>
+    <div class="p-alertes" th:if="${alertes.sansRegles()}">
+        <p><strong>Aucune règle de paie</strong> pour votre pays : la paie ne peut pas encore être calculée.</p>
+        <form method="post" th:action="@{/paie/regles/activer}" th:if="${modele != null and droits.parametrer()}">
+            <strong th:text="${modele.nom()}">Règles recommandées</strong> :
+            <span th:text="${#lists.size(modele.contenu().cotisations()) + ' cotisations, ' + modele.contenu().impot().nom() + ', '
+                  + #lists.size(modele.contenu().taxes()) + ' taxe(s) de l''employeur.'}">…</span>
+            <input type="hidden" name="modele" th:value="${modele.code()}">
+            <button type="submit" class="k-bouton">Activer et vérifier ces règles</button>
+        </form>
+        <p th:if="${modele == null and droits.parametrer()}">Kauris n'a pas encore de modèle pour ce pays :
+            <a th:href="@{/paie/regles}">saisissez vos règles</a> à partir d'un modèle vide.</p>
+        <p th:unless="${droits.parametrer()}">Demandez à un administrateur de paramétrer les règles de paie.</p>
+    </div>
 
     <div class="p-boutons" th:if="${droits.preparer() and pays != null and !alertes.sansRegles()}">
         <form method="post" th:action="@{/paie/mois}">

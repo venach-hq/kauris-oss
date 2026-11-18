@@ -217,7 +217,7 @@ class PaieMySqlTest {
         mvc.perform(get("/paie/mois/" + p.id())).andExpect(status().isOk())
                 .andExpect(content().string(containsString(b.numero())));
         mvc.perform(post("/paie/mois/" + p.id() + "/verser"))
-                .andExpect(flash().attribute("erreur", containsString("fichier de virement")));
+                .andExpect(flash().attribute("erreur", containsString("ordre de virement")));
 
         // Le bulletin en PDF.
         byte[] pdf = mvc.perform(get(ici + "/bulletin.pdf")).andExpect(status().isOk())
