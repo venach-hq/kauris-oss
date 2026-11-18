@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : états financiers', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Le bilan et le compte de résultat suivent le modèle SYSCOHADA révisé de votre système
+            (<span th:text="${parametres.systeme().libelle()}">normal</span>). Chaque compte est rattaché à sa rubrique par
+            son numéro. Le résultat de l'année s'ajoute au passif tant que l'exercice n'est pas clos. Tant qu'il reste des
+            écritures au brouillard, les états sont <strong>provisoires</strong>.</p>
+        <p>Avant de les arrêter : passez les amortissements, la variation de stock de fin d'année et les provisions en
+            écritures d'opérations diverses (OD).</p>
+    </details>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/etats}">
+        <label>Exercice <select name="annee">
+            <option th:each="x : ${exercices}" th:value="${x.annee()}" th:text="${x.annee() + (x.clos() ? ' (clos)' : '')}"
+                    th:selected="${x.annee() == etats.annee()}">2026</option>
+        </select></label>
+        <label>Écritures <select name="brouillard">
+            <option value="oui" th:selected="${etats.avecBrouillard()}">Brouillard compris</option>
+            <option value="non" th:selected="${!etats.avecBrouillard()}">Validées seulement</option>
+        </select></label>
+        <button type="submit" class="k-bouton">Afficher</button>
+    </form>
+
+    <p class="c-alertes" th:if="${etats.brouillard() > 0}"
+       th:text="${'États provisoires : ' + etats.brouillard() + ' écriture(s) de ' + etats.annee() + ' au brouillard.'}">Provisoire</p>
+    <p class="c-alertes" th:unless="${etats.exercice().equilibre()}"
+       th:text="${'Bilan déséquilibré : actif ' + f.nombre(etats.exercice().totalActif()) + ', passif ' + f.nombre(etats.exercice().totalPassif()) + '. Un compte de bilan n''est peut-être rattaché à aucune rubrique.'}">Déséquilibre</p>
+
+    <div class="c-chiffres">
+        <div class="c-chiffre"><span>Résultat net</span><strong th:text="${f.montant(etats.exercice().resultatNet())}">0</strong></div>
+        <div class="c-chiffre"><span>Total du bilan</span><strong th:text="${f.montant(etats.exercice().totalActif())}">0</strong></div>
+    </div>
+
+    <h2>Compte de résultat</h2>
+    <p th:replace="~{compta/commun :: exports(url='/compta/etats/resultat', params=${export}, libelle='Télécharger :')}"></p>
+    <table class="k-table">
+        <thead><tr><th>Réf.</th><th>Libellé</th><th class="c-montant" th:text="${'Exercice ' + etats.annee()}">N</th>
+            <th class="c-montant" th:text="${'Exercice ' + (etats.annee() - 1)}">N-1</th></tr></thead>
+        <tbody>
+        <tr th:each="l, i : ${etats.exercice().resultat()}" th:classappend="${l.total()} ? 'c-titre'">
+            <td th:text="${l.rubrique().ref()}">TA</td>
+            <td th:text="${l.rubrique().libelle()}">Ventes de marchandises</td>
+            <td class="c-montant" th:text="${f.nombre(l.net())}">0</td>
+            <td class="c-montant" th:text="${f.nombre(etats.precedent().resultat().get(i.index).net())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Bilan</h2>
+    <p th:replace="~{compta/commun :: exports(url='/compta/etats/bilan', params=${export}, libelle='Télécharger :')}"></p>
+    <div class="c-deux">
+        <table class="k-table">
+            <thead><tr><th>Réf.</th><th>Actif</th><th class="c-montant">Brut</th><th class="c-montant">Amort.</th>
+                <th class="c-montant">Net</th><th class="c-montant" th:text="${'Net ' + (etats.annee() - 1)}">N-1</th></tr></thead>
+            <tbody>
+            <tr th:each="l, i : ${etats.exercice().actif()}" th:classappend="${l.total()} ? 'c-titre'">
+                <td th:text="${l.rubrique().ref()}">AD</td>
+                <td th:text="${l.rubrique().libelle()}">Immobilisations</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(l.brut())}">0</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(l.amortissements())}">0</td>
+                <td class="c-montant" th:text="${f.nombre(l.net())}">0</td>
+                <td class="c-montant" th:text="${f.nombre(etats.precedent().actif().get(i.index).net())}">0</td>
+            </tr>
+            </tbody>
+        </table>
+        <table class="k-table">
+            <thead><tr><th>Réf.</th><th>Passif</th><th class="c-montant">Net</th>
+                <th class="c-montant" th:text="${'Net ' + (etats.annee() - 1)}">N-1</th></tr></thead>
+            <tbody>
+            <tr th:each="l, i : ${etats.exercice().passif()}" th:classappend="${l.total()} ? 'c-titre'">
+                <td th:text="${l.rubrique().ref()}">CA</td>
+                <td th:text="${l.rubrique().libelle()}">Capital</td>
+                <td class="c-montant" th:text="${f.nombre(l.net())}">0</td>
+                <td class="c-montant" th:text="${f.nombre(etats.precedent().passif().get(i.index).net())}">0</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</body>
+</html>

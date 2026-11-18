@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : grand livre', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/grand-livre}">
+        <datalist id="plan"><option th:each="c : ${comptes}" th:value="${c.numero() + ' ' + c.libelle()}"></option></datalist>
+        <label>Compte <input name="compte" list="plan" th:value="${compte}" placeholder="411000" required></label>
+        <label>Du <input type="date" name="du" th:value="${du}"></label>
+        <label>Au <input type="date" name="au" th:value="${au}"></label>
+        <label>Tiers (identifiant) <input name="tiers" th:value="${tiers}"></label>
+        <button type="submit" class="k-bouton">Afficher</button>
+    </form>
+    <p th:replace="~{compta/commun :: exports(url='/compta/grand-livre', params=${exportTout}, libelle='Tout le grand livre :')}"></p>
+
+    <th:block th:if="${livre != null}">
+        <h2 th:text="${livre.compte().numero() + ' ' + livre.compte().libelle()}">411000 Clients</h2>
+        <p th:replace="~{compta/commun :: exports(url='/compta/grand-livre', params=${exportCompte}, libelle='Ce compte :')}"></p>
+        <table class="k-table">
+            <thead><tr><th>Date</th><th>Journal</th><th>N°</th><th>Pièce</th><th>Libellé</th><th>Tiers</th>
+                <th class="c-montant">Débit</th><th class="c-montant">Crédit</th><th class="c-montant">Solde</th><th>Let.</th></tr></thead>
+            <tbody>
+            <tr><td colspan="6" th:text="${'Report au ' + f.jour(du)}">Report</td><td></td><td></td>
+                <td class="c-montant" th:text="${f.solde(livre.report())}">0</td><td></td></tr>
+            <tr th:each="x : ${livre.lignes()}" th:with="m=${x.mouvement()}" th:classappend="${m.validee()} ? '' : 'c-barre'">
+                <td th:text="${f.jour(m.date())}">10/11/2026</td>
+                <td th:text="${m.journal()}">VE</td>
+                <td><a th:href="@{/compta/ecritures/{id}(id=${m.ecritureId()})}" th:text="${m.validee() ? m.numero() : 'brouillard'}">VE-2026-00001</a></td>
+                <td th:text="${m.piece()}">FA-2026-0001</td>
+                <td th:text="${m.libelle()}">Libellé</td>
+                <td th:text="${m.tiersNom()}">Tiers</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(m.debit())}">0</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(m.credit())}">0</td>
+                <td class="c-montant" th:text="${f.solde(x.solde())}">0</td>
+                <td th:text="${m.lettrage()}">A</td>
+            </tr>
+            <tr class="c-total"><td colspan="6">Total de la période</td>
+                <td class="c-montant" th:text="${f.nombre(livre.totalDebit())}">0</td>
+                <td class="c-montant" th:text="${f.nombre(livre.totalCredit())}">0</td>
+                <td class="c-montant" th:text="${f.solde(livre.solde())}">0</td><td></td></tr>
+            </tbody>
+        </table>
+        <p class="k-discret">Les lignes en grisé sont au brouillard.</p>
+    </th:block>
+</section>
+</body>
+</html>

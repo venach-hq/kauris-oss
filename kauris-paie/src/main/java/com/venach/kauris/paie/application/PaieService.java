@@ -3,6 +3,7 @@ package com.venach.kauris.paie.application;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.paie.domain.Avance;
@@ -101,6 +102,12 @@ public class PaieService {
     private final PortsPaie.Versements versements;
     private final UniteDeTravail transaction;
     private final Clock horloge;
+    private Comptabilisation comptabilite = Comptabilisation.AUCUNE;
+
+    /** Branche la comptabilité (par le noyau) : elle reçoit les bulletins clôturés et les salaires payés. */
+    public void brancherComptabilite(Comptabilisation c) {
+        this.comptabilite = c == null ? Comptabilisation.AUCUNE : c;
+    }
 
     public PaieService(PortsPaie.Salaries salaries, PortsPaie.Contrats contrats, PortsPaie.Periodes periodes,
                        PortsPaie.VariablesDuMois variables, PortsPaie.Bulletins bulletins, PortsPaie.Regles regles,
@@ -634,13 +641,17 @@ public class PaieService {
                 throw new ErreurMetier("Aucun salarié sous contrat en " + p.libelle() + " : rien à clôturer.");
             }
             int annee = p.mois().getYear();
+            List<Bulletin> figes = new ArrayList<>();
             for (Bulletin b : c.bulletins()) {
                 String numero = String.format("BP-%d%02d-%04d", annee, p.mois().getMonthValue(),
                         numeros.prochain(a.tenantId(), "BP", annee));
-                bulletins.ajouter(b.figer(UUID.randomUUID(), numero));
+                Bulletin fige = b.figer(UUID.randomUUID(), numero);
+                bulletins.ajouter(fige);
+                figes.add(fige);
             }
             PeriodePaie close = p.clore(a.nomMembre(), maintenant());
             periodes.sauvegarder(close);
+            figes.forEach(b -> comptabilite.enregistrer(ComptabilitePaie.bulletin(close, b)));
             return close;
         });
     }
@@ -656,6 +667,11 @@ public class PaieService {
                     .anyMatch(x -> x.close() && x.mois().isAfter(p.mois()));
             if (suivantClos) {
                 throw new ErreurMetier("Un mois suivant est clos : rouvrez d'abord le plus récent.");
+            }
+            for (Bulletin b : figes(p)) {
+                comptabilite.annuler(a.tenantId(), ComptabilitePaie.ORIGINE, ComptabilitePaie.reference(b),
+                        aujourdHui().isBefore(p.mois().atEndOfMonth()) ? p.mois().atEndOfMonth() : aujourdHui(),
+                        "Paie de " + p.libelle() + " rouverte");
             }
             bulletins.supprimer(a.tenantId(), p.id());
             periodes.sauvegarder(ouverte);
@@ -675,6 +691,8 @@ public class PaieService {
                     .orElseThrow(() -> new ElementIntrouvable("Mois de paie introuvable."));
             PeriodePaie payee = p.payer(j);
             periodes.sauvegarder(payee);
+            figes(payee).stream().filter(b -> b.net() > 0)
+                    .forEach(b -> comptabilite.enregistrer(ComptabilitePaie.paiement(payee, b, j)));
             return payee;
         });
     }

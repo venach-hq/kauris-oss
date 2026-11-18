@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`, la flotte à `V20261114_1`, la paie à `V20261118_2`).
+   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`, la flotte à `V20261114_1`, la paie à `V20261118_2`, la comptabilité à `V20261118_10`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune, avec leur bloc « Comment ça marche ? » et le lien vers le guide.
 7. Guide d'utilisation (`docs/guide/<module>.md`) à jour.
@@ -241,6 +241,30 @@ le code.
   `paie.parametres.modifier`) sont au niveau « administrer ».
 - Ce que l'application peut y brancher : `PortsPaie.Versements` (verser les salaires d'un mois clos). Le mode
   autonome n'y branche rien : l'écran propose l'ordre de virement (PDF, Excel, CSV).
+
+## Comptabilité
+
+Le module Comptabilité (`kauris-compta`, code `compta-syscohada`, tables `compta_…`, migrations `db/migration/compta`)
+tient la comptabilité SYSCOHADA révisé, système normal ou système minimal de trésorerie, au choix de l'entreprise.
+
+- **Les autres modules lui parlent par le noyau**, jamais directement : `kernel.comptabilite.Comptabilisation`
+  reçoit une `OperationComptable` (équilibrée, identifiée par origine + référence) dans la transaction de
+  l'opération, et `annuler(…)` quand l'opération est annulée. Le noyau transmet au `Comptabilisation.Recepteur` du
+  module s'il est installé, sinon rien ne se passe. Une opération déjà reçue est ignorée.
+- Chaque ligne d'une opération dit son **rôle** (client, vente de marchandises, TVA collectée, trésorerie…) et sa
+  précision (taux, mode de paiement, compte de dépôt : « id|ESPECES », du plus précis au plus général). Le compte vient
+  des **imputations** de l'entreprise (`compta_imputation`), modifiables ; la paie impose ses propres comptes (rôle
+  `COMPTE`). Un compte manquant est créé avec le libellé de son parent dans le plan.
+- Une opération qui ne peut pas s'écrire (exercice clos, compte désactivé, imputation manquante) ne bloque jamais
+  l'opération d'origine : elle reste « à revoir » (`compta_operation`), à réessayer ou écarter.
+- Écritures : brouillard modifiable, validation qui numérote sans trou par journal et par année (`compta_compteur`),
+  contre-passation pour corriger ; une écriture validée ne change plus (seul son lettrage bouge).
+- Exercice = année civile. La clôture exige un brouillard vide et l'exercice précédent clos ; elle passe les
+  à-nouveaux (journal `AN`, détail par tiers, résultat en 1301/1309). La réouverture retire ces à-nouveaux.
+- États : modèles `ModeleEtats` (normal : AD…DZ et TA…XI ; minimal : états simplifiés), rattachement des comptes par
+  le plus long préfixe. TVA : comptes 443/445/4449, liquidation en OD.
+- Permissions au niveau « administrer » : `compta.consulter`, `compta.saisir`, `compta.valider`,
+  `compta.parametres.modifier`.
 
 ## Paiements
 

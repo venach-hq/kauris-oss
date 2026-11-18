@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : paramètres', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <form class="k-carte k-pile" method="post" th:action="@{/compta/parametres}">
+        <h2>Système comptable</h2>
+        <label th:each="s : ${systemes}"><input type="radio" name="systeme" th:value="${s.name()}"
+                th:checked="${parametres.systeme() == s}" th:disabled="${!droits.parametrer()}">
+            <strong th:text="${s.libelle()}">Système normal</strong> — <span th:text="${s.explication()}">…</span></label>
+        <label><input type="checkbox" name="validationAutomatique" th:checked="${parametres.validationAutomatique()}"
+                      th:disabled="${!droits.parametrer()}">
+            Valider tout de suite les écritures reçues des autres modules (sinon elles arrivent au brouillard, à vérifier)</label>
+        <button th:if="${droits.parametrer()}" type="submit" class="k-bouton">Enregistrer</button>
+    </form>
+
+    <h2 id="imputations">Imputations des opérations reçues</h2>
+    <p class="k-discret">Le compte où s'écrit chaque rôle des opérations envoyées par les ventes, les achats, la caisse et la
+        flotte (la paie a ses propres comptes, dans ses règles). La ligne « par défaut » vaut pour tout le rôle ; une ligne
+        précise (mode de paiement, compte de dépôt) la remplace. Laissez vide une ligne précise pour utiliser le défaut.</p>
+    <form method="post" th:action="@{/compta/imputations}">
+        <datalist id="plan"><option th:each="c : ${comptes}" th:value="${c.numero() + ' ' + c.libelle()}"></option></datalist>
+        <table class="k-table" style="max-width: 52rem">
+            <thead><tr><th>Rôle</th><th>Précision</th><th>Compte</th></tr></thead>
+            <tbody>
+            <tr th:each="l, i : ${imputations}">
+                <td th:text="${l.precision().isEmpty() ? l.role().libelle() : ''}">Clients</td>
+                <td th:text="${l.libellePrecision()}">Par défaut</td>
+                <td><input type="hidden" th:name="${'imp_role_' + i.index}" th:value="${l.role().name()}">
+                    <input type="hidden" th:name="${'imp_precision_' + i.index}" th:value="${l.precision()}">
+                    <input th:name="${'imp_compte_' + i.index}" list="plan" autocomplete="off" th:value="${l.compte()}"
+                           th:required="${l.precision().isEmpty()}" th:disabled="${!droits.parametrer()}"></td>
+            </tr>
+            </tbody>
+        </table>
+        <button th:if="${droits.parametrer()}" type="submit" class="k-bouton">Enregistrer les imputations</button>
+    </form>
+
+    <h2 id="journaux">Journaux</h2>
+    <table class="k-table" style="max-width: 40rem">
+        <thead><tr><th>Code</th><th>Nom</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="j : ${journaux}">
+            <td th:text="${j.code()}">VE</td><td th:text="${j.libelle()}">Ventes</td>
+            <td class="k-discret" th:text="${j.systeme() ? 'Kauris' : 'ajouté'}">Kauris</td>
+        </tr>
+        </tbody>
+    </table>
+    <form th:if="${droits.parametrer()}" class="c-filtres" method="post" th:action="@{/compta/journaux}">
+        <label>Code <input name="code" maxlength="4" required placeholder="BQ1"></label>
+        <label>Nom <input name="libelle" maxlength="60" required placeholder="Banque Ecobank"></label>
+        <button type="submit" class="k-bouton">Ajouter ou renommer un journal</button>
+    </form>
+</section>
+</body>
+</html>

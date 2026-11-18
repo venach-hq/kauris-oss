@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : balance', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/balance}">
+        <label>Du <input type="date" name="du" th:value="${du}"></label>
+        <label>Au <input type="date" name="au" th:value="${au}"></label>
+        <label>Écritures <select name="brouillard">
+            <option value="oui" th:selected="${avecBrouillard}">Brouillard compris</option>
+            <option value="non" th:selected="${!avecBrouillard}">Validées seulement</option>
+        </select></label>
+        <label>Balance <select name="compte">
+            <option value="">Générale (tous les comptes)</option>
+            <option th:each="c : ${comptesTiers}" th:value="${c.numero()}" th:selected="${c.numero() == compte}"
+                    th:text="${'Par tiers : ' + c.numero() + ' ' + c.libelle()}">411000</option>
+        </select></label>
+        <button type="submit" class="k-bouton">Afficher</button>
+    </form>
+    <p th:replace="~{compta/commun :: exports(url='/compta/balance', params=${export}, libelle='Télécharger :')}"></p>
+
+    <p class="c-alertes" th:unless="${balance.equilibree()}">Balance déséquilibrée : vérifiez les écritures (aucune écriture
+        validée ne devrait le permettre).</p>
+    <table class="k-table">
+        <thead><tr><th th:text="${compte.isEmpty() ? 'Compte' : 'Tiers'}">Compte</th><th>Intitulé</th>
+            <th class="c-montant">Report débit</th><th class="c-montant">Report crédit</th>
+            <th class="c-montant">Débit</th><th class="c-montant">Crédit</th>
+            <th class="c-montant">Solde débiteur</th><th class="c-montant">Solde créditeur</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${balance.lignes()}">
+            <td><a th:if="${compte.isEmpty()}" th:href="@{/compta/grand-livre(compte=${l.cle()},du=${du},au=${au})}" th:text="${l.cle()}">411000</a>
+                <span th:unless="${compte.isEmpty()}" th:text="${l.libelle()}">Tiers</span></td>
+            <td th:text="${compte.isEmpty() ? l.libelle() : l.cle()}">Clients</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.reportDebit())}">0</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.reportCredit())}">0</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.debit())}">0</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.credit())}">0</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.soldeDebiteur())}">0</td>
+            <td class="c-montant" th:text="${f.nombreOuRien(l.soldeCrediteur())}">0</td>
+        </tr>
+        <tr class="c-total"><td colspan="2">Total</td>
+            <td class="c-montant" th:text="${f.nombre(balance.total().reportDebit())}">0</td>
+            <td class="c-montant" th:text="${f.nombre(balance.total().reportCredit())}">0</td>
+            <td class="c-montant" th:text="${f.nombre(balance.total().debit())}">0</td>
+            <td class="c-montant" th:text="${f.nombre(balance.total().credit())}">0</td>
+            <td></td><td></td></tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

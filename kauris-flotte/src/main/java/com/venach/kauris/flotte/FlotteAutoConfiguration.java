@@ -3,6 +3,7 @@ package com.venach.kauris.flotte;
 import com.venach.kauris.kernel.InterfaceCommuneAutoConfiguration;
 import com.venach.kauris.kernel.OrganisationAutoConfiguration;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.document.ProducteurDocuments;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.ui.ContexteCourant;
@@ -50,8 +51,11 @@ public class FlotteAutoConfiguration {
 
     @Bean
     public FlotteService flotteService(StockageFlotte s, PortsFlotte.Encaissements encaissements,
-                                       PortsFlotte.Demandes demandes, UniteDeTravail transaction, Clock horloge) {
-        return new FlotteService(s, s, s, s, s, s, s, s, encaissements, demandes, transaction, horloge);
+                                       PortsFlotte.Demandes demandes, UniteDeTravail transaction, Clock horloge,
+                                       Comptabilisation comptabilite) {
+        FlotteService f = new FlotteService(s, s, s, s, s, s, s, s, encaissements, demandes, transaction, horloge);
+        f.brancherComptabilite(comptabilite);
+        return f;
     }
 
     @Bean

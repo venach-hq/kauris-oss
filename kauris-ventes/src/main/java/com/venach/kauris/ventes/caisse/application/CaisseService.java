@@ -4,6 +4,8 @@ import com.venach.kauris.kernel.commun.AccesRefuse;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
+import com.venach.kauris.kernel.comptabilite.OperationComptable;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.ventes.application.Ports;
 import com.venach.kauris.ventes.application.VentesService;
@@ -66,6 +68,14 @@ public class CaisseService {
     private final PortsCaisse.Tickets tickets;
     private final UniteDeTravail transaction;
     private final Clock horloge;
+
+    private Comptabilisation comptabilite =
+            Comptabilisation.AUCUNE;
+
+    /** Branche la comptabilité (par le noyau) : elle reçoit les écarts de caisse constatés à la clôture. */
+    public void brancherComptabilite(Comptabilisation c) {
+        this.comptabilite = c == null ? Comptabilisation.AUCUNE : c;
+    }
 
     public CaisseService(VentesService ventes, PortsCaisse.Sessions sessions, PortsCaisse.Tickets tickets,
                          UniteDeTravail transaction, Clock horloge) {
@@ -195,6 +205,9 @@ public class CaisseService {
             SessionCaisse close = s.cloturer(especesComptees, bilan(s).attendu(), a.nomMembre(), note,
                     Instant.now(horloge));
             sessions.sauvegarder(close);
+            if (close.ecart() != null && close.ecart() != 0) {
+                comptabilite.enregistrer(ecart(close));
+            }
             return close;
         });
     }
@@ -255,5 +268,21 @@ public class CaisseService {
         if (!s.membreId().equals(a.membreId()) && !a.peut(ENCAISSER)) {
             throw new AccesRefuse("Cette caisse est celle de " + s.caissier() + ".");
         }
+    }
+
+    /** L'écart de caisse : un manquant en charge, un excédent en produit, contre les espèces. */
+    static OperationComptable ecart(SessionCaisse s) {
+        long e = s.ecart();
+        String especes = (s.compteEspeces() == null ? "" : s.compteEspeces() + "|") + "ESPECES";
+        OperationComptable.Ligne contrePartie = e < 0
+                ? OperationComptable.Ligne.debit(OperationComptable.Role.CHARGE_DIVERSE, "MANQUANT_CAISSE", -e)
+                : OperationComptable.Ligne.credit(OperationComptable.Role.PRODUIT_DIVERS, "EXCEDENT_CAISSE", e);
+        OperationComptable.Ligne caisse = e < 0
+                ? OperationComptable.Ligne.credit(OperationComptable.Role.TRESORERIE, especes, -e)
+                : OperationComptable.Ligne.debit(OperationComptable.Role.TRESORERIE, especes, e);
+        return new OperationComptable(s.tenantId(), "caisse",
+                "ECART:" + s.id(), s.jour(), OperationComptable.Journal.TRESORERIE,
+                s.numero(), (e < 0 ? "Manquant" : "Excédent") + " de caisse " + s.numero() + " (" + s.caissier() + ")",
+                java.util.List.of(contrePartie, caisse));
     }
 }

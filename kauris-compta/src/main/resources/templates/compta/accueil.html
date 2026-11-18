@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>1. Les <strong>ventes, achats, caisse, paie et flotte</strong> envoient tout seuls leurs opérations à la
+            comptabilité : factures, avoirs, règlements, factures fournisseurs, paiements, bulletins clôturés, versements.
+            Elles arrivent <strong>au brouillard</strong>, sur les comptes du plan SYSCOHADA choisis dans les
+            <a th:href="@{/compta/parametres}">imputations</a>.</p>
+        <p>2. Vérifiez le brouillard puis <strong>validez</strong> : chaque écriture validée reçoit un numéro sans trou et ne
+            change plus. Une erreur se corrige par une <strong>contre-passation</strong>.</p>
+        <p>3. Saisissez ce qui ne vient pas d'un module (frais bancaires, emprunts, amortissements, stock de fin d'année…)
+            dans <strong>Écritures</strong>, ou en « recette / dépense » pour le système minimal.</p>
+        <p>4. Suivez le <strong>grand livre</strong>, la <strong>balance</strong> et le <strong>lettrage</strong> des clients et
+            fournisseurs. Chaque mois, l'état de <strong>TVA</strong> donne les montants à déclarer.</p>
+        <p>5. En fin d'année, imprimez le <strong>bilan</strong> et le <strong>compte de résultat</strong>, puis
+            <strong>clôturez l'exercice</strong> : les soldes passent en à-nouveaux de l'année suivante.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('compta')}" target="_blank" rel="noopener">Guide complet de la comptabilité</a></p>
+    </details>
+
+    <div class="c-alertes" th:if="${resume.aRevoir() > 0}">
+        <strong th:text="${resume.aRevoir() + ' opération(s) à revoir'}">2 opérations à revoir</strong> :
+        reçues des autres modules, elles n'ont pas pu s'écrire (exercice clos, compte manquant…).
+        <a th:href="@{/compta/operations}">Les voir</a>
+    </div>
+
+    <div class="c-chiffres">
+        <div class="c-chiffre"><span th:text="${'Résultat ' + resume.exercice().annee()}">Résultat</span>
+            <strong th:text="${f.montant(resume.resultat())}">0</strong></div>
+        <div class="c-chiffre"><span>Trésorerie (classe 5)</span><strong th:text="${f.montant(resume.tresorerie())}">0</strong></div>
+        <div class="c-chiffre"><span>Clients à encaisser</span><strong th:text="${f.montant(resume.clients())}">0</strong></div>
+        <div class="c-chiffre"><span>Fournisseurs à payer</span><strong th:text="${f.montant(resume.fournisseurs())}">0</strong></div>
+        <div class="c-chiffre"><span>Au brouillard</span><strong th:text="${resume.brouillard()}">0</strong></div>
+    </div>
+
+    <div class="c-boutons">
+        <a th:if="${droits.saisir() and !parametres.minimal()}" class="k-bouton" th:href="@{/compta/ecritures/nouvelle}">Saisir une écriture</a>
+        <a th:if="${droits.saisir()}" class="k-bouton" th:href="@{/compta/recettes-depenses}">Recette ou dépense</a>
+        <a th:if="${droits.saisir() and parametres.minimal()}" class="k-bouton" th:href="@{/compta/ecritures/nouvelle}">Saisir une écriture</a>
+        <a class="k-bouton" th:href="@{/compta/ecritures(statut='BROUILLARD')}" th:if="${resume.brouillard() > 0}">Voir le brouillard</a>
+        <span class="k-discret" th:text="${parametres.systeme().libelle() + (parametres.validationAutomatique() ? ' · validation automatique' : ' · écritures reçues au brouillard')}">Système normal</span>
+    </div>
+
+    <h2>Dernières écritures</h2>
+    <p class="k-discret" th:if="${dernieres.isEmpty()}">Aucune écriture pour l'instant. Elles arrivent dès qu'une facture
+        est émise, un règlement encaissé ou une paie clôturée.</p>
+    <table class="k-table" th:unless="${dernieres.isEmpty()}">
+        <thead><tr><th>Date</th><th>Journal</th><th>N°</th><th>Libellé</th><th class="c-montant">Montant</th></tr></thead>
+        <tbody>
+        <tr th:each="e : ${dernieres}">
+            <td th:text="${f.jour(e.date())}">10/11/2026</td>
+            <td th:text="${e.journal()}">VE</td>
+            <td><a th:href="@{/compta/ecritures/{id}(id=${e.id()})}" th:text="${e.validee() ? e.numero() : 'Brouillard'}">VE-2026-00001</a></td>
+            <td th:text="${e.libelle()}">Facture</td>
+            <td class="c-montant" th:text="${f.nombre(e.total())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

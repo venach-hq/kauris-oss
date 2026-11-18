@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : écriture', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <!-- Saisie ou correction d'un brouillard -->
+    <th:block th:if="${comptes != null}">
+        <h2 th:text="${e == null ? 'Nouvelle écriture' : 'Écriture au brouillard'}">Nouvelle écriture</h2>
+        <p class="c-info" th:if="${e != null and e.origine() != 'saisie'}">
+            Reçue du module <strong th:text="${e.origine()}">ventes</strong> : vous pouvez la corriger avant de la valider
+            (changer un compte, par exemple). Si vous la supprimez, l'opération repasse « à revoir ».</p>
+        <form method="post" th:action="${e == null} ? @{/compta/ecritures} : @{/compta/ecritures/{id}(id=${e.id()})}" class="k-pile">
+            <div class="c-grille">
+                <label>Journal <select name="journal">
+                    <option th:each="j : ${journaux}" th:value="${j.code()}" th:text="${j.code() + ' — ' + j.libelle()}"
+                            th:selected="${j.code() == journalPropose}">OD</option>
+                </select></label>
+                <label>Date <input type="date" name="date" required th:value="${e == null ? aujourdhui : e.date()}"></label>
+                <label>Pièce <input name="piece" maxlength="40" th:value="${e?.piece()}" placeholder="n° de facture, de reçu…"></label>
+                <label>Libellé <input name="libelle" maxlength="160" required th:value="${e?.libelle()}"></label>
+            </div>
+            <datalist id="plan">
+                <option th:each="c : ${comptes}" th:value="${c.numero() + ' ' + c.libelle()}"></option>
+            </datalist>
+            <table class="c-lignes">
+                <thead><tr><th style="width: 30%">Compte</th><th>Tiers (facultatif)</th><th>Libellé de la ligne</th>
+                    <th style="width: 11rem">Débit</th><th style="width: 11rem">Crédit</th></tr></thead>
+                <tbody>
+                <tr th:each="i : ${#numbers.sequence(0, lignes - 1)}"
+                    th:with="l=${e != null and i < e.lignes().size() ? e.lignes().get(i) : null}">
+                    <td><input th:name="${'ligne_compte_' + i}" list="plan" autocomplete="off" th:value="${l?.compte()}"></td>
+                    <td><input th:name="${'ligne_tiers_' + i}" maxlength="120" th:value="${l?.tiersNom()}"></td>
+                    <td><input th:name="${'ligne_libelle_' + i}" maxlength="160" th:value="${l?.libelle()}"></td>
+                    <td><input th:name="${'ligne_debit_' + i}" inputmode="numeric" th:value="${l == null or l.debit() == 0 ? '' : l.debit()}"></td>
+                    <td><input th:name="${'ligne_credit_' + i}" inputmode="numeric" th:value="${l == null or l.credit() == 0 ? '' : l.credit()}"></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="k-discret">Le total des débits doit égaler le total des crédits. Pour plus de lignes, enregistrez :
+                des lignes vides s'ajoutent.</p>
+            <div><button type="submit" class="k-bouton" th:text="${e == null ? 'Enregistrer au brouillard' : 'Enregistrer les corrections'}">Enregistrer</button></div>
+        </form>
+        <div class="c-boutons" th:if="${e != null}" style="margin-top: 1rem">
+            <form th:if="${droits.valider()}" method="post" th:action="@{/compta/ecritures/{id}/valider(id=${e.id()})}">
+                <button type="submit" class="k-bouton">Valider et numéroter</button></form>
+            <form method="post" th:action="@{/compta/ecritures/{id}/supprimer(id=${e.id()})}">
+                <button type="submit" class="k-bouton">Supprimer ce brouillard</button></form>
+            <a th:href="@{/compta/ecritures/{id}.pdf(id=${e.id()})}" target="_blank" rel="noopener">Pièce en PDF</a>
+        </div>
+    </th:block>
+
+    <!-- Écriture validée (ou brouillard en lecture seule) -->
+    <th:block th:if="${comptes == null}">
+        <h2 th:text="${(e.validee() ? 'Écriture ' + e.numero() : 'Écriture au brouillard')}">Écriture</h2>
+        <p>
+            <span th:text="${f.jour(e.date())}">10/11/2026</span> · journal <strong th:text="${e.journal()}">VE</strong>
+            <span th:if="${!e.piece().isEmpty()}" th:text="${' · pièce ' + e.piece()}"></span>
+            · <span th:text="${e.libelle()}">Libellé</span>
+            <span class="k-discret" th:text="${' · ' + e.origine() + (e.validee() ? ' · validée le ' + f.instant(e.valideeLe()) + (e.valideePar().isEmpty() ? '' : ' par ' + e.valideePar()) : '')}"></span>
+        </p>
+        <p class="c-info" th:if="${origine != null}">Contre-passe l'écriture
+            <a th:href="@{/compta/ecritures/{id}(id=${origine.id()})}" th:text="${origine.numero()}">VE-2026-00001</a>.</p>
+        <p class="c-alertes" th:if="${inverse != null}">Contre-passée par
+            <a th:href="@{/compta/ecritures/{id}(id=${inverse.id()})}" th:text="${inverse.validee() ? inverse.numero() : 'une écriture au brouillard'}">OD-2026-00002</a>.</p>
+        <table class="k-table">
+            <thead><tr><th>Compte</th><th>Intitulé</th><th>Tiers</th><th>Libellé</th><th class="c-montant">Débit</th>
+                <th class="c-montant">Crédit</th><th>Lettrage</th></tr></thead>
+            <tbody>
+            <tr th:each="l : ${e.lignes()}">
+                <td><a th:href="@{/compta/grand-livre(compte=${l.compte()},du=${e.date().withDayOfYear(1)})}" th:text="${l.compte()}">411000</a></td>
+                <td th:text="${libelles.get(l.compte())}">Clients</td>
+                <td th:text="${l.tiersNom()}">Ets Lawson</td>
+                <td th:text="${l.libelle()}">Libellé</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(l.debit())}">0</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(l.credit())}">0</td>
+                <td th:text="${l.lettrage()}">A</td>
+            </tr>
+            <tr class="c-total"><td colspan="4">Total</td>
+                <td class="c-montant" th:text="${f.nombre(e.total())}">0</td>
+                <td class="c-montant" th:text="${f.nombre(e.total())}">0</td><td></td></tr>
+            </tbody>
+        </table>
+        <div class="c-boutons" style="margin-top: 1rem">
+            <a th:href="@{/compta/ecritures/{id}.pdf(id=${e.id()})}" target="_blank" rel="noopener">Pièce en PDF</a>
+            <form th:if="${droits.valider() and !e.validee()}" method="post" th:action="@{/compta/ecritures/{id}/valider(id=${e.id()})}">
+                <button type="submit" class="k-bouton">Valider et numéroter</button></form>
+            <form th:if="${droits.valider() and e.validee() and inverse == null and e.journal() != 'AN'}" method="post"
+                  th:action="@{/compta/ecritures/{id}/contre-passer(id=${e.id()})}">
+                <label>Contre-passer le <input type="date" name="date" th:value="${aujourdhui}"></label>
+                <input name="motif" required maxlength="120" placeholder="pourquoi ?">
+                <button type="submit" class="k-bouton">Contre-passer</button>
+            </form>
+        </div>
+    </th:block>
+</section>
+</body>
+</html>

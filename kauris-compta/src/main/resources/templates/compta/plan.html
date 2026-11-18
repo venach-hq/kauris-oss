@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : plan comptable', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Le plan SYSCOHADA révisé est déjà en place. Ajoutez vos sous-comptes (une banque par compte 521…, des ventes par
+            activité 7011…), corrigez un libellé, désactivez un compte que vous n'utilisez plus. Un compte « lettrable »
+            (clients, fournisseurs, personnel) se lettre et se suit par tiers.</p>
+    </details>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/plan}">
+        <label>Chercher <input name="q" th:value="${q}" placeholder="numéro ou libellé"></label>
+        <button type="submit" class="k-bouton">Chercher</button>
+        <span th:replace="~{compta/commun :: exports(url='/compta/plan', params='', libelle='Télécharger :')}"></span>
+    </form>
+
+    <form th:if="${droits.parametrer()}" class="c-filtres" method="post" th:action="@{/compta/plan}">
+        <label>Nouveau compte <input name="numero" maxlength="12" required placeholder="521100"></label>
+        <label>Libellé <input name="libelle" maxlength="120" required placeholder="Banque Ecobank"></label>
+        <label><input type="checkbox" name="lettrable"> Lettrable</label>
+        <button type="submit" class="k-bouton">Ajouter</button>
+    </form>
+
+    <table class="k-table">
+        <thead><tr><th>Compte</th><th>Libellé</th><th>Lettrable</th><th>Actif</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${comptes}" th:classappend="${c.actif()} ? '' : 'c-barre'">
+            <td><a th:href="@{/compta/grand-livre(compte=${c.numero()})}" th:text="${c.numero()}">411000</a></td>
+            <td th:if="${droits.parametrer()}"><input th:form="${'c' + c.numero()}" name="libelle" maxlength="120" th:value="${c.libelle()}" required style="width: 100%"></td>
+            <td th:unless="${droits.parametrer()}" th:text="${c.libelle()}">Clients</td>
+            <td><input type="checkbox" th:form="${'c' + c.numero()}" name="lettrable" th:checked="${c.lettrable()}" th:disabled="${!droits.parametrer()}"></td>
+            <td><input type="checkbox" th:form="${'c' + c.numero()}" name="actif" th:checked="${c.actif()}" th:disabled="${!droits.parametrer()}"></td>
+            <td><form th:if="${droits.parametrer()}" th:id="${'c' + c.numero()}" method="post"
+                      th:action="@{/compta/plan/{n}(n=${c.numero()})}"><button type="submit" class="k-bouton">Enregistrer</button></form></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

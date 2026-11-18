@@ -41,6 +41,7 @@
         <module>kauris-ventes</module>
         <module>kauris-flotte</module>
         <module>kauris-paie</module>
+        <module>kauris-compta</module>
         <module>kauris-standalone</module>
     </modules>
 
@@ -74,6 +75,11 @@
             <dependency>
                 <groupId>com.venach.kauris</groupId>
                 <artifactId>kauris-paie</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.venach.kauris</groupId>
+                <artifactId>kauris-compta</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

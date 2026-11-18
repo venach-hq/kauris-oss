@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans de la comptabilité : onglets, style, liens d'export. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .c-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1rem; border-bottom: 1px solid var(--k-bord); }
+        .c-onglets a { padding: .5rem .8rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 15px;
+            border-radius: 6px 6px 0 0; }
+        .c-onglets a.c-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .c-onglets .c-compte { background: #fdecef; color: #b81c3b; border-radius: 999px; padding: 0 .45rem; font-size: 12px; margin-left: .2rem; }
+        .c-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .7rem; margin: 0 0 1rem; }
+        .c-chiffre { border: 1px solid var(--k-bord); border-radius: 10px; padding: .7rem 1rem; background: var(--k-carte); }
+        .c-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .c-chiffre strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+        .c-montant { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .c-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+        .c-boutons form { margin: 0; display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+        .c-filtres { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin: 0 0 1rem; }
+        .c-filtres label { display: flex; flex-direction: column; font-size: 13px; }
+        .c-alertes { border: 1px solid #f3c7cf; background: #fff7f8; border-radius: 10px; padding: .6rem 1rem; margin: 0 0 1rem; font-size: 14px; }
+        .c-info { border: 1px solid var(--k-bord); background: #f4fbf6; border-radius: 10px; padding: .6rem 1rem; margin: 0 0 1rem; font-size: 14px; }
+        .c-jaune { background: #fff4d6 !important; color: #7a5300 !important; }
+        .c-total td { font-weight: 700; border-top: 2px solid var(--k-bord); }
+        .c-titre td { font-weight: 700; background: var(--k-carte); }
+        .c-lignes { width: 100%; border-collapse: collapse; }
+        .c-lignes td { padding: .15rem .2rem .15rem 0; vertical-align: top; }
+        .c-lignes input { width: 100%; }
+        .c-telecharger { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; font-size: 13px; }
+        .c-telecharger a { padding: .25rem .55rem; border: 1px solid var(--k-bord); border-radius: 6px; text-decoration: none; font-weight: 600; }
+        .c-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items: start; }
+        .c-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .6rem 1rem; }
+        .c-barre { opacity: .55; }
+    </style>
+    <nav class="c-onglets" aria-label="Comptabilité">
+        <a th:href="@{/compta}" th:classappend="${onglet == 'accueil'} ? 'c-actif'">Accueil</a>
+        <a th:href="@{/compta/ecritures}" th:classappend="${onglet == 'ecritures'} ? 'c-actif'">Écritures</a>
+        <a th:href="@{/compta/operations}" th:classappend="${onglet == 'operations'} ? 'c-actif'" th:if="${aRevoir > 0}">À revoir
+            <span class="c-compte" th:text="${aRevoir}">1</span></a>
+        <a th:href="@{/compta/grand-livre}" th:classappend="${onglet == 'grand-livre'} ? 'c-actif'">Grand livre</a>
+        <a th:href="@{/compta/balance}" th:classappend="${onglet == 'balance'} ? 'c-actif'">Balance</a>
+        <a th:href="@{/compta/lettrage}" th:classappend="${onglet == 'lettrage'} ? 'c-actif'">Lettrage</a>
+        <a th:href="@{/compta/etats}" th:classappend="${onglet == 'etats'} ? 'c-actif'">États financiers</a>
+        <a th:href="@{/compta/tva}" th:classappend="${onglet == 'tva'} ? 'c-actif'">TVA</a>
+        <a th:href="@{/compta/exercices}" th:classappend="${onglet == 'exercices'} ? 'c-actif'">Exercices</a>
+        <a th:href="@{/compta/plan}" th:classappend="${onglet == 'plan'} ? 'c-actif'">Plan comptable</a>
+        <a th:href="@{/compta/parametres}" th:classappend="${onglet == 'parametres'} ? 'c-actif'">Paramètres</a>
+    </nav>
+</th:block>
+
+<!-- Liens d'export : Excel, CSV, PDF ; « url » sans extension, « params » la chaîne de requête (avec « ? »). -->
+<span th:fragment="exports(url, params, libelle)" class="c-telecharger"><strong th:text="${libelle}">Télécharger</strong>
+    <a th:href="@{${url + '.xlsx' + params}}">Excel</a>
+    <a th:href="@{${url + '.csv' + params}}">CSV</a>
+    <a th:href="@{${url + '.pdf' + params}}" target="_blank" rel="noopener">PDF</a>
+</span>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Kauris
 
-**Gestion des PME de la zone UEMOA** : ventes, caisse, stock, achats, flotte de véhicules et paie, avec des documents conformes (identité
+**Gestion des PME de la zone UEMOA** : ventes, caisse, stock, achats, flotte de véhicules, paie et comptabilité, avec des documents conformes (identité
 légale, TVA, numérotation sans trou) et pensés pour le franc CFA. Logiciel libre sous licence
 [AGPL-3.0](LICENSE), édité par Venach.
 
@@ -10,6 +10,8 @@ légale, TVA, numérotation sans trou) et pensés pour le franc CFA. Logiciel li
   écart et rapport, calculatrice (TVA, marge, remise).
 - **Stock et achats** : dépôts, entrées, sorties, transferts, inventaires, coût moyen pondéré ; fournisseurs,
   bons de commande, réceptions, factures et paiements fournisseurs.
+- **Comptabilité** : SYSCOHADA révisé, système normal ou minimal de trésorerie ; écritures reçues des ventes,
+  achats, caisse, paie et flotte, saisie, lettrage, grand livre, balance, bilan, compte de résultat, TVA, clôture.
 - **Socle** : organisation, établissements, membres, rôles et permissions, paramètres de l'entreprise (Bénin,
   Burkina Faso, Côte d'Ivoire, Guinée-Bissau, Mali, Niger, Sénégal, Togo), documents PDF au thème de l'entreprise.
 
@@ -27,7 +29,8 @@ docker compose up -d        # http://localhost:8090
 
 Tout est dans le **[guide d'utilisation](docs/guide/README.md)** : [installation](docs/guide/installation.md),
 mise à jour, sauvegarde, [prise en main](docs/guide/prise-en-main.md), [ventes](docs/guide/ventes.md),
-[caisse](docs/guide/caisse.md), [stock et achats](docs/guide/stock-achats.md), [flotte](docs/guide/flotte.md), [paie](docs/guide/paie.md).
+[caisse](docs/guide/caisse.md), [stock et achats](docs/guide/stock-achats.md), [flotte](docs/guide/flotte.md), [paie](docs/guide/paie.md),
+[comptabilité](docs/guide/compta.md).
 
 ## Développer
 
@@ -48,6 +51,7 @@ make image     # construit l'image Docker
 | `kauris-ventes` | Ventes, caisse, stock et achats (ils partagent le catalogue) |
 | `kauris-flotte` | Flotte : motos, taxis, tricycles, bus, camions ; conducteurs, contrats, versements journaliers, papiers |
 | `kauris-paie` | Paie de l'UEMOA à règles modifiables (recommandées Togo, Côte d'Ivoire, Sénégal) : bulletins, avances, déclarations, virement, écritures |
+| `kauris-compta` | Comptabilité SYSCOHADA (normal ou minimal) : plan, journaux, écritures automatiques et saisies, lettrage, grand livre, balance, états financiers, TVA, clôture |
 | `kauris-standalone` | Le lanceur autonome, avec la connexion par email et mot de passe |
 | `deploy/` | Installation par `docker compose` |
 | `docs/guide/` | Guide d'utilisation |

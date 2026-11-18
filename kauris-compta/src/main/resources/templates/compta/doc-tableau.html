@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Un tableau de la comptabilité en PDF (grand livre, balance, états, TVA). Pas de @{…} : vue PDF. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+    <table class="k-doc-tableau" style="font-size: 8pt">
+        <thead><tr><th th:each="col, i : ${t.colonnes()}" th:text="${col}"
+                       th:classappend="${numeriques.get(i.index)} ? 'k-doc-montant'">Colonne</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${lignes}">
+            <td th:each="x, i : ${l}" th:classappend="${numeriques.get(i.index)} ? 'k-doc-montant'"
+                th:style="${numeriques.get(i.index) or i.first} ? 'white-space: nowrap'" th:text="${x}">x</td>
+        </tr>
+        <tr th:if="${lignes.isEmpty()}"><td th:colspan="${t.colonnes().size()}">Aucune ligne.</td></tr>
+        <tr class="k-doc-total" th:if="${total != null}">
+            <td th:each="x, i : ${total}" th:classappend="${numeriques.get(i.index)} ? 'k-doc-montant'" th:text="${x}">x</td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>
