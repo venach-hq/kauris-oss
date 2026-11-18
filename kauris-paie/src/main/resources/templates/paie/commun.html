@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!-- Morceaux communs aux écrans de la paie : onglets, alertes, style, liens d'export et lignes d'éléments. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="navigation">
+    <style>
+        .p-onglets { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 1rem; border-bottom: 1px solid var(--k-bord); }
+        .p-onglets a { padding: .5rem .85rem; text-decoration: none; color: var(--k-texte); font-weight: 600; font-size: 15px;
+            border-radius: 6px 6px 0 0; }
+        .p-onglets a.p-actif { box-shadow: inset 0 -3px 0 var(--k-vert); color: var(--k-vert-fonce); }
+        .p-onglets .p-compte { background: #fdecef; color: #b81c3b; border-radius: 999px; padding: 0 .45rem; font-size: 12px; margin-left: .2rem; }
+        .p-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .7rem; margin: 0 0 1rem; }
+        .p-chiffre { border: 1px solid var(--k-bord); border-radius: 10px; padding: .7rem 1rem; background: var(--k-carte); }
+        .p-chiffre span { display: block; font-size: 12px; color: var(--k-discret); text-transform: uppercase; letter-spacing: .04em; }
+        .p-chiffre strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+        .p-montant { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .p-boutons { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+        .p-boutons form { margin: 0; display: flex; gap: .4rem; align-items: center; }
+        .p-barre { opacity: .55; }
+        .p-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items: start; }
+        .p-rouge { background: #fdecef !important; color: #b81c3b !important; }
+        .p-jaune { background: #fff4d6 !important; color: #7a5300 !important; }
+        .p-alertes { border: 1px solid #f3c7cf; background: #fff7f8; border-radius: 10px; padding: .6rem 1rem; margin: 0 0 1rem; font-size: 14px; }
+        .p-alertes ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+        .p-telecharger { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; font-size: 13px; }
+        .p-telecharger a { padding: .25rem .55rem; border: 1px solid var(--k-bord); border-radius: 6px; text-decoration: none; font-weight: 600; }
+        .p-elements { width: 100%; border-collapse: collapse; }
+        .p-elements td { padding: .2rem .2rem .2rem 0; vertical-align: top; }
+        .p-elements input, .p-elements select { width: 100%; }
+        .p-total td { font-weight: 700; border-top: 2px solid var(--k-bord); }
+        .p-reco { display: block; font-size: 12px; color: #7a5300; background: #fff4d6; border-radius: 4px; padding: 0 .3rem; margin-top: .15rem; }
+        .p-note { font-size: 12px; color: var(--k-discret); }
+        .p-regles table input, .p-regles table select { width: 100%; min-width: 4.5rem; }
+        .p-regles table td { vertical-align: top; padding: .15rem .2rem; }
+        .p-regles fieldset { margin-bottom: 1.2rem; }
+        .p-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .6rem 1rem; }
+    </style>
+    <nav class="p-onglets" aria-label="Paie">
+        <a th:href="@{/paie}" th:classappend="${onglet == 'mois'} ? 'p-actif'">Mois de paie
+            <span class="p-compte" th:if="${!alertes.aCloturer().isEmpty()}" th:text="${alertes.aCloturer().size()}">1</span></a>
+        <a th:href="@{/paie/salaries}" th:classappend="${onglet == 'salaries'} ? 'p-actif'">Salariés
+            <span class="p-compte" th:if="${alertes.total() > 0}" th:text="${alertes.total()}">1</span></a>
+        <a th:href="@{/paie/regles}" th:classappend="${onglet == 'regles'} ? 'p-actif'">Règles de paie
+            <span class="p-compte" th:if="${alertes.sansRegles()}">!</span></a>
+    </nav>
+    <div class="p-alertes" th:if="${alertes.sansRegles() and onglet != 'regles'}">
+        <strong>Aucune règle de paie pour ce mois<span th:if="${pays != null}" th:text="${' (' + pays.nom() + ')'}"></span>.</strong>
+        Kauris recommande des règles (cotisations, impôt, taxes) que vous vérifiez et corrigez :
+        <a th:href="@{/paie/regles}">activer ou saisir les règles de paie</a>.
+    </div>
+</th:block>
+
+<!-- Les liens d'export d'un tableau du mois : Excel, CSV, PDF. -->
+<span th:fragment="exports(periode, quoi, libelle)" class="p-telecharger"><strong th:text="${libelle}">Livre de paie</strong>
+    <a th:href="@{/paie/mois/{id}/export/{q}.xlsx(id=${periode.id()},q=${quoi})}">Excel</a>
+    <a th:href="@{/paie/mois/{id}/export/{q}.csv(id=${periode.id()},q=${quoi})}">CSV</a>
+    <a th:href="@{/paie/mois/{id}/export/{q}.pdf(id=${periode.id()},q=${quoi})}" target="_blank" rel="noopener">PDF</a>
+</span>
+
+<!-- Lignes d'éléments de paie (primes, avantages, retenues) : existants puis lignes vides. -->
+<table class="p-elements" th:fragment="elements(existants, types, lignes)">
+    <thead><tr><th>Libellé</th><th>Type</th><th class="p-montant">Montant</th></tr></thead>
+    <tbody>
+    <tr th:each="i : ${#numbers.sequence(0, lignes - 1)}" th:with="e=${i < existants.size() ? existants.get(i) : null}">
+        <td><input th:name="${'element_libelle_' + i}" maxlength="80" th:value="${e?.libelle()}"
+                   placeholder="Prime de transport, avance…"></td>
+        <td><select th:name="${'element_type_' + i}">
+            <option th:each="t : ${types}" th:value="${t.name()}" th:text="${t.libelle()}"
+                    th:selected="${e != null and e.type() == t}">Prime</option>
+        </select></td>
+        <td><input th:name="${'element_montant_' + i}" inputmode="numeric" class="p-montant"
+                   th:value="${e == null ? '' : e.montant()}"></td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

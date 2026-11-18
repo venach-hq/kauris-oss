@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!-- Bulletin de paie, sur l'ossature commune des documents. Sert à l'écran et au PDF : pas de @{…}. -->
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{kauris/document :: page(contenu=~{::section})}">
+<body>
+<section>
+    <div class="k-doc-brouillon" th:if="${brouillon}">Brouillon : mois non clôturé, bulletin sans numéro</div>
+
+    <table class="k-doc-colonnes">
+        <tr>
+            <td>
+                <div th:replace="~{kauris/document :: cartouche(${cartouche})}"></div>
+            </td>
+            <td class="k-doc-intervalle"></td>
+            <td style="width: 34%;">
+                <div class="k-doc-destinataire">
+                    <div class="k-doc-etiquette">Salarié</div>
+                    <div class="k-doc-nom-tiers" th:text="${b.nomSalarie()}">MENSAH Awa</div>
+                    <div th:text="${b.poste()}">Poste</div>
+                    <div th:unless="${b.numeroSocial().isEmpty()}"><strong>Sécurité sociale :</strong>
+                        <span th:text="${b.numeroSocial()}">123</span></div>
+                    <div th:if="${b.modePaiement().parVirement() and !b.compte().isEmpty()}"><strong>Payé sur :</strong>
+                        <span th:text="${(b.banque().isEmpty() ? '' : b.banque() + ' ') + b.compte()}">Compte</span></div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="k-doc-tableau" style="font-size: 8.5pt">
+        <thead>
+        <tr>
+            <th>Rubrique</th>
+            <th class="k-doc-montant">Base</th>
+            <th class="k-doc-montant">Taux salarié</th>
+            <th class="k-doc-montant">Gain</th>
+            <th class="k-doc-montant">Retenue</th>
+            <th class="k-doc-montant">Taux employeur</th>
+            <th class="k-doc-montant">Part employeur</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="l : ${r.lignes()}" th:classappend="${l.nature().name() == 'TAXE_EMPLOYEUR'} ? 'k-doc-retrait' : ''">
+            <td th:text="${l.libelle()}">Salaire de base</td>
+            <td class="k-doc-montant" th:text="${l.base() == 0 or l.nature().name() == 'GAIN' or l.nature().name() == 'GAIN_NON_SOUMIS' or l.nature().name() == 'RETENUE' ? '' : (l.organisme() == 'CMU' ? l.base() + ' pers.' : f.nombre(l.base()))}"></td>
+            <td class="k-doc-montant" th:text="${f.taux(l.tauxSalarie())}"></td>
+            <td class="k-doc-montant" th:text="${f.nombreOuRien(l.gain())}"></td>
+            <td class="k-doc-montant" th:text="${f.nombreOuRien(l.salarie())}"></td>
+            <td class="k-doc-montant" th:text="${f.taux(l.tauxEmployeur())}"></td>
+            <td class="k-doc-montant" th:text="${f.nombreOuRien(l.employeur())}"></td>
+        </tr>
+        <tr class="k-doc-total">
+            <td colspan="3">Totaux</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.brut())}">0</td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.cotisationsSalarie() + r.impot() + r.retenues())}">0</td>
+            <td></td>
+            <td class="k-doc-montant" th:text="${f.nombre(r.chargesEmployeur())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table class="k-doc-totaux">
+        <tr><td>Salaire brut</td><td class="k-doc-montant" th:text="${f.montant(r.brut())}">0</td></tr>
+        <tr><td>Brut soumis aux cotisations et à l'impôt</td><td class="k-doc-montant" th:text="${f.montant(r.brutSoumis())}">0</td></tr>
+        <tr><td>Cotisations du salarié</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.cotisationsSalarie())}">0</td></tr>
+        <tr><td th:text="${r.impotNom()}">IRPP</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.impot())}">0</td></tr>
+        <tr th:if="${r.avantagesNature() > 0}"><td>Avantages en nature (non payés)</td>
+            <td class="k-doc-montant" th:text="${'- ' + f.montant(r.avantagesNature())}">0</td></tr>
+        <tr th:if="${r.retenues() > 0}"><td>Avances et retenues</td>
+            <td class="k-doc-montant" th:text="${'- ' + f.montant(r.retenues())}">0</td></tr>
+        <tr class="k-doc-total"><td>Net à payer</td><td class="k-doc-montant" th:text="${f.montant(r.netAPayer())}">0</td></tr>
+    </table>
+
+    <p class="k-doc-note"><strong>Net à payer :</strong> <span th:text="${netEnLettres}">deux cent mille francs CFA</span>.</p>
+    <p class="k-doc-note" th:text="${r.impotNom() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
+    <p class="k-doc-note" th:unless="${b.regles().isEmpty()}" th:text="${'Règles de paie : ' + b.regles() + ' (' + pays.nom() + ').'}">Règles</p>
+    <p class="k-doc-note">Coût total pour l'employeur : <strong th:text="${f.montant(r.coutEmployeur())}">0</strong>
+        (salaire brut et charges de l'employeur). Pour vous aider à faire valoir vos droits, conservez ce bulletin
+        sans limitation de durée.</p>
+
+    <div th:replace="~{kauris/document :: signatures(${etabliPar}, ${visas})}"></div>
+</section>
+</body>
+</html>

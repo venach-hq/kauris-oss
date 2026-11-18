@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Paie : salariés', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <div class="p-alertes" th:if="${alertes.total() > 0}">
+        <ul>
+            <li th:each="l : ${alertes.finsDeContrat()}">Fin de contrat prévue le
+                <strong th:text="${f.jour(l.contrat().finPrevue())}">30/11/2026</strong> :
+                <a th:href="@{/paie/contrats/{id}(id=${l.contrat().id()})}" th:text="${l.salarie().nomComplet()}">Nom</a></li>
+            <li th:each="s : ${alertes.sansContrat()}">Sans contrat en cours :
+                <a th:href="@{/paie/salaries/{id}(id=${s.id()})}" th:text="${s.nomComplet()}">Nom</a></li>
+        </ul>
+    </div>
+
+    <div class="p-boutons">
+        <a th:if="${droits.preparer()}" class="k-bouton" th:href="@{/paie/salaries/nouveau}">Ajouter un salarié</a>
+    </div>
+
+    <p class="k-discret" th:if="${lignes.isEmpty()}">Aucun salarié.</p>
+    <table class="k-table" th:unless="${lignes.isEmpty()}">
+        <thead><tr><th>Matricule</th><th>Nom</th><th>Poste</th><th>Contrat</th><th class="p-montant">Salaire de base</th>
+            <th>Paiement</th></tr></thead>
+        <tbody>
+        <tr th:each="l : ${lignes}" th:with="s=${l.salarie()}, c=${l.contrat()}" th:classappend="${s.actif()} ? '' : 'p-barre'">
+            <td th:text="${s.matricule()}">S-0001</td>
+            <td><a th:href="@{/paie/salaries/{id}(id=${s.id()})}" th:text="${s.nomComplet()}">Nom</a>
+                <span class="k-pastille" th:unless="${s.actif()}">Archivé</span></td>
+            <td th:text="${c == null ? '—' : c.poste()}">Poste</td>
+            <td><a th:if="${c != null}" th:href="@{/paie/contrats/{id}(id=${c.id()})}" th:text="${c.type().name()}">CDI</a>
+                <span class="k-pastille p-jaune" th:if="${c == null and s.actif()}">Sans contrat</span></td>
+            <td class="p-montant" th:text="${c == null ? '' : f.nombre(c.salaireBase())}">0</td>
+            <td th:text="${s.modePaiement().libelle()}">Virement</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${s == null ? 'Nouveau salarié' : s.nomComplet()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <div class="p-deux">
+        <form class="k-pile" method="post"
+              th:action="${s == null} ? @{/paie/salaries} : @{/paie/salaries/{id}(id=${s.id()})}">
+            <fieldset th:disabled="${!droits.preparer()}">
+                <legend th:text="${s == null ? 'Nouveau salarié' : s.matricule() + ' · ' + s.nomComplet()}">Salarié</legend>
+                <label>Nom <input name="nom" required maxlength="80" th:value="${s?.nom()}" autocapitalize="characters"></label>
+                <label>Prénoms <input name="prenoms" maxlength="120" th:value="${s?.prenoms()}"></label>
+                <label>Date de naissance <input type="date" name="naissance" th:value="${s?.naissance()}"></label>
+                <label>Téléphone <input name="telephone" maxlength="25" th:value="${s?.telephone()}" inputmode="tel"></label>
+                <label>Email <input type="email" name="email" maxlength="190" th:value="${s?.email()}"></label>
+                <label>Adresse <input name="adresse" maxlength="190" th:value="${s?.adresse()}"></label>
+                <label>Pièce d'identité <input name="pieceIdentite" maxlength="60" th:value="${s?.pieceIdentite()}"
+                                               placeholder="Carte nationale, passeport…"></label>
+                <label>Numéro d'assuré à la sécurité sociale (CNSS, CNPS…)
+                    <input name="numeroSocial" maxlength="40" th:value="${s?.numeroSocial()}"></label>
+
+                <label>Situation de famille
+                    <select name="situation">
+                        <option th:each="x : ${situations}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.foyer().situation() == x}">Célibataire</option>
+                    </select></label>
+                <label>Enfants à charge <input name="enfants" inputmode="numeric" th:value="${s == null ? 0 : s.foyer().enfants()}">
+                    <small class="k-discret">Mineurs, ou moins de 27 ans qui étudient, sans revenu.</small></label>
+                <label><input type="checkbox" name="conjointACharge" th:checked="${s != null and s.foyer().conjointACharge()}">
+                    Conjoint sans revenu, à charge</label>
+                <label>Autres personnes à charge <input name="autresPersonnes" inputmode="numeric"
+                                                        th:value="${s == null ? 0 : s.foyer().autresPersonnes()}">
+                    <small class="k-discret">Ascendants ou autres personnes à charge effective, quand la loi du pays les compte.</small></label>
+                <label>Régime fiscal
+                    <select name="regime">
+                        <option th:each="x : ${regimes}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.regime() == x}">Salarié</option>
+                    </select></label>
+                <label><input type="checkbox" name="expatrie" th:checked="${s != null and s.expatrie()}">
+                    Salarié expatrié (certaines cotisations et taxes diffèrent selon les règles du pays)</label>
+
+                <label>Mode de paiement du salaire
+                    <select name="modePaiement">
+                        <option th:each="x : ${modes}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.modePaiement() == x}">Virement</option>
+                    </select></label>
+                <label>Banque ou opérateur <input name="banque" maxlength="80" th:value="${s?.banque()}"
+                                                  placeholder="Ecobank, Orabank, Flooz, Orange Money…"></label>
+                <label>Numéro de compte (RIB, IBAN) ou numéro Mobile Money
+                    <input name="compte" maxlength="60" th:value="${s?.compte()}"></label>
+                <label th:if="${s != null}"><input type="checkbox" name="actif" th:checked="${s.actif()}"> Fiche active
+                    <small class="k-discret">Décochez pour archiver un salarié parti.</small></label>
+                <label>Notes <textarea name="notes" maxlength="500" th:text="${s?.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton" th:text="${s == null ? 'Enregistrer le salarié' : 'Enregistrer'}">Enregistrer</button>
+            </fieldset>
+        </form>
+
+        <div th:if="${s != null}">
+            <h2>Contrats</h2>
+            <p th:if="${droits.preparer() and s.actif()}">
+                <a class="k-bouton k-secondaire" th:href="@{/paie/salaries/{id}/contrats/nouveau(id=${s.id()})}">Nouveau contrat</a></p>
+            <p class="k-discret" th:if="${contrats.isEmpty()}">Aucun contrat.</p>
+            <table class="k-table" th:unless="${contrats.isEmpty()}">
+                <tbody>
+                <tr th:each="c : ${contrats}">
+                    <td><a th:href="@{/paie/contrats/{id}(id=${c.id()})}" th:text="${c.numero()}">CTR</a></td>
+                    <td th:text="${c.type().name() + ' · ' + c.poste()}">CDI</td>
+                    <td th:text="${'depuis le ' + f.jour(c.debut())}"></td>
+                    <td><span class="k-pastille" th:classappend="${c.enCours(aujourdhui)} ? 'k-ok' : ''"
+                              th:text="${c.enCours(aujourdhui) ? 'En cours' : 'Terminé le ' + f.jour(c.sortie())}">En cours</span></td>
+                    <td class="p-montant" th:text="${f.montant(c.salaireBase())}">0</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h2>Avances et prêts</h2>
+            <p class="k-discret" th:if="${avances.isEmpty()}">Aucune avance ni prêt.</p>
+            <table class="k-table" th:unless="${avances.isEmpty()}">
+                <thead><tr><th>Date</th><th>Objet</th><th class="p-montant">Montant</th><th class="p-montant">Par mois</th>
+                    <th class="p-montant">Reste</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="x : ${avances}" th:with="av=${x.avance()}" th:classappend="${av.annulee()} ? 'p-barre' : ''">
+                    <td th:text="${f.jour(av.accordeeLe())}">01/11/2026</td>
+                    <td><span th:text="${av.type().libelle() + ' · ' + av.libelle()}">Prêt</span>
+                        <div class="k-discret" th:text="${'dès ' + f.mois(av.premierMois()) + (av.note().isEmpty() ? '' : ' · ' + av.note())}"></div></td>
+                    <td class="p-montant" th:text="${f.nombre(av.montant())}">0</td>
+                    <td class="p-montant" th:text="${f.nombre(av.mensualite())}">0</td>
+                    <td class="p-montant" th:text="${av.annulee() ? 'arrêtée' : f.nombre(x.reste())}">0</td>
+                    <td><form th:if="${droits.preparer() and !av.annulee() and x.reste() > 0}" method="post"
+                              th:action="@{/paie/avances/{id}/annuler(id=${av.id()})}"
+                              onsubmit="return confirm('Arrêter les retenues de cette avance ?')">
+                        <input type="hidden" name="salarie" th:value="${s.id()}">
+                        <button type="submit" class="k-bouton k-secondaire">Arrêter</button></form></td>
+                </tr>
+                </tbody>
+            </table>
+            <details th:if="${droits.preparer() and s.actif()}">
+                <summary><strong>Accorder une avance ou un prêt</strong></summary>
+                <form class="k-pile" method="post" th:action="@{/paie/salaries/{id}/avances(id=${s.id()})}">
+                    <label>Type <select name="type">
+                        <option th:each="t : ${typesAvance}" th:value="${t.name()}" th:text="${t.libelle()}">Avance</option>
+                    </select></label>
+                    <label>Objet <input name="libelle" required maxlength="80" placeholder="Fête de fin d'année, achat de moto…"></label>
+                    <label>Montant total <input name="montant" required inputmode="numeric"></label>
+                    <label>Retenue par mois <input name="mensualite" required inputmode="numeric">
+                        <small class="k-discret">Jamais plus que le net du mois : le reste est reporté au mois suivant.</small></label>
+                    <label>Premier mois de retenue <input type="month" name="premierMois" required th:value="${moisCourant}"></label>
+                    <label>Note <input name="note" maxlength="300" placeholder="Accord écrit du…"></label>
+                    <button type="submit" class="k-bouton">Enregistrer</button>
+                </form>
+            </details>
+
+            <h2>Bulletins</h2>
+            <p class="k-discret" th:if="${bulletins.isEmpty()}">Aucun bulletin clôturé.</p>
+            <table class="k-table" th:unless="${bulletins.isEmpty()}">
+                <tbody>
+                <tr th:each="b : ${bulletins}">
+                    <td><a th:href="@{/paie/mois/{id}/salaries/{s}/bulletin(id=${b.periodeId()},s=${s.id()})}"
+                           target="_blank" rel="noopener" th:text="${b.numero()}">BP</a></td>
+                    <td th:text="${b.poste()}">Poste</td>
+                    <td class="p-montant" th:text="${'brut ' + f.nombre(b.resultat().brut())}">0</td>
+                    <td class="p-montant"><strong th:text="${'net ' + f.nombre(b.net())}">0</strong></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+</body>
+</html>

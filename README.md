@@ -1,6 +1,6 @@
 # Kauris
 
-**Gestion des PME de la zone UEMOA** : ventes, caisse, stock, achats et flotte de véhicules, avec des documents conformes (identité
+**Gestion des PME de la zone UEMOA** : ventes, caisse, stock, achats, flotte de véhicules et paie, avec des documents conformes (identité
 légale, TVA, numérotation sans trou) et pensés pour le franc CFA. Logiciel libre sous licence
 [AGPL-3.0](LICENSE), édité par Venach.
 
@@ -27,7 +27,7 @@ docker compose up -d        # http://localhost:8090
 
 Tout est dans le **[guide d'utilisation](docs/guide/README.md)** : [installation](docs/guide/installation.md),
 mise à jour, sauvegarde, [prise en main](docs/guide/prise-en-main.md), [ventes](docs/guide/ventes.md),
-[caisse](docs/guide/caisse.md), [stock et achats](docs/guide/stock-achats.md), [flotte](docs/guide/flotte.md).
+[caisse](docs/guide/caisse.md), [stock et achats](docs/guide/stock-achats.md), [flotte](docs/guide/flotte.md), [paie](docs/guide/paie.md).
 
 ## Développer
 
@@ -47,6 +47,7 @@ make image     # construit l'image Docker
 | `kauris-kernel` | Socle commun : registre des modules, organisation, établissements, membres, rôles et permissions, paramètres de l'entreprise, ossature des documents et PDF, comptes locaux, interface commune, notifications |
 | `kauris-ventes` | Ventes, caisse, stock et achats (ils partagent le catalogue) |
 | `kauris-flotte` | Flotte : motos, taxis, tricycles, bus, camions ; conducteurs, contrats, versements journaliers, papiers |
+| `kauris-paie` | Paie de l'UEMOA à règles modifiables (recommandées Togo, Côte d'Ivoire) : bulletins, avances, déclarations, virement, écritures |
 | `kauris-standalone` | Le lanceur autonome, avec la connexion par email et mot de passe |
 | `deploy/` | Installation par `docker compose` |
 | `docs/guide/` | Guide d'utilisation |

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre=${c == null ? 'Nouveau contrat' : 'Contrat ' + c.numero()}, contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <p><a th:href="@{/paie/salaries/{id}(id=${s.id()})}" th:text="${'← ' + s.nomComplet()}">← Salarié</a></p>
+
+    <div class="p-deux">
+        <form class="k-pile" method="post"
+              th:action="${c == null} ? @{/paie/salaries/{id}/contrats(id=${s.id()})} : @{/paie/contrats/{id}(id=${c.id()})}">
+            <fieldset th:disabled="${!droits.preparer()}">
+                <legend th:text="${c == null ? 'Nouveau contrat de ' + s.nomComplet() : 'Contrat ' + c.numero()}">Contrat</legend>
+                <label>Type de contrat
+                    <select name="type">
+                        <option th:each="t : ${typesContrat}" th:value="${t.name()}" th:text="${t.libelle()}"
+                                th:selected="${c != null and c.type() == t}">CDI</option>
+                    </select></label>
+                <label>Poste <input name="poste" required maxlength="80" th:value="${c?.poste()}" placeholder="Comptable, vendeuse, chauffeur…"></label>
+                <label>Catégorie <input name="categorie" maxlength="60" th:value="${c?.categorie()}"
+                                        placeholder="Selon la convention collective : M3, 5e catégorie…"></label>
+                <label>Date d'embauche <input type="date" name="debut" required th:value="${c == null ? aujourdhui : c.debut()}"></label>
+                <label>Fin prévue (CDD) <input type="date" name="finPrevue" th:value="${c?.finPrevue()}"></label>
+                <label>Salaire de base mensuel <input name="salaireBase" required inputmode="numeric"
+                                                      th:value="${c?.salaireBase()}" placeholder="150 000"></label>
+                <p class="k-discret">Primes et indemnités versées <strong>chaque mois</strong> (transport, logement,
+                    ancienneté…). Une indemnité « non soumise » n'a ni cotisation ni impôt : vérifiez qu'elle l'est vraiment.</p>
+                <table th:replace="~{paie/commun :: elements(${existants}, ${types}, ${lignes})}"></table>
+                <label>Notes <textarea name="notes" maxlength="500" th:text="${c?.notes()}"></textarea></label>
+                <button type="submit" class="k-bouton" th:text="${c == null ? 'Enregistrer le contrat' : 'Enregistrer'}">Enregistrer</button>
+            </fieldset>
+        </form>
+
+        <div th:if="${c != null}">
+            <h2>Sortie</h2>
+            <div th:if="${c.sortie() != null}">
+                <p>Contrat terminé : dernier jour travaillé le <strong th:text="${f.jour(c.sortie())}">30/11/2026</strong>.
+                    <span th:unless="${c.motifSortie().isEmpty()}" th:text="${'Motif : ' + c.motifSortie()}"></span></p>
+                <form th:if="${droits.preparer()}" method="post" th:action="@{/paie/contrats/{id}/rouvrir(id=${c.id()})}">
+                    <button type="submit" class="k-bouton k-secondaire">Annuler la sortie</button>
+                </form>
+            </div>
+            <form th:if="${c.sortie() == null and droits.preparer()}" class="k-pile" method="post"
+                  th:action="@{/paie/contrats/{id}/terminer(id=${c.id()})}"
+                  onsubmit="return confirm('Terminer ce contrat ? Le dernier mois sera payé au prorata.')">
+                <label>Dernier jour travaillé <input type="date" name="sortie" required th:value="${c.finPrevue() == null ? aujourdhui : c.finPrevue()}"></label>
+                <label>Motif <input name="motif" maxlength="200" placeholder="Fin de CDD, démission, licenciement…"></label>
+                <p class="k-discret">Les indemnités de fin de contrat (préavis, congés, licenciement) se saisissent comme
+                    éléments du dernier mois.</p>
+                <button type="submit" class="k-bouton k-secondaire">Terminer le contrat</button>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>

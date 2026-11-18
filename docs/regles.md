@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`).
+   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`, la flotte à `V20261114_1`, la paie à `V20261118_1`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune, avec leur bloc « Comment ça marche ? » et le lien vers le guide.
 7. Guide d'utilisation (`docs/guide/<module>.md`) à jour.
@@ -219,6 +219,28 @@ n'y branche rien : les versements se font à la caisse ou par Mobile Money avec 
 la demande de paiement est un message tout prêt (WhatsApp, SMS). Kauris Cloud y branche sa trésorerie, un alias
 PI-SPI par véhicule (versements reçus par `FlotteService.recevoir`, sans double saisie grâce à la référence) et la
 demande de paiement PI-SPI.
+
+## Paie
+
+Le module Paie (`kauris-paie`, code `rh-paie`, tables `paie_…`, migrations `db/migration/paie`) calcule les bulletins
+de n'importe quel pays de l'UEMOA à partir des **règles de paie** de l'entreprise (`ReglesPaie`) : rien n'est figé dans
+le code.
+
+- Les règles sont datées et par pays (`paie_regles`, contenu JSON relu avec des valeurs par défaut pour les champs
+  absents). Kauris propose des modèles recommandés, avec notes et sources (`ModelesRecommandes` : Togo, Côte
+  d'Ivoire) ; l'entreprise les active puis corrige tout, l'éditeur montrant les écarts à la recommandation. Ajouter un
+  pays, c'est ajouter un modèle, sans toucher au calcul.
+- Le calcul (`CalculPaie`) est du Java pur, piloté par les règles, testé sur des cas comptés à la main.
+- Un mois ouvert ne stocke aucun bulletin : il se recalcule. La clôture fige et numérote les bulletins
+  (`paie_bulletin`, `paie_bulletin_ligne`, avec les comptes comptables de chaque ligne) ; les mois se clôturent dans
+  l'ordre ; la réouverture les efface, sauf si les salaires sont payés ou un mois suivant clos. Un numéro n'est jamais
+  réutilisé.
+- Avances et prêts (`paie_avance`) : la retenue du mois ne dépasse jamais le net disponible ; les remboursements se
+  lisent sur les bulletins clos (lignes `AV:id`).
+- Les salaires sont confidentiels : les quatre permissions (`paie.consulter`, `paie.preparer`, `paie.cloturer`,
+  `paie.parametres.modifier`) sont au niveau « administrer ».
+- Ce que l'application peut y brancher : `PortsPaie.Versements` (verser les salaires d'un mois clos). Le mode
+  autonome n'y branche rien : l'écran propose l'ordre de virement (PDF, Excel, CSV).
 
 ## Paiements
 

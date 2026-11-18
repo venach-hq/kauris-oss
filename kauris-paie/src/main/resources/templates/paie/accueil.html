@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Paie', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>1. Dans <strong>Règles de paie</strong>, activez les règles recommandées pour votre pays (ou saisissez les vôtres)
+            et corrigez ce qui est propre à votre entreprise : taux d'accident du travail, convention collective…</p>
+        <p>2. Enregistrez vos <strong>salariés</strong> et leur <strong>contrat</strong> : poste, salaire de base, primes fixes.</p>
+        <p>3. Chaque mois, <strong>ouvrez la paie du mois</strong>. Kauris calcule tout seul les bulletins selon vos règles :
+            cotisations, impôt, net à payer et coût pour l'entreprise.</p>
+        <p>4. Saisissez ce qui change ce mois-là : absences, heures supplémentaires, primes, retenues. Le bulletin se recalcule aussitôt.</p>
+        <p>5. <strong>Clôturez</strong> : les bulletins sont numérotés et figés. Téléchargez le livre de paie, les déclarations
+            et l'ordre de virement à remettre à la banque.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('paie')}" target="_blank" rel="noopener">Guide complet de la paie</a></p>
+    </details>
+
+    <div class="p-alertes" th:if="${!alertes.aCloturer().isEmpty()}">
+        <strong>À clôturer :</strong>
+        <a th:each="p, i : ${alertes.aCloturer()}" th:href="@{/paie/mois/{id}(id=${p.id()})}"
+           th:text="${p.libelle() + (i.last ? '' : ', ')}">octobre 2026</a>
+    </div>
+
+    <div class="p-alertes" th:if="${alertes.sansRegles()}">
+        <p><strong>Aucune règle de paie</strong> pour votre pays : la paie ne peut pas encore être calculée.</p>
+        <form method="post" th:action="@{/paie/regles/activer}" th:if="${modele != null and droits.parametrer()}">
+            <strong th:text="${modele.nom()}">Règles recommandées</strong> :
+            <span th:text="${#lists.size(modele.contenu().cotisations()) + ' cotisations, ' + modele.contenu().impot().nom() + ', '
+                  + #lists.size(modele.contenu().taxes()) + ' taxe(s) de l''employeur.'}">…</span>
+            <input type="hidden" name="modele" th:value="${modele.code()}">
+            <button type="submit" class="k-bouton">Activer et vérifier ces règles</button>
+        </form>
+        <p th:if="${modele == null and droits.parametrer()}">Kauris n'a pas encore de modèle pour ce pays :
+            <a th:href="@{/paie/regles}">saisissez vos règles</a> à partir d'un modèle vide.</p>
+        <p th:unless="${droits.parametrer()}">Demandez à un administrateur de paramétrer les règles de paie.</p>
+    </div>
+
+    <div class="p-boutons" th:if="${droits.preparer() and pays != null and !alertes.sansRegles()}">
+        <form method="post" th:action="@{/paie/mois}">
+            <label>Mois <input type="month" name="mois" required th:value="${moisPropose}"></label>
+            <button type="submit" class="k-bouton">Ouvrir la paie du mois</button>
+        </form>
+        <a class="k-bouton k-secondaire" th:href="@{/paie/salaries}"
+           th:text="${salaries + ' salarié(s) sous contrat'}">3 salariés</a>
+    </div>
+
+    <p class="k-discret" th:if="${periodes.isEmpty()}">Aucun mois de paie pour l'instant.
+        <span th:if="${salaries == 0}">Commencez par <a th:href="@{/paie/salaries/nouveau}">ajouter un salarié</a>.</span></p>
+    <table class="k-table" th:unless="${periodes.isEmpty()}">
+        <thead><tr><th>Mois</th><th>État</th><th class="p-montant">Salariés</th><th class="p-montant">Brut</th>
+            <th class="p-montant">Net à payer</th><th class="p-montant">Coût total</th></tr></thead>
+        <tbody>
+        <tr th:each="p : ${periodes}" th:with="t=${totaux.get(p.id())}">
+            <td><a th:href="@{/paie/mois/{id}(id=${p.id()})}" th:text="${p.libelle()}">novembre 2026</a></td>
+            <td><span class="k-pastille" th:classappend="${p.payeLe() != null ? 'k-ok' : (p.close() ? '' : 'p-jaune')}"
+                      th:text="${p.payeLe() != null ? 'Payé le ' + f.jour(p.payeLe()) : (p.close() ? 'Clos' : 'En préparation')}">Clos</span></td>
+            <td class="p-montant" th:text="${t == null ? '' : t.salaries()}">3</td>
+            <td class="p-montant" th:text="${t == null ? '' : f.montant(t.brut())}">0</td>
+            <td class="p-montant" th:text="${t == null ? '' : f.montant(t.net())}">0</td>
+            <td class="p-montant" th:text="${t == null ? '' : f.montant(t.coutEmployeur())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>
