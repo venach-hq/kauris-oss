@@ -116,7 +116,8 @@ public class ComptaService {
     public void definirParametres(Acces a, Parametres.Systeme systeme, boolean validationAutomatique) {
         exiger(a, PARAMETRER);
         preparer(a.tenantId());
-        parametres.sauvegarder(new Parametres(a.tenantId(), systeme, validationAutomatique));
+        transaction.executer(() -> parametres.sauvegarder(new Parametres(a.tenantId(), systeme,
+                validationAutomatique)));
     }
 
     // ================================================================== plan comptable
@@ -141,7 +142,7 @@ public class ComptaService {
             throw new ErreurMetier("Le compte " + n + " existe déjà.");
         }
         Compte c = new Compte(a.tenantId(), n, libelle, lettrable, true);
-        comptes.sauvegarder(c);
+        transaction.executer(() -> comptes.sauvegarder(c));
         return c;
     }
 
@@ -149,7 +150,8 @@ public class ComptaService {
         exiger(a, PARAMETRER);
         Compte c = comptes.compte(a.tenantId(), Compte.numero(numero))
                 .orElseThrow(() -> new ElementIntrouvable("Compte introuvable."));
-        comptes.sauvegarder(c.modifie(libelle, lettrable, actif));
+        Compte modifie = c.modifie(libelle, lettrable, actif);
+        transaction.executer(() -> comptes.sauvegarder(modifie));
     }
 
     /** Le compte, créé avec le libellé du plan (ou de son parent) s'il manque : un module peut avoir ses comptes. */
@@ -177,8 +179,9 @@ public class ComptaService {
         Journal nouveau = new Journal(a.tenantId(), code, libelle, false);
         Optional<Journal> existant = journaux.journaux(a.tenantId()).stream()
                 .filter(j -> j.code().equals(nouveau.code())).findFirst();
-        journaux.sauvegarder(new Journal(a.tenantId(), nouveau.code(), nouveau.libelle(),
-                existant.map(Journal::systeme).orElse(false)));
+        Journal j = new Journal(a.tenantId(), nouveau.code(), nouveau.libelle(),
+                existant.map(Journal::systeme).orElse(false));
+        transaction.executer(() -> journaux.sauvegarder(j));
     }
 
     private Journal journal(UUID tenantId, String code) {
@@ -226,6 +229,10 @@ public class ComptaService {
      * opération qui ne peut pas s'écrire reste « à revoir » : elle ne bloque jamais l'opération d'origine.
      */
     public void recevoir(OperationComptable o) {
+        transaction.executer(() -> recevoirDansLaTransaction(o));
+    }
+
+    private void recevoirDansLaTransaction(OperationComptable o) {
         UUID t = o.tenantId();
         Parametres p = preparer(t);
         if (operations.operation(t, o.origine(), o.reference()).isPresent()) {
@@ -264,6 +271,11 @@ public class ComptaService {
 
     /** Annule une opération reçue : supprime son brouillard, ou passe l'écriture inverse à cette date. */
     public void annulerOperation(UUID tenantId, String origine, String reference, LocalDate date, String motif) {
+        transaction.executer(() -> annulerDansLaTransaction(tenantId, origine, reference, date, motif));
+    }
+
+    private void annulerDansLaTransaction(UUID tenantId, String origine, String reference, LocalDate date,
+                                          String motif) {
         Parametres p = preparer(tenantId);
         Optional<OperationRecue> trouvee = operations.operation(tenantId, origine, reference);
         if (trouvee.isEmpty()) {
