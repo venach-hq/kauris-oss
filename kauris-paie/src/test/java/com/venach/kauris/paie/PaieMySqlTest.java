@@ -266,7 +266,7 @@ class PaieMySqlTest {
             mvc.perform(get(page)).andExpect(status().isOk());
         }
 
-        // Une autre organisation (au Sénégal, où la paie ne calcule pas encore) ne voit rien.
+        // Une autre organisation (au Sénégal, sans règles activées) ne voit rien.
         ouvrir("Autre", "SN");
         mvc.perform(get("/paie/mois/" + p.id())).andExpect(status().isNotFound());
         mvc.perform(get("/paie/salaries/" + s.id())).andExpect(status().isNotFound());
@@ -301,6 +301,57 @@ class PaieMySqlTest {
         assertTrue(texte.contains("CNPS") && texte.contains("CMU") && texte.contains("ITS"), texte);
         enregistrer("paie-bulletin-ci.pdf", pdf);
         mvc.perform(get("/paie/mois/" + p.id() + "/export/fiscale.pdf")).andExpect(status().isOk());
+    }
+
+    @Test
+    void senegal() throws Exception {
+        Acces a = ouvrir("Teranga Services", "SN");
+        mvc.perform(get("/paie")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sénégal — règles recommandées 2026")));
+        mvc.perform(post("/paie/regles/activer").param("modele", ModelesRecommandes.SENEGAL_2026))
+                .andExpect(redirectedUrlPattern("/paie/regles/*"));
+        ReglesPaie regles = paie.regles(a).get(0);
+        assertEquals(ModelesRecommandes.SENEGAL_2026, regles.modele());
+        // L'éditeur affiche la TRIMF, la réduction en pourcentage et le plafond ; on les renvoie tels quels.
+        mvc.perform(get("/paie/regles/" + regles.id())).andExpect(status().isOk())
+                .andExpect(content().string(containsString("frf_0_pal_5_montant")))
+                .andExpect(content().string(containsString("red_7_parts")))
+                .andExpect(content().string(containsString("imp_plafond")));
+        var form = post("/paie/regles/" + regles.id()).param("nom", regles.nom())
+                .param("depuis", regles.depuis().toString().substring(0, 7)).param("notes", regles.notes());
+        for (var e : FormulaireReglesTest.champs(regles.contenu()).entrySet()) {
+            form.param(e.getKey(), e.getValue());
+        }
+        mvc.perform(form).andExpect(flash().attributeExists("succes"));
+        assertEquals(regles.contenu(), paie.reglesParId(a, regles.id()).contenu());
+
+        mvc.perform(post("/paie/salaries").param("nom", "Diop").param("situation", "MARIE").param("enfants", "2")
+                        .param("conjointACharge", "on").param("cadre", "on").param("modePaiement", "VIREMENT")
+                        .param("banque", "CBAO").param("compte", "SN012 01001 000123456789 12"))
+                .andExpect(flash().attributeExists("succes"));
+        Salarie s = paie.salaries(a).get(0).salarie();
+        assertTrue(s.cadre());
+        mvc.perform(get("/paie/salaries/" + s.id())).andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"cadre\"")));
+        mvc.perform(post("/paie/salaries/" + s.id() + "/contrats").param("type", "CDI").param("poste", "Directeur")
+                        .param("debut", mois.minusMonths(3).atDay(1).toString()).param("salaireBase", "1000000"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(post("/paie/mois").param("mois", mois.toString())).andExpect(redirectedUrlPattern("/paie/mois/*"));
+        PeriodePaie p = paie.periodes(a).get(0);
+        Bulletin b = paie.bulletinDe(a, p.id(), s.id());
+        assertEquals("3 part(s)", b.famille());
+        assertEquals(219_938, b.resultat().impot(), "IR 216 938 + TRIMF 3 000");
+        assertEquals(724_370, b.net());
+        byte[] pdf = mvc.perform(get("/paie/mois/" + p.id() + "/salaries/" + s.id() + "/bulletin.pdf"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        String texte = texte(pdf).replaceAll("\\s+", "");
+        assertTrue(texte.contains("IPRES") && texte.contains("TRIMF") && texte.contains("CFCE"), texte);
+        enregistrer("paie-bulletin-sn.pdf", pdf);
+        byte[] fiscale = mvc.perform(get("/paie/mois/" + p.id() + "/export/fiscale.csv")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        String csv = new String(fiscale, StandardCharsets.UTF_8);
+        assertTrue(csv.contains("TRIMF retenu") && csv.contains("216938"), csv);
+        mvc.perform(get("/paie/mois/" + p.id() + "/export/ecritures.pdf")).andExpect(status().isOk());
     }
 
     private static boolean contient(byte[] zip, String entree, String texte) throws IOException {

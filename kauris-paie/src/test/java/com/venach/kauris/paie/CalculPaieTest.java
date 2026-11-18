@@ -37,15 +37,16 @@ class CalculPaieTest {
 
     static final ReglesPaie.Contenu TOGO = ModelesRecommandes.pour(Pays.TOGO).orElseThrow().contenu();
     static final ReglesPaie.Contenu CI = ModelesRecommandes.pour(Pays.COTE_D_IVOIRE).orElseThrow().contenu();
+    static final ReglesPaie.Contenu SN = ModelesRecommandes.pour(Pays.SENEGAL).orElseThrow().contenu();
 
     private static CalculPaie.Resultat calcul(ReglesPaie.Contenu r, long base, List<Element> e, Foyer foyer) {
-        return CalculPaie.calculer(new CalculPaie.Entree(r, base, 30, List.of(), e, foyer, false, RegimeFiscal.NORMAL,
+        return CalculPaie.calculer(new CalculPaie.Entree(r, base, 30, List.of(), e, foyer, false, false, RegimeFiscal.NORMAL,
                 List.of()));
     }
 
     private static CalculPaie.Resultat calcul(ReglesPaie.Contenu r, long base, RegimeFiscal regime, boolean expatrie) {
         return CalculPaie.calculer(new CalculPaie.Entree(r, base, 30, List.of(), List.of(), Foyer.seul(), expatrie,
-                regime, List.of()));
+                false, regime, List.of()));
     }
 
     private static Foyer foyer(SituationFamiliale s, int enfants, boolean conjoint) {
@@ -114,7 +115,7 @@ class CalculPaieTest {
         assertEquals(300_000, salarie.brutSoumis());
         assertEquals(350_000, salarie.brut());
         CalculPaie.Resultat dirigeant = CalculPaie.calculer(new CalculPaie.Entree(TOGO, 300_000, 30, List.of(), frais,
-                Foyer.seul(), false, RegimeFiscal.DIRIGEANT, List.of()));
+                Foyer.seul(), false, false, RegimeFiscal.DIRIGEANT, List.of()));
         assertEquals(350_000, dirigeant.brutSoumis());
     }
 
@@ -125,7 +126,7 @@ class CalculPaieTest {
         ReglesPaie.Cotisation p = c.get(0);
         c.set(0, new ReglesPaie.Cotisation(p.code(), p.libelle(), p.organisme(), new BigDecimal("8"),
                 p.tauxEmployeur(), 0, 0, 0, 0, 0, p.deduction(), p.application(), true, p.compte(), ""));
-        ReglesPaie.Contenu huit = new ReglesPaie.Contenu(c, TOGO.taxes(), TOGO.impot(), TOGO.heures(), TOGO.comptes());
+        ReglesPaie.Contenu huit = new ReglesPaie.Contenu(c, TOGO.taxes(), TOGO.forfaits(), TOGO.impot(), TOGO.heures(), TOGO.comptes());
         // 500 000 − (30 000 + 25 000) = 445 000 × 12 = 5 340 000 ; − 1 495 200 = 3 844 800 → 3 844 000 ;
         // 63 000 + 84 400 = 147 400 ; / 12 = 12 283,33 → 12 283.
         assertEquals(12_283, calcul(huit, 500_000, List.of(), Foyer.seul()).impot());
@@ -199,7 +200,7 @@ class CalculPaieTest {
         CalculPaie.Resultat r = CalculPaie.calculer(new CalculPaie.Entree(CI, 346_660, 30, List.of(
                 new Variables.Heures("41e à 46e heure", new BigDecimal("15"), new BigDecimal("10")),
                 new Variables.Heures("Au-delà de la 46e heure", new BigDecimal("50"), new BigDecimal("4"))),
-                List.of(), Foyer.seul(), false, RegimeFiscal.NORMAL, List.of()));
+                List.of(), Foyer.seul(), false, false, RegimeFiscal.NORMAL, List.of()));
         assertEquals(346_660 + 23_000 + 12_000, r.brutSoumis());
     }
 
@@ -224,7 +225,7 @@ class CalculPaieTest {
         // 100 000 : cotisations 9 000, pas d'impôt ; net disponible 91 000. L'avance de 120 000 n'est retenue
         // qu'à hauteur de 91 000 : le net vaut 0, le reste est reporté.
         CalculPaie.Resultat r = CalculPaie.calculer(new CalculPaie.Entree(TOGO, 100_000, 30, List.of(), List.of(),
-                Foyer.seul(), false, RegimeFiscal.NORMAL, List.of(new CalculPaie.AvanceDue("AV:1", "Prêt moto",
+                Foyer.seul(), false, false, RegimeFiscal.NORMAL, List.of(new CalculPaie.AvanceDue("AV:1", "Prêt moto",
                 120_000))));
         assertEquals(0, r.netAPayer());
         assertEquals(91_000, r.rembourse("AV:1"));
@@ -256,32 +257,104 @@ class CalculPaieTest {
         assertThrows(ErreurMetier.class, () -> new ReglesPaie.Impot("IRPP", "OTR", ReglesPaie.Periodicite.ANNUELLE,
                 List.of(new ReglesPaie.Tranche(900_000, BigDecimal.ZERO), new ReglesPaie.Tranche(500_000,
                         BigDecimal.ONE), new ReglesPaie.Tranche(0, BigDecimal.TEN)), true, BigDecimal.ZERO,
-                BigDecimal.ZERO, 0, ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, 1, 1, null, false, false,
+                BigDecimal.ZERO, 0, ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, null, null, 1, 1, null, false, false,
                 BigDecimal.ZERO, 0, "", ""), "limites décroissantes");
         assertThrows(ErreurMetier.class, () -> new ReglesPaie.Impot("IRPP", "OTR", ReglesPaie.Periodicite.ANNUELLE,
                 List.of(new ReglesPaie.Tranche(900_000, BigDecimal.ZERO)), true, BigDecimal.ZERO, BigDecimal.ZERO, 0,
-                ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, 1, 1, null, false, false, BigDecimal.ZERO, 0, "", ""),
+                ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, null, null, 1, 1, null, false, false, BigDecimal.ZERO, 0, "", ""),
                 "la dernière tranche est sans limite");
         assertThrows(ErreurMetier.class, () -> new ReglesPaie.Tranche(100, new BigDecimal("140")));
         assertThrows(ErreurMetier.class, () -> new ReglesPaie.Contenu(List.of(TOGO.cotisations().get(0),
-                TOGO.cotisations().get(0)), List.of(), TOGO.impot(), null, null), "codes en double");
+                TOGO.cotisations().get(0)), List.of(), List.of(), TOGO.impot(), null, null), "codes en double");
         assertThrows(ErreurMetier.class, () -> new ReglesPaie(UUID.randomUUID(), UUID.randomUUID(), Pays.TOGO,
                 LocalDate.of(2027, 1, 15), "Togo", "", TOGO, "", Instant.EPOCH, ""), "premier jour du mois");
         ReglesPaie.Contenu vide = ModelesRecommandes.vide(Pays.SENEGAL, LocalDate.of(2027, 3, 12)).contenu();
         assertEquals(0, calcul(vide, 300_000, List.of(), Foyer.seul()).impot());
     }
 
+    // ================================================================== Sénégal
+
+    private static CalculPaie.Resultat senegal(long base, Foyer foyer, boolean cadre, ReglesPaie.Contenu r) {
+        return CalculPaie.calculer(new CalculPaie.Entree(r, base, 30, List.of(), List.of(), foyer, false, cadre,
+                RegimeFiscal.NORMAL, List.of()));
+    }
+
+    @Test
+    void senegalCadreMarieDeuxEnfants() {
+        // Cadre à 1 000 000, marié, épouse sans revenu, 2 enfants : 3 parts.
+        CalculPaie.Resultat r = senegal(1_000_000, foyer(SituationFamiliale.MARIE, 2, true), true, SN);
+        // IPRES RG 432 000 × 5,6 % = 24 192 ; RCC 1 000 000 × 2,4 % = 24 000 ; IPM 250 000 × 3 % = 7 500.
+        assertEquals(24_192 + 24_000 + 7_500, r.cotisationsSalarie());
+        assertEquals(36_288, r.employeurDe("IPRES") - 36_000);
+        assertEquals(4_410 + 630, r.employeurDe("CSS"));
+        // IR : 12 000 000 − 900 000 (30 %, au plus 900 000) = 11 100 000 ; barème 3 471 000 ;
+        // réduction 25 % (entre 400 000 et 1 650 000) = 867 750 ; 2 603 250 / 12 = 216 937,5 → 216 938.
+        assertEquals(11_100_000, r.baseImpot());
+        assertEquals(216_938, r.lignes().stream().filter(l -> l.code().equals("IR")).findFirst().orElseThrow()
+                .salarie());
+        // TRIMF : 12 000 000 → 18 000 par an, 1 500 par mois, pour lui et son épouse.
+        assertEquals(3_000, r.lignes().stream().filter(l -> l.code().equals("TRIMF")).findFirst().orElseThrow()
+                .salarie());
+        assertEquals(219_938, r.impot());
+        assertEquals(1_000_000 - 55_692 - 219_938, r.netAPayer());
+        assertEquals(30_000, r.employeurDe("DGID"), "CFCE 3 %");
+        assertEquals(36_288 + 36_000 + 4_410 + 630 + 7_500 + 30_000, r.chargesEmployeur());
+    }
+
+    @Test
+    void senegalNonCadreEtReductionMinimale() {
+        // Célibataire, 150 000, non cadre : pas de retraite des cadres, pas de réduction (1 part).
+        CalculPaie.Resultat seul = senegal(150_000, Foyer.seul(), false, SN);
+        assertTrue(seul.lignes().stream().noneMatch(l -> l.code().equals("IPRES_RCC")));
+        assertEquals(8_400 + 4_500, seul.cotisationsSalarie());
+        // 1 800 000 − 540 000 = 1 260 000 ; (1 260 000 − 630 000) × 20 % = 126 000 ; / 12 = 10 500.
+        // TRIMF : 1 800 000 → 4 800 par an, 400 par mois.
+        assertEquals(10_500 + 400, seul.impot());
+        assertEquals(150_000 - 12_900 - 10_900, seul.netAPayer());
+        // Le même salaire avec 3 parts : la réduction minimale (400 000) dépasse l'impôt, qui tombe à zéro.
+        CalculPaie.Resultat famille = senegal(150_000, foyer(SituationFamiliale.MARIE, 2, true), false, SN);
+        assertEquals(800, famille.impot(), "seule la TRIMF reste, pour lui et son épouse");
+    }
+
+    @Test
+    void partsEtPlafondDeLImpot() {
+        ReglesPaie.Impot i = SN.impot();
+        assertEquals(0, new BigDecimal("1.5").compareTo(i.parts().de(foyer(SituationFamiliale.MARIE, 0, false))));
+        assertEquals(0, new BigDecimal("2").compareTo(i.parts().de(foyer(SituationFamiliale.MARIE, 0, true))));
+        assertEquals(0, new BigDecimal("2").compareTo(i.parts().de(foyer(SituationFamiliale.DIVORCE, 2, false))));
+        assertEquals(0, new BigDecimal("2").compareTo(i.parts().de(foyer(SituationFamiliale.VEUF, 1, false))));
+        assertEquals(0, new BigDecimal("5").compareTo(i.parts().de(foyer(SituationFamiliale.MARIE, 9, true))));
+        assertTrue(i.reductionPour(BigDecimal.ONE).isEmpty());
+        assertEquals(0, new BigDecimal("45").compareTo(i.reductionPour(new BigDecimal("5")).orElseThrow().taux()));
+        // Un plafond à 5 % du revenu imposable : 11 100 000 × 5 % = 555 000 par an, 46 250 par mois.
+        ReglesPaie.Impot plafonne = new ReglesPaie.Impot(i.nom(), i.organisme(), i.periodicite(), i.tranches(),
+                i.deduireCotisations(), i.retraiteDeductibleMax(), i.abattement(), i.abattementLimite(), i.famille(),
+                i.deductionParPersonne(), i.personnesMax(), i.reductionParDemiPart(), i.parts(), i.reductions(),
+                new BigDecimal("5"), i.arrondiRevenu(), i.arrondiImpot(), i.arrondiMensuel(),
+                i.primesDifferentielles(), i.apprentisExoneres(), i.gerantAbattement(), i.gerantAbattementLimite(),
+                i.compte(), i.note());
+        ReglesPaie.Contenu c = new ReglesPaie.Contenu(SN.cotisations(), SN.taxes(), SN.forfaits(), plafonne,
+                SN.heures(), SN.comptes());
+        CalculPaie.Resultat r = senegal(1_000_000, foyer(SituationFamiliale.MARIE, 2, true), true, c);
+        assertEquals(46_250 + 3_000, r.impot());
+        // Paliers invalides : la dernière limite doit être vide.
+        assertThrows(ErreurMetier.class, () -> new ReglesPaie.Forfait("TRIMF", "TRIMF", "DGID", List.of(
+                new ReglesPaie.Palier(600_000, 900), new ReglesPaie.Palier(1_000_000, 3_600)), true, "", ""));
+        assertThrows(ErreurMetier.class, () -> new ReglesPaie.Reduction(new BigDecimal("2"), BigDecimal.TEN,
+                500_000, 100_000), "minimum au-dessus du maximum");
+    }
+
     @Test
     void ecrituresEquilibrees() {
-        for (ReglesPaie.Contenu r : List.of(TOGO, CI)) {
+        for (ReglesPaie.Contenu r : List.of(TOGO, CI, SN)) {
             CalculPaie.Resultat res = CalculPaie.calculer(new CalculPaie.Entree(r, 400_000, 30, List.of(), List.of(
                     new Element("Prime", TypeElement.GAIN_SOUMIS, 30_000),
                     new Element("Logement", TypeElement.AVANTAGE_NATURE, 50_000),
                     new Element("Transport", TypeElement.GAIN_NON_SOUMIS, 25_000),
                     new Element("Syndicat", TypeElement.RETENUE, 2_000)), foyer(SituationFamiliale.MARIE, 1, true),
-                    false, RegimeFiscal.NORMAL, List.of(new CalculPaie.AvanceDue("AV:x", "Avance", 20_000))));
+                    false, false, RegimeFiscal.NORMAL, List.of(new CalculPaie.AvanceDue("AV:x", "Avance", 20_000))));
             Salarie s = Salarie.de(UUID.randomUUID(), UUID.randomUUID(), "S-0001", new Salarie.Saisie("Mensah", "",
-                    null, "", "", "", "", "", SituationFamiliale.MARIE, 1, true, 0, false, RegimeFiscal.NORMAL,
+                    null, "", "", "", "", "", SituationFamiliale.MARIE, 1, true, 0, false, false, RegimeFiscal.NORMAL,
                     ModePaiement.ESPECES, "", "", true, ""), Instant.EPOCH);
             ContratTravail c = ContratTravail.de(UUID.randomUUID(), s.tenantId(), s.id(), "CTR-1",
                     new ContratTravail.Saisie(TypeContrat.CDI, "Comptable", "", LocalDate.of(2025, 1, 1), null,

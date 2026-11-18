@@ -25,7 +25,7 @@ public record Bulletin(UUID id, UUID tenantId, UUID periodeId, UUID salarieId, U
                                      ReglesPaie regles, CalculPaie.Resultat r) {
         ReglesPaie.Impot i = regles.contenu().impot();
         String famille = switch (i.famille()) {
-            case REDUCTION_PAR_DEMI_PART -> i.parts().de(s.foyer()).toPlainString().replace('.', ',') + " part(s)";
+            case REDUCTION_PAR_DEMI_PART, REDUCTION_EN_POURCENTAGE -> i.parts().de(s.foyer()).toPlainString().replace('.', ',') + " part(s)";
             case DEDUCTION_PAR_PERSONNE -> Math.min(s.foyer().personnesACharge(), i.personnesMax())
                     + " personne(s) à charge";
             case AUCUNE -> "";

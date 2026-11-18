@@ -25,8 +25,9 @@ import java.util.Set;
  *   <li>Cotisations sur le brut soumis, primes exceptionnelles comprises : plafond, assiette minimale, ou montant
  *       fixe par personne couverte ; selon le personnel (local, expatrié, apprenti).</li>
  *   <li>Impôt : revenu du mois (ou de l'année), moins les cotisations déductibles (retraite plafonnée), l'abattement
- *       et les personnes à charge ; arrondi, barème, réduction par demi-part, arrondi ; primes exceptionnelles par
- *       différence ; régimes apprenti et gérant.</li>
+ *       et les personnes à charge ; arrondi, barème, réduction pour charges de famille (par demi-part ou en
+ *       pourcentage selon les parts), plafond, arrondi ; primes exceptionnelles par différence ; régimes apprenti et
+ *       gérant. Puis les impôts forfaitaires selon le revenu brut annuel (TRIMF).</li>
  *   <li>Taxes de l'employeur sur les salaires.</li>
  *   <li>Retenues, puis avances et prêts plafonnés au net disponible (le reste est reporté).</li>
  * </ol>
@@ -96,12 +97,13 @@ public final class CalculPaie {
      * @param salaireBase  salaire de base mensuel du contrat, pour un mois complet
      * @param joursPayes   jours payés sur 30 (moins les absences non payées, entrée ou sortie en cours de mois)
      * @param heures       heures supplémentaires du mois
+     * @param cadre        vrai pour un cadre (cotisations réservées aux cadres)
      * @param elements     primes, avantages et retenues du contrat et du mois
      * @param avances      avances et prêts dont une échéance tombe ce mois-ci
      */
     public record Entree(ReglesPaie.Contenu regles, long salaireBase, int joursPayes, List<Variables.Heures> heures,
-                         List<Element> elements, Foyer foyer, boolean expatrie, RegimeFiscal regime,
-                         List<AvanceDue> avances) {
+                         List<Element> elements, Foyer foyer, boolean expatrie, boolean cadre,
+                         RegimeFiscal regime, List<AvanceDue> avances) {
 
         public Entree {
             if (regles == null) {
@@ -126,6 +128,7 @@ public final class CalculPaie {
      *
      * @param brut             tout ce que le salarié gagne, avantages en nature et indemnités non soumises compris
      * @param brutSoumis       la base des cotisations et de l'impôt (primes exceptionnelles comprises)
+     * @param impot            tout l'impôt retenu au salarié : l'impôt sur les salaires et les impôts forfaitaires
      * @param baseImpot        revenu imposable arrondi de la période de l'impôt (mois ou année)
      * @param detailImpot      comment l'impôt a été obtenu, en une phrase pour le bulletin
      * @param impotNom         IRPP, ITS…
@@ -257,7 +260,7 @@ public final class CalculPaie {
 
         // 3. Cotisations
         List<Cotisation> applicables = r.cotisations().stream()
-                .filter(c -> c.application().concerne(e.expatrie()) && (!apprenti || c.apprentis())).toList();
+                .filter(c -> c.application().concerne(e.expatrie(), e.cadre()) && (!apprenti || c.apprentis())).toList();
         long cotisationsSalarie = 0;
         for (Cotisation c : applicables) {
             long base;
@@ -289,10 +292,23 @@ public final class CalculPaie {
         lignes.add(new Ligne(i.nom(), i.nom() + (impot.montant == 0 && apprenti && i.apprentisExoneres()
                 ? " (apprenti, exonéré)" : ""), Nature.IMPOT, i.organisme(), impot.base, null, 0, impot.montant, null,
                 0, i.compte(), ""));
+        long impots = impot.montant;
+        for (ReglesPaie.Forfait x : r.forfaits()) {
+            long annuel = x.annuel(regulier * 12);
+            int personnes = 1 + (x.conjoint() && e.foyer().conjointACharge() ? 1 : 0);
+            long montant = BigDecimal.valueOf(annuel).divide(BigDecimal.valueOf(12), 0, RoundingMode.HALF_UP)
+                    .longValue() * personnes;
+            if (regulier <= 0 || montant <= 0) {
+                continue;
+            }
+            lignes.add(new Ligne(x.code(), x.libelle() + (personnes > 1 ? " (salarié et conjoint)" : ""), Nature.IMPOT,
+                    x.organisme(), 0, null, 0, montant, null, 0, x.compte(), ""));
+            impots += montant;
+        }
 
         // 5. Taxes de l'employeur
         for (TaxeEmployeur t : r.taxes()) {
-            if (!t.application().concerne(e.expatrie()) || (apprenti && !t.apprentis())) {
+            if (!t.application().concerne(e.expatrie(), e.cadre()) || (apprenti && !t.apprentis())) {
                 continue;
             }
             long base = t.plafond() > 0 ? Math.min(soumis, t.plafond()) : soumis;
@@ -305,7 +321,7 @@ public final class CalculPaie {
 
         // 6. Net avant avances ; les retenues ne peuvent pas rendre le net négatif
         long brut = soumis + nonSoumis;
-        long disponible = brut - avantages - cotisationsSalarie - impot.montant - retenues;
+        long disponible = brut - avantages - cotisationsSalarie - impots - retenues;
         if (disponible < 0) {
             throw new ErreurMetier("Les retenues dépassent ce que le salarié gagne ce mois-ci : le net serait négatif ("
                     + disponible + "). Réduisez une retenue ou reportez-la au mois suivant.");
@@ -324,7 +340,7 @@ public final class CalculPaie {
         }
         long charges = lignes.stream().mapToLong(Ligne::employeur).sum();
         long net = disponible - avancesRetenues;
-        return new Resultat(lignes, brut, soumis, cotisationsSalarie, impot.montant, retenues + avancesRetenues,
+        return new Resultat(lignes, brut, soumis, cotisationsSalarie, impots, retenues + avancesRetenues,
                 avantages, net, charges, impot.base, impot.detail, i.nom(), comptes.remunerationsDues());
     }
 
@@ -423,8 +439,19 @@ public final class CalculPaie {
             long demiParts = i.parts().de(foyer).subtract(BigDecimal.ONE).multiply(BigDecimal.valueOf(2))
                     .setScale(0, RoundingMode.FLOOR).longValue();
             reduction = Math.min(brut, Math.max(0, demiParts) * i.reductionParDemiPart() * mois);
+        } else if (!gerant && i.famille() == Famille.REDUCTION_EN_POURCENTAGE && brut > 0) {
+            reduction = i.reductionPour(i.parts().de(foyer)).map(x -> {
+                long v = taux(brut, x.taux());
+                v = Math.max(v, x.minimum());
+                return x.maximum() > 0 ? Math.min(v, x.maximum()) : v;
+            }).orElse(0L);
+            reduction = Math.min(brut, reduction);
         }
-        long impot = ReglesPaie.Arrondi.INFERIEUR.appliquer(brut - reduction, i.arrondiImpot());
+        long apres = brut - reduction;
+        if (i.plafond().signum() > 0) {
+            apres = Math.min(apres, taux(imposable, i.plafond()));
+        }
+        long impot = ReglesPaie.Arrondi.INFERIEUR.appliquer(apres, i.arrondiImpot());
         return new Periode(abattement, famille, imposable, impot, reduction);
     }
 

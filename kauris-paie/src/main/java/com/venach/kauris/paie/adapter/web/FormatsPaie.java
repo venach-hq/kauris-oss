@@ -82,9 +82,38 @@ public final class FormatsPaie {
 
     /** « célibataire 1, marié 2, seul avec enfants 1,5, veuf avec enfants 2, par enfant 0,5, au plus 5 ». */
     public String parts(ReglesPaie.Parts p) {
-        return "célibataire " + decimal(p.celibataire()) + ", marié " + decimal(p.marie()) + ", seul avec enfants "
+        return "célibataire " + decimal(p.celibataire()) + ", marié " + decimal(p.marie())
+                + (p.conjointSansRevenu().signum() > 0 ? " (+ " + decimal(p.conjointSansRevenu())
+                + " si le conjoint n'a pas de revenu)" : "") + ", seul avec enfants "
                 + decimal(p.seulAvecEnfants()) + ", veuf avec enfants " + decimal(p.veufAvecEnfants())
                 + ", par enfant " + decimal(p.parEnfant()) + ", au plus " + decimal(p.maximum());
+    }
+
+    /** « 1,5 part : 10 % (100 000 à 300 000) ; 2 parts : 15 %… ». */
+    public String reductions(java.util.List<ReglesPaie.Reduction> r) {
+        StringBuilder s = new StringBuilder();
+        for (ReglesPaie.Reduction x : r) {
+            if (!s.isEmpty()) {
+                s.append(" ; ");
+            }
+            s.append(decimal(x.parts())).append(" parts : ").append(taux(x.taux())).append(" (")
+                    .append(nombre(x.minimum())).append(" à ").append(x.maximum() == 0 ? "sans maximum"
+                            : nombre(x.maximum())).append(")");
+        }
+        return s.isEmpty() ? "aucune" : s.toString();
+    }
+
+    /** « jusqu'à 600 000 : 900 ; au-delà : 36 000 ». */
+    public String paliers(java.util.List<ReglesPaie.Palier> p) {
+        StringBuilder s = new StringBuilder();
+        for (ReglesPaie.Palier x : p) {
+            if (!s.isEmpty()) {
+                s.append(" ; ");
+            }
+            s.append(x.jusqua() == 0 ? "au-delà" : "jusqu'à " + nombre(x.jusqua())).append(" : ")
+                    .append(nombre(x.montant()));
+        }
+        return s.toString();
     }
 
     /** « 41e à 46e heure +15 % ; nuit +75 % ». */

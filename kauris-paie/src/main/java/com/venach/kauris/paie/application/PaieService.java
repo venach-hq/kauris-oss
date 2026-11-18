@@ -606,7 +606,7 @@ public class PaieService {
         int jours = Math.max(0, c.joursDans(p.mois()) - v.joursAbsence());
         List<Element> elements = Stream.concat(c.elements().stream(), v.elements().stream()).toList();
         CalculPaie.Resultat res = CalculPaie.calculer(new CalculPaie.Entree(r.contenu(), c.salaireBase(), jours,
-                v.heures(), elements, s.foyer(), s.expatrie(), s.regime(), avances));
+                v.heures(), elements, s.foyer(), s.expatrie(), s.cadre(), s.regime(), avances));
         return Bulletin.brouillon(p.tenantId(), p.id(), s, c, jours, r, res);
     }
 

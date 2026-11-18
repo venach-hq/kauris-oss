@@ -13,16 +13,19 @@ vous pouvez lire et corriger :
 
 - les **cotisations sociales** : organisme, taux salarié et employeur, plafond, assiette minimale (le SMIG), ou
   montant fixe par personne couverte (assurance maladie), déduction ou non de l'impôt, personnel concerné (local,
-  expatrié, apprentis), compte comptable ;
+  expatrié, cadres, apprentis), compte comptable ;
 - l'**impôt sur les salaires** : nom, barème (mensuel ou annuel) et ses tranches, déduction des cotisations, retraite
-  déductible plafonnée, abattement et sa limite, charges de famille (déduction par personne à charge ou réduction par
-  demi-part, avec le nombre de parts selon la famille), arrondis, primes exceptionnelles imposées par différence,
-  apprentis exonérés, frais forfaitaires des gérants ;
+  déductible plafonnée, abattement et sa limite, charges de famille (déduction par personne à charge, réduction par
+  demi-part, ou réduction en pourcentage de l'impôt avec un minimum et un maximum selon les parts ; nombre de parts
+  selon la famille), plafond de l'impôt, arrondis, primes exceptionnelles imposées par différence, apprentis exonérés,
+  frais forfaitaires des gérants ;
+- les **impôts forfaitaires** retenus au salarié selon son revenu brut annuel (TRIMF), dus aussi, si besoin, pour le
+  conjoint sans revenu ;
 - les **taxes de l'employeur** sur les salaires (impôt patronal, apprentissage, formation…) ;
 - les **heures supplémentaires** : heures d'un mois complet et majorations ;
 - les **comptes** des écritures de paie.
 
-Pour le **Togo** et la **Côte d'Ivoire**, Kauris propose des **règles recommandées**, vérifiées en novembre 2026, avec
+Pour le **Togo**, la **Côte d'Ivoire** et le **Sénégal**, Kauris propose des **règles recommandées**, vérifiées en novembre 2026, avec
 leurs notes et leurs sources. Vous les activez, puis vous corrigez ce qui est propre à votre entreprise : votre taux
 d'accident du travail, votre convention collective, une loi de finances nouvelle. Dans l'éditeur, chaque valeur qui
 s'écarte de la recommandation l'affiche en jaune juste en dessous ; les lignes recommandées que vous avez retirées
@@ -58,6 +61,7 @@ créez un rôle (**Organisation → Rôles**) et cochez ce qu'il faut :
    vérifiez-les et corrigez-les.
 2. **Salariés** → *Ajouter un salarié* : identité, numéro d'assuré, situation de famille, enfants à charge, conjoint
    sans revenu, autres personnes à charge, **régime fiscal** (salarié, dirigeant, gérant, apprenti), expatrié ou non,
+   cadre ou non (au Sénégal, la retraite complémentaire IPRES ne concerne que les cadres),
    mode de paiement (virement, Mobile Money, espèces, chèque) et compte. Le matricule est donné par Kauris.
 3. Juste après, le **contrat** : type, poste, catégorie, date d'embauche, salaire de base et éléments versés chaque
    mois :
@@ -123,6 +127,26 @@ dizaine inférieure, divisé par 12. Primes exceptionnelles imposées par diffé
 de 8 000 000 ; moins 5 500 F par demi-part au-delà d'une part (parts : 1 seul, 2 marié, 1,5 seul avec enfants, + 0,5
 par enfant, 5 au plus). **Taxes de l'employeur** : 1,2 % (personnel local) ou 10,4 % (expatriés), taxe d'apprentissage
 0,4 %, formation professionnelle continue 0,6 % + 0,6 %.
+
+### Sénégal (2026)
+
+| Cotisation | Salarié | Employeur | Assiette |
+|---|---|---|---|
+| IPRES retraite, régime général | 5,6 % | 8,4 % | plafond 432 000 |
+| IPRES retraite complémentaire (**cadres seulement**) | 2,4 % | 3,6 % | plafond 1 296 000 |
+| CSS prestations familiales | | 7 % | plafond 63 000 |
+| CSS accidents du travail (1, 3 ou 5 % selon votre activité) | | 1 % | plafond 63 000 |
+| IPM prévoyance maladie (taux et plafond de **votre** IPM) | 3 % | 3 % | plafond 250 000 |
+
+**IR**, barème annuel : brut soumis × 12, moins l'abattement de 30 % (au plus 900 000 par an), sans autre déduction ;
+revenu arrondi au millier inférieur ; barème 0 % jusqu'à 630 000, puis 20, 30, 35, 37, 40 et 43 % au-delà de
+50 000 000 ; **réduction pour charges de famille** en pourcentage de l'impôt selon les parts, entre un minimum et un
+maximum (1,5 part : 10 %, de 100 000 à 300 000 … 5 parts : 45 %, de 800 000 à 3 180 000) ; impôt plafonné à 43 % du
+revenu imposable ; divisé par 12. Parts : 1 ; marié 1,5, plus 0,5 si le conjoint n'a pas de revenu ; plus 0,5 par
+enfant ; 5 au plus.
+
+**TRIMF** : 900 à 36 000 F par an selon le revenu brut annuel, retenus par douzième, aussi pour l'épouse sans revenu.
+**Taxe de l'employeur** : CFCE 3 % du brut.
 
 Les sources de chaque modèle sont affichées dans **Règles de paie**.
 

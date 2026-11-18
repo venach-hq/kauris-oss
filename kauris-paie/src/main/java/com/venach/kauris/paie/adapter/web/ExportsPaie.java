@@ -100,27 +100,45 @@ final class ExportsPaie {
                 org)), colonnes, l, total);
     }
 
-    /** L'impôt retenu, et les taxes de l'employeur sur les salaires par organisme. */
+    /** Les impôts forfaitaires retenus (TRIMF…), par libellé de code, présents sur les bulletins. */
+    static List<String> forfaits(List<Bulletin> b) {
+        Set<String> o = new LinkedHashSet<>();
+        b.forEach(x -> x.lignes().stream().filter(l -> l.nature() == CalculPaie.Nature.IMPOT
+                && !l.code().equals(x.resultat().impotNom())).forEach(l -> o.add(l.code())));
+        return List.copyOf(o);
+    }
+
+    private static long montantDe(CalculPaie.Resultat r, String code) {
+        return r.lignes().stream().filter(l -> l.nature() == CalculPaie.Nature.IMPOT && l.code().equals(code))
+                .mapToLong(CalculPaie.Ligne::salarie).sum();
+    }
+
+    /** L'impôt retenu, les impôts forfaitaires et les taxes de l'employeur sur les salaires par organisme. */
     static Tableau fiscale(PeriodePaie p, List<Bulletin> b) {
         List<String> taxes = organismesTaxes(b);
+        List<String> forfaits = forfaits(b);
         String impot = impot(b);
         List<String> colonnes = new ArrayList<>(List.of("Matricule", "Salarié", "Brut imposable", "Revenu imposable",
                 impot + " retenu"));
+        forfaits.forEach(x -> colonnes.add(x + " retenu"));
         for (String o : taxes) {
             colonnes.add("Taxes " + o);
         }
         colonnes.add("Total à verser");
         List<List<Object>> l = new ArrayList<>();
-        long[] t = new long[taxes.size() + 3];
+        int n = forfaits.size() + taxes.size();
+        long[] t = new long[n + 3];
         for (Bulletin x : b) {
             CalculPaie.Resultat r = x.resultat();
+            long principal = montantDe(r, r.impotNom());
             List<Object> ligne = new ArrayList<>(List.of(x.matricule(), x.nomSalarie(), r.brutSoumis(), r.baseImpot(),
-                    r.impot()));
-            long total = r.impot();
+                    principal));
+            long total = principal;
             t[0] += r.brutSoumis();
-            t[1] += r.impot();
-            for (int i = 0; i < taxes.size(); i++) {
-                long e = r.employeurDe(taxes.get(i));
+            t[1] += principal;
+            for (int i = 0; i < n; i++) {
+                long e = i < forfaits.size() ? montantDe(r, forfaits.get(i))
+                        : r.employeurDe(taxes.get(i - forfaits.size()));
                 ligne.add(e);
                 t[2 + i] += e;
                 total += e;
@@ -130,7 +148,7 @@ final class ExportsPaie {
             l.add(ligne);
         }
         List<Object> total = new ArrayList<>(List.of("Total", b.size() + " salarié(s)", t[0], "", t[1]));
-        for (int i = 0; i < taxes.size(); i++) {
+        for (int i = 0; i < n; i++) {
             total.add(t[2 + i]);
         }
         total.add(t[t.length - 1]);

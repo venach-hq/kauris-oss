@@ -24,7 +24,7 @@ Un module n'est « fini » que lorsque tout ceci est fait :
    Nommage : `V<AAAAMMJJ>_<n>__<module>_<sujet>.sql` ; tables préfixées par le module (`kernel_…`).
    Une migration publiée ne se modifie jamais. Une nouvelle migration porte un numéro **plus grand** que
    toutes celles déjà appliquées en production, sinon Flyway refuse de démarrer (le noyau en est à
-   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`, la flotte à `V20261114_1`, la paie à `V20261118_1`).
+   `V20261111_22`, les ventes à `V20261112_40`, le stock à `V20261112_41`, les achats à `V20261112_42`, la caisse à `V20261112_60`, la flotte à `V20261114_1`, la paie à `V20261118_2`).
 5. Tests : domaine (unitaires), services, intégration base (MySQL jetable lancé par Testcontainers).
 6. Écrans sur l'interface commune, avec leur bloc « Comment ça marche ? » et le lien vers le guide.
 7. Guide d'utilisation (`docs/guide/<module>.md`) à jour.
@@ -228,7 +228,7 @@ le code.
 
 - Les règles sont datées et par pays (`paie_regles`, contenu JSON relu avec des valeurs par défaut pour les champs
   absents). Kauris propose des modèles recommandés, avec notes et sources (`ModelesRecommandes` : Togo, Côte
-  d'Ivoire) ; l'entreprise les active puis corrige tout, l'éditeur montrant les écarts à la recommandation. Ajouter un
+  d'Ivoire, Sénégal) ; l'entreprise les active puis corrige tout, l'éditeur montrant les écarts à la recommandation. Ajouter un
   pays, c'est ajouter un modèle, sans toucher au calcul.
 - Le calcul (`CalculPaie`) est du Java pur, piloté par les règles, testé sur des cas comptés à la main.
 - Un mois ouvert ne stocke aucun bulletin : il se recalcule. La clôture fige et numérote les bulletins

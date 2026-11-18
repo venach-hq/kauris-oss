@@ -9,11 +9,14 @@ import com.venach.kauris.paie.domain.ReglesPaie.Comptes;
 import com.venach.kauris.paie.domain.ReglesPaie.Cotisation;
 import com.venach.kauris.paie.domain.ReglesPaie.Deduction;
 import com.venach.kauris.paie.domain.ReglesPaie.Famille;
+import com.venach.kauris.paie.domain.ReglesPaie.Forfait;
 import com.venach.kauris.paie.domain.ReglesPaie.HeuresSupplementaires;
 import com.venach.kauris.paie.domain.ReglesPaie.Impot;
 import com.venach.kauris.paie.domain.ReglesPaie.Majoration;
+import com.venach.kauris.paie.domain.ReglesPaie.Palier;
 import com.venach.kauris.paie.domain.ReglesPaie.Parts;
 import com.venach.kauris.paie.domain.ReglesPaie.Periodicite;
+import com.venach.kauris.paie.domain.ReglesPaie.Reduction;
 import com.venach.kauris.paie.domain.ReglesPaie.TaxeEmployeur;
 import com.venach.kauris.paie.domain.ReglesPaie.Tranche;
 
@@ -27,7 +30,7 @@ import java.util.Optional;
 
 /**
  * L'éditeur des règles de paie : lecture du formulaire (lignes numérotées pour les cotisations, les taxes, les
- * tranches et les majorations) et comparaison avec le modèle recommandé, pour afficher « Recommandé : … » à côté de
+ * impôts forfaitaires et leurs paliers, les tranches, les réductions pour charges de famille et les majorations) et comparaison avec le modèle recommandé, pour afficher « Recommandé : … » à côté de
  * chaque valeur qui s'en écarte.
  */
 final class FormulaireRegles {
@@ -77,9 +80,38 @@ final class FormulaireRegles {
             tranches.add(new Tranche(montant(f, p + "jusqua", "Tranche " + (i + 1)), taux(f, p + "taux",
                     "Tranche " + (i + 1))));
         }
+        List<Forfait> forfaits = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            String p = "frf_" + i + "_";
+            if (vide(f, p + "code") && vide(f, p + "libelle")) {
+                continue;
+            }
+            String nom = texte(f, p + "libelle", "Impôt forfaitaire " + (i + 1));
+            List<Palier> paliers = new ArrayList<>();
+            for (int j = 0; j < 20; j++) {
+                String q = p + "pal_" + j + "_";
+                if (vide(f, q + "jusqua") && vide(f, q + "montant")) {
+                    continue;
+                }
+                paliers.add(new Palier(montant(f, q + "jusqua", nom + " : palier"), montant(f, q + "montant",
+                        nom + " : montant")));
+            }
+            forfaits.add(new Forfait(f.get(p + "code"), f.get(p + "libelle"), f.get(p + "organisme"), paliers,
+                    coche(f, p + "conjoint"), f.get(p + "compte"), f.get(p + "note")));
+        }
+        List<Reduction> reductions = new ArrayList<>();
+        for (int i = 0; i < 25; i++) {
+            String p = "red_" + i + "_";
+            if (vide(f, p + "parts") && vide(f, p + "taux")) {
+                continue;
+            }
+            String nom = "Réduction " + (i + 1);
+            reductions.add(new Reduction(decimal(f, p + "parts", "1"), taux(f, p + "taux", nom),
+                    montant(f, p + "min", nom + " : minimum"), montant(f, p + "max", nom + " : maximum")));
+        }
         Parts parts = new Parts(decimal(f, "parts_celibataire", "1"), decimal(f, "parts_marie", "1"),
                 decimal(f, "parts_seul_enfants", "1"), decimal(f, "parts_veuf_enfants", "1"),
-                decimal(f, "parts_enfant", "0"), decimal(f, "parts_max", "1"));
+                decimal(f, "parts_enfant", "0"), decimal(f, "parts_max", "1"), decimal(f, "parts_conjoint", "0"));
         Impot impot = new Impot(f.get("imp_nom"), f.get("imp_organisme"),
                 choix(Periodicite.class, f.get("imp_periodicite"), Periodicite.MENSUELLE), tranches,
                 coche(f, "imp_deduire"), taux(f, "imp_retraite", "Retraite déductible"),
@@ -87,7 +119,8 @@ final class FormulaireRegles {
                 choix(Famille.class, f.get("imp_famille"), Famille.AUCUNE),
                 montant(f, "imp_deduction_personne", "Déduction par personne"),
                 entier(f, "imp_personnes_max", "Personnes à charge au plus"),
-                montant(f, "imp_reduction_demi_part", "Réduction par demi-part"), parts,
+                montant(f, "imp_reduction_demi_part", "Réduction par demi-part"), parts, reductions,
+                taux(f, "imp_plafond", "Plafond de l'impôt"),
                 Math.max(1, montant(f, "imp_arrondi_revenu", "Arrondi du revenu")),
                 Math.max(1, montant(f, "imp_arrondi_impot", "Arrondi de l'impôt")),
                 choix(Arrondi.class, f.get("imp_arrondi_mensuel"), Arrondi.PLUS_PROCHE),
@@ -106,7 +139,7 @@ final class FormulaireRegles {
                 f.get("hs_note"));
         Comptes comptes = new Comptes(f.get("cpt_salaires"), f.get("cpt_indemnites"), f.get("cpt_charges"),
                 f.get("cpt_net"), f.get("cpt_avances"));
-        return new ReglesPaie.Contenu(cotisations, taxes, impot, heures, comptes);
+        return new ReglesPaie.Contenu(cotisations, taxes, forfaits, impot, heures, comptes);
     }
 
     private static boolean vide(Map<String, String> f, String cle) {
@@ -180,6 +213,8 @@ final class FormulaireRegles {
         diff(e, "imp_reduction_demi_part", i.reductionParDemiPart(), r.reductionParDemiPart(), f.montantOuAucun(
                 r.reductionParDemiPart()));
         diff(e, "parts", i.parts(), r.parts(), f.parts(r.parts()));
+        diff(e, "reductions", i.reductions(), r.reductions(), f.reductions(r.reductions()));
+        diff(e, "imp_plafond", i.plafond(), r.plafond(), f.tauxOuAucun(r.plafond()));
         diff(e, "imp_arrondi_revenu", i.arrondiRevenu(), r.arrondiRevenu(), f.nombre(r.arrondiRevenu()));
         diff(e, "imp_arrondi_impot", i.arrondiImpot(), r.arrondiImpot(), f.nombre(r.arrondiImpot()));
         diff(e, "imp_arrondi_mensuel", i.arrondiMensuel(), r.arrondiMensuel(), r.arrondiMensuel().libelle());
@@ -210,6 +245,16 @@ final class FormulaireRegles {
             diff(e, p + "fs", cc.fixeSalarie(), rc.fixeSalarie(), f.montantOuAucun(rc.fixeSalarie()));
             diff(e, p + "fe", cc.fixeEmployeur(), rc.fixeEmployeur(), f.montantOuAucun(rc.fixeEmployeur()));
             diff(e, p + "deduction", cc.deduction(), rc.deduction(), rc.deduction().libelle());
+        }
+        for (Forfait rf : m.forfaits()) {
+            Optional<Forfait> x = c.forfaits().stream().filter(y -> y.code().equals(rf.code())).findFirst();
+            if (x.isEmpty()) {
+                manquantes.add(rf.libelle());
+                continue;
+            }
+            diff(e, "frf_" + rf.code() + "_paliers", x.get().paliers(), rf.paliers(), f.paliers(rf.paliers()));
+            diff(e, "frf_" + rf.code() + "_conjoint", x.get().conjoint(), rf.conjoint(), rf.conjoint() ? "oui"
+                    : "non");
         }
         for (TaxeEmployeur rt : m.taxes()) {
             Optional<TaxeEmployeur> x = c.taxes().stream().filter(y -> y.code().equals(rt.code())).findFirst();

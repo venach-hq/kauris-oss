@@ -31,19 +31,20 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
     private static final BigDecimal CENT = BigDecimal.valueOf(100);
 
     /** Ce qui se calcule : tout ce qui est saisi dans l'éditeur des règles. */
-    public record Contenu(List<Cotisation> cotisations, List<TaxeEmployeur> taxes, Impot impot,
-                          HeuresSupplementaires heures, Comptes comptes) {
+    public record Contenu(List<Cotisation> cotisations, List<TaxeEmployeur> taxes, List<Forfait> forfaits,
+                          Impot impot, HeuresSupplementaires heures, Comptes comptes) {
 
         public Contenu {
             cotisations = List.copyOf(cotisations == null ? List.of() : cotisations);
             taxes = List.copyOf(taxes == null ? List.of() : taxes);
+            forfaits = List.copyOf(forfaits == null ? List.of() : forfaits);
             if (impot == null) {
                 throw new ErreurMetier("Les règles de l'impôt sont incomplètes.");
             }
             heures = heures == null ? HeuresSupplementaires.AUCUNE : heures;
             comptes = comptes == null ? Comptes.SYSCOHADA : comptes;
-            if (cotisations.size() > 30 || taxes.size() > 20) {
-                throw new ErreurMetier("Trop de lignes : 30 cotisations et 20 taxes au plus.");
+            if (cotisations.size() > 30 || taxes.size() > 20 || forfaits.size() > 10) {
+                throw new ErreurMetier("Trop de lignes : 30 cotisations, 20 taxes et 10 impôts forfaitaires au plus.");
             }
             Set<String> codes = new HashSet<>();
             for (Cotisation c : cotisations) {
@@ -56,6 +57,11 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
                     throw new ErreurMetier("Deux lignes ont le même code : " + t.code() + ".");
                 }
             }
+            for (Forfait x : forfaits) {
+                if (!codes.add(x.code()) || x.code().equals(impot.nom().toUpperCase())) {
+                    throw new ErreurMetier("Deux lignes ont le même code : " + x.code() + ".");
+                }
+            }
         }
     }
 
@@ -63,7 +69,8 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
     public enum Application {
         TOUS("Tous les salariés"),
         LOCAUX("Personnel local seulement"),
-        EXPATRIES("Expatriés seulement");
+        EXPATRIES("Expatriés seulement"),
+        CADRES("Cadres seulement");
 
         private final String libelle;
 
@@ -75,8 +82,13 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
             return libelle;
         }
 
-        public boolean concerne(boolean expatrie) {
-            return this == TOUS || (this == EXPATRIES) == expatrie;
+        public boolean concerne(boolean expatrie, boolean cadre) {
+            return switch (this) {
+                case TOUS -> true;
+                case LOCAUX -> !expatrie;
+                case EXPATRIES -> expatrie;
+                case CADRES -> cadre;
+            };
         }
     }
 
@@ -160,6 +172,61 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
         }
     }
 
+    /** Un palier d'impôt forfaitaire : jusqu'à {@code jusqua} de revenu brut annuel inclus (0 = sans limite). */
+    public record Palier(long jusqua, long montant) {
+
+        public Palier {
+            ReglesPaie.montant(jusqua, "Palier : limite");
+            ReglesPaie.montant(montant, "Palier : montant");
+        }
+
+        public long limite() {
+            return jusqua == 0 ? Long.MAX_VALUE : jusqua;
+        }
+    }
+
+    /**
+     * Un impôt forfaitaire retenu au salarié, selon son revenu brut annuel (TRIMF au Sénégal) : le montant annuel du
+     * palier, retenu par douzième chaque mois.
+     *
+     * @param paliers  montants annuels par palier de revenu brut annuel, la dernière limite vide (sans limite)
+     * @param conjoint vrai si le salarié paie aussi pour son conjoint sans revenu
+     */
+    public record Forfait(String code, String libelle, String organisme, List<Palier> paliers, boolean conjoint,
+                          String compte, String note) {
+
+        public Forfait {
+            code = ReglesPaie.code(code);
+            libelle = Textes.obligatoire(libelle, "Libellé de l'impôt forfaitaire", 80);
+            organisme = Textes.obligatoire(organisme, libelle + " : organisme", 10).toUpperCase();
+            paliers = List.copyOf(paliers == null ? List.of() : paliers);
+            if (paliers.isEmpty() || paliers.size() > 15) {
+                throw new ErreurMetier(libelle + " : entre 1 et 15 paliers.");
+            }
+            long avant = 0;
+            for (int i = 0; i < paliers.size(); i++) {
+                long l = paliers.get(i).limite();
+                if (l <= avant || (l == Long.MAX_VALUE) != (i == paliers.size() - 1)) {
+                    throw new ErreurMetier(libelle + " : les limites des paliers croissent et seule la dernière "
+                            + "est vide (sans limite).");
+                }
+                avant = l;
+            }
+            compte = ReglesPaie.compte(compte, libelle);
+            note = Textes.facultatif(note, libelle + " : note", 300);
+        }
+
+        /** Le montant annuel pour ce revenu brut annuel. */
+        public long annuel(long revenuAnnuel) {
+            for (Palier p : paliers) {
+                if (revenuAnnuel <= p.limite()) {
+                    return p.montant();
+                }
+            }
+            return paliers.get(paliers.size() - 1).montant();
+        }
+    }
+
     /** L'impôt s'applique sur le revenu du mois, ou sur le revenu annualisé puis divisé par 12. */
     public enum Periodicite {
         MENSUELLE("Barème mensuel"),
@@ -184,7 +251,8 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
     public enum Famille {
         AUCUNE("Aucune réduction"),
         DEDUCTION_PAR_PERSONNE("Déduction du revenu par personne à charge"),
-        REDUCTION_PAR_DEMI_PART("Réduction de l'impôt par demi-part");
+        REDUCTION_PAR_DEMI_PART("Réduction de l'impôt par demi-part"),
+        REDUCTION_EN_POURCENTAGE("Réduction de l'impôt en % selon les parts (minimum et maximum)");
 
         private final String libelle;
 
@@ -239,20 +307,23 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
     }
 
     /**
-     * Le nombre de parts selon la famille (réduction par demi-part).
+     * Le nombre de parts selon la famille (réductions par demi-part ou en pourcentage).
      *
-     * @param seulAvecEnfants base d'un célibataire, divorcé ou veuf avec enfants, avant les enfants
-     * @param veufAvecEnfants base d'un veuf ou d'une veuve avec enfants, avant les enfants
+     * @param seulAvecEnfants    base d'un célibataire, divorcé ou veuf avec enfants, avant les enfants
+     * @param veufAvecEnfants    base d'un veuf ou d'une veuve avec enfants, avant les enfants
+     * @param conjointSansRevenu parts en plus pour un marié dont le conjoint n'a pas de revenu
      */
     public record Parts(BigDecimal celibataire, BigDecimal marie, BigDecimal seulAvecEnfants,
-                        BigDecimal veufAvecEnfants, BigDecimal parEnfant, BigDecimal maximum) {
+                        BigDecimal veufAvecEnfants, BigDecimal parEnfant, BigDecimal maximum,
+                        BigDecimal conjointSansRevenu) {
 
         public static final Parts AUCUNE = new Parts(BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                BigDecimal.ZERO, BigDecimal.ONE);
+                BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.ZERO);
 
         public Parts {
+            conjointSansRevenu = conjointSansRevenu == null ? BigDecimal.ZERO : conjointSansRevenu;
             for (BigDecimal v : new BigDecimal[]{celibataire, marie, seulAvecEnfants, veufAvecEnfants, parEnfant,
-                    maximum}) {
+                    maximum, conjointSansRevenu}) {
                 if (v == null || v.signum() < 0 || v.compareTo(BigDecimal.valueOf(20)) > 0) {
                     throw new ErreurMetier("Parts : des nombres entre 0 et 20.");
                 }
@@ -263,16 +334,38 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
             veufAvecEnfants = veufAvecEnfants.stripTrailingZeros();
             parEnfant = parEnfant.stripTrailingZeros();
             maximum = maximum.stripTrailingZeros();
+            conjointSansRevenu = conjointSansRevenu.stripTrailingZeros();
         }
 
         public BigDecimal de(Foyer f) {
             BigDecimal base = switch (f.situation()) {
-                case MARIE -> marie;
+                case MARIE -> f.conjointACharge() ? marie.add(conjointSansRevenu) : marie;
                 case VEUF -> f.enfants() > 0 ? veufAvecEnfants : celibataire;
                 default -> f.enfants() > 0 ? seulAvecEnfants : celibataire;
             };
             BigDecimal p = base.add(parEnfant.multiply(BigDecimal.valueOf(f.enfants())));
             return (p.compareTo(maximum) > 0 ? maximum : p).stripTrailingZeros();
+        }
+    }
+
+    /**
+     * Une ligne de la réduction en pourcentage : à partir de {@code parts} parts, l'impôt est réduit de {@code taux} %,
+     * au moins {@code minimum} et au plus {@code maximum} (montants dans la période de l'impôt).
+     */
+    public record Reduction(BigDecimal parts, BigDecimal taux, long minimum, long maximum) {
+
+        public Reduction {
+            if (parts == null || parts.compareTo(BigDecimal.ONE) < 0 || parts.compareTo(BigDecimal.valueOf(20)) > 0) {
+                throw new ErreurMetier("Réduction pour charges de famille : un nombre de parts entre 1 et 20.");
+            }
+            parts = parts.stripTrailingZeros();
+            taux = ReglesPaie.taux(taux, "Réduction pour charges de famille");
+            ReglesPaie.montant(minimum, "Réduction : minimum");
+            ReglesPaie.montant(maximum, "Réduction : maximum");
+            if (maximum > 0 && minimum > maximum) {
+                throw new ErreurMetier("Réduction pour " + parts.toPlainString() + " parts : le minimum dépasse le "
+                        + "maximum.");
+            }
         }
     }
 
@@ -285,6 +378,9 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
      *                               ; 0 = sans limite
      * @param deductionParPersonne   déduction mensuelle par personne à charge
      * @param reductionParDemiPart   réduction mensuelle de l'impôt par demi-part au-delà de la première part
+     * @param reductions             réduction en pourcentage selon le nombre de parts (la ligne au plus grand nombre de
+     *                               parts atteint s'applique)
+     * @param plafond                l'impôt ne dépasse pas ce pourcentage du revenu imposable ; 0 = sans plafond
      * @param arrondiRevenu          pas d'arrondi (inférieur) du revenu imposable : 1, 1 000…
      * @param arrondiImpot           pas d'arrondi (inférieur) de l'impôt de la période : 1, 10…
      * @param arrondiMensuel         arrondi de l'impôt annuel divisé par 12
@@ -296,7 +392,8 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
     public record Impot(String nom, String organisme, Periodicite periodicite, List<Tranche> tranches,
                         boolean deduireCotisations, BigDecimal retraiteDeductibleMax, BigDecimal abattement,
                         long abattementLimite, Famille famille, long deductionParPersonne, int personnesMax,
-                        long reductionParDemiPart, Parts parts, long arrondiRevenu, long arrondiImpot,
+                        long reductionParDemiPart, Parts parts, List<Reduction> reductions, BigDecimal plafond,
+                        long arrondiRevenu, long arrondiImpot,
                         Arrondi arrondiMensuel, boolean primesDifferentielles, boolean apprentisExoneres,
                         BigDecimal gerantAbattement, long gerantAbattementLimite, String compte, String note) {
 
@@ -333,6 +430,18 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
             }
             ReglesPaie.montant(reductionParDemiPart, "Réduction par demi-part");
             parts = parts == null ? Parts.AUCUNE : parts;
+            reductions = (reductions == null ? List.<Reduction>of() : reductions).stream()
+                    .sorted(java.util.Comparator.comparing(Reduction::parts)).toList();
+            if (reductions.size() > 20) {
+                throw new ErreurMetier("Réduction pour charges de famille : 20 lignes au plus.");
+            }
+            for (int k = 1; k < reductions.size(); k++) {
+                if (reductions.get(k).parts().compareTo(reductions.get(k - 1).parts()) == 0) {
+                    throw new ErreurMetier("Réduction pour charges de famille : deux lignes pour "
+                            + reductions.get(k).parts().toPlainString() + " parts.");
+                }
+            }
+            plafond = ReglesPaie.taux(plafond, "Plafond de l'impôt");
             if (arrondiRevenu < 1 || arrondiImpot < 1) {
                 throw new ErreurMetier("Les pas d'arrondi valent au moins 1.");
             }
@@ -341,6 +450,17 @@ public record ReglesPaie(UUID id, UUID tenantId, Pays pays, LocalDate depuis, St
             ReglesPaie.montant(gerantAbattementLimite, "Limite des frais des gérants");
             compte = ReglesPaie.compte(compte, "Impôt");
             note = Textes.facultatif(note, "Note de l'impôt", 500);
+        }
+
+        /** La réduction en pourcentage pour ce nombre de parts, s'il y en a une. */
+        public java.util.Optional<Reduction> reductionPour(BigDecimal nombreDeParts) {
+            Reduction r = null;
+            for (Reduction x : reductions) {
+                if (x.parts().compareTo(nombreDeParts) <= 0) {
+                    r = x;
+                }
+            }
+            return java.util.Optional.ofNullable(r);
         }
 
         /** L'impôt du barème sur ce revenu, au franc inférieur. */

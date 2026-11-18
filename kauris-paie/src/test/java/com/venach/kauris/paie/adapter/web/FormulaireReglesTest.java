@@ -60,6 +60,23 @@ public class FormulaireReglesTest {
             f.put(p + "compte", x.compte());
             f.put(p + "note", x.note());
         }
+        for (int k = 0; k < c.forfaits().size(); k++) {
+            ReglesPaie.Forfait x = c.forfaits().get(k);
+            String p = "frf_" + k + "_";
+            f.put(p + "code", x.code());
+            f.put(p + "libelle", x.libelle());
+            f.put(p + "organisme", x.organisme());
+            if (x.conjoint()) {
+                f.put(p + "conjoint", "on");
+            }
+            f.put(p + "compte", x.compte());
+            f.put(p + "note", x.note());
+            for (int j = 0; j < x.paliers().size(); j++) {
+                ReglesPaie.Palier y = x.paliers().get(j);
+                f.put(p + "pal_" + j + "_jusqua", y.jusqua() == 0 ? "" : String.valueOf(y.jusqua()));
+                f.put(p + "pal_" + j + "_montant", String.valueOf(y.montant()));
+            }
+        }
         ReglesPaie.Impot i = c.impot();
         f.put("imp_nom", i.nom());
         f.put("imp_organisme", i.organisme());
@@ -85,6 +102,16 @@ public class FormulaireReglesTest {
         f.put("parts_veuf_enfants", i.parts().veufAvecEnfants().toPlainString());
         f.put("parts_enfant", i.parts().parEnfant().toPlainString());
         f.put("parts_max", i.parts().maximum().toPlainString());
+        f.put("parts_conjoint", i.parts().conjointSansRevenu().signum() == 0 ? ""
+                : i.parts().conjointSansRevenu().toPlainString().replace('.', ','));
+        for (int n = 0; n < i.reductions().size(); n++) {
+            ReglesPaie.Reduction x = i.reductions().get(n);
+            f.put("red_" + n + "_parts", x.parts().toPlainString().replace('.', ','));
+            f.put("red_" + n + "_taux", x.taux().toPlainString());
+            f.put("red_" + n + "_min", x.minimum() == 0 ? "" : String.valueOf(x.minimum()));
+            f.put("red_" + n + "_max", x.maximum() == 0 ? "" : String.valueOf(x.maximum()));
+        }
+        f.put("imp_plafond", i.plafond().signum() == 0 ? "" : i.plafond().toPlainString());
         f.put("imp_arrondi_revenu", String.valueOf(i.arrondiRevenu()));
         f.put("imp_arrondi_impot", String.valueOf(i.arrondiImpot()));
         f.put("imp_arrondi_mensuel", i.arrondiMensuel().name());
@@ -142,6 +169,29 @@ public class FormulaireReglesTest {
         assertTrue(e.get("tranches").contains("32"), e.get("tranches"));
         assertTrue(e.get("manquantes").contains("taxe additionnelle"), e.get("manquantes"));
         assertTrue(FormulaireRegles.ecarts(c, Optional.empty(), new FormatsPaie(Devise.XOF)).isEmpty());
+    }
+
+    @Test
+    void ecartsDuSenegal() {
+        ModelesRecommandes.Modele sn = ModelesRecommandes.pour(Pays.SENEGAL).orElseThrow();
+        Map<String, String> f = champs(sn.contenu());
+        f.put("frf_0_pal_1_jusqua", "1200000");   // le 2e palier de la TRIMF selon une autre source
+        f.put("red_7_max", "3500000");             // une réduction plus forte à 5 parts
+        f.put("imp_plafond", "40");                // l'ancien plafond
+        f.remove("frf_0_conjoint");
+        ReglesPaie.Contenu c = FormulaireRegles.lire(f);
+        assertEquals(1_200_000, c.forfaits().get(0).paliers().get(1).jusqua());
+        Map<String, String> e = FormulaireRegles.ecarts(c, Optional.of(sn), new FormatsPaie(Devise.XOF));
+        assertTrue(e.get("frf_TRIMF_paliers").replaceAll("[^0-9;]", "").contains(";1000000"),
+                e.get("frf_TRIMF_paliers"));
+        assertEquals("oui", e.get("frf_TRIMF_conjoint"));
+        assertTrue(e.get("reductions").replaceAll("[^0-9%]", "").contains("45%"), e.get("reductions"));
+        assertEquals(new FormatsPaie(Devise.XOF).tauxOuAucun(new BigDecimal("43")), e.get("imp_plafond"));
+        // Les forfaits supprimés sont signalés comme absents.
+        f.remove("frf_0_code");
+        f.remove("frf_0_libelle");
+        assertTrue(FormulaireRegles.ecarts(FormulaireRegles.lire(f), Optional.of(sn), new FormatsPaie(Devise.XOF))
+                .get("manquantes").contains("TRIMF"));
     }
 
     @Test

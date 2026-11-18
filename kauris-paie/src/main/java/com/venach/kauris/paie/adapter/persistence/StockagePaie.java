@@ -160,19 +160,20 @@ public class StockagePaie implements PortsPaie.Salaries, PortsPaie.Contrats, Por
 
     private static final String SALARIE = "select id, tenant_id, matricule, nom, prenoms, naissance, telephone, email,"
             + " adresse, piece_identite, numero_social, situation, enfants, conjoint_a_charge, autres_personnes, expatrie,"
-            + " regime, mode_paiement, banque, compte, actif, notes, cree_le from paie_salarie";
+            + " cadre, regime, mode_paiement, banque, compte, actif, notes, cree_le from paie_salarie";
 
     @Override
     public void sauvegarder(Salarie s) {
         q("delete from paie_salarie where id = ?1 and tenant_id = ?2", s.id(), s.tenantId()).executeUpdate();
         q("insert into paie_salarie (id, tenant_id, matricule, nom, prenoms, naissance, telephone, email, adresse,"
                         + " piece_identite, numero_social, situation, enfants, conjoint_a_charge, autres_personnes,"
-                        + " expatrie, regime, mode_paiement, banque, compte, actif, notes, cree_le) values (?1, ?2, ?3,"
-                        + " ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+                        + " expatrie, cadre, regime, mode_paiement, banque, compte, actif, notes, cree_le) values (?1,"
+                        + " ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21,"
+                        + " ?22, ?23, ?24)",
                 s.id(), s.tenantId(), s.matricule(), s.nom(), s.prenoms(), s.naissance(), s.telephone(), s.email(),
                 s.adresse(), s.pieceIdentite(), s.numeroSocial(), s.foyer().situation(), s.foyer().enfants(),
-                s.foyer().conjointACharge(), s.foyer().autresPersonnes(), s.expatrie(), s.regime(), s.modePaiement(),
-                s.banque(), s.compte(), s.actif(), s.notes(), s.creeLe()).executeUpdate();
+                s.foyer().conjointACharge(), s.foyer().autresPersonnes(), s.expatrie(), s.cadre(), s.regime(),
+                s.modePaiement(), s.banque(), s.compte(), s.actif(), s.notes(), s.creeLe()).executeUpdate();
     }
 
     @Override
@@ -190,8 +191,8 @@ public class StockagePaie implements PortsPaie.Salaries, PortsPaie.Contrats, Por
         return new Salarie(uuid(l[0]), uuid(l[1]), texte(l[2]), texte(l[3]), texte(l[4]), jour(l[5]), texte(l[6]),
                 texte(l[7]), texte(l[8]), texte(l[9]), texte(l[10]),
                 new Foyer(SituationFamiliale.valueOf(texte(l[11])), petit(l[12]), vrai(l[13]), petit(l[14])),
-                vrai(l[15]), RegimeFiscal.valueOf(texte(l[16])), ModePaiement.valueOf(texte(l[17])), texte(l[18]),
-                texte(l[19]), vrai(l[20]), texte(l[21]), instant(l[22]));
+                vrai(l[15]), vrai(l[16]), RegimeFiscal.valueOf(texte(l[17])), ModePaiement.valueOf(texte(l[18])),
+                texte(l[19]), texte(l[20]), vrai(l[21]), texte(l[22]), instant(l[23]));
     }
 
     // ------------------------------------------------------------------ contrats
