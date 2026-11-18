@@ -223,14 +223,20 @@ demande de paiement PI-SPI.
 ## Paie
 
 Le module Paie (`kauris-paie`, code `rh-paie`, tables `paie_…`, migrations `db/migration/paie`) calcule les bulletins
-du Togo (CNSS, AMU, IRPP) et de la Côte d'Ivoire (CNPS, CMU, ITS, taxes de l'employeur) ; le pays vient de la fiche
-de l'entreprise. Le calcul (`CalculPaie`) est du Java pur, testé sur des cas comptés à la main.
+de n'importe quel pays de l'UEMOA à partir des **règles de paie** de l'entreprise (`ReglesPaie`) : rien n'est figé dans
+le code.
 
-- Un mois ouvert ne stocke aucun bulletin : il se recalcule à chaque lecture depuis les contrats et les éléments
-  du mois. La clôture fige et numérote les bulletins (`paie_bulletin`, `paie_bulletin_ligne`) ; la réouverture les
-  efface, sauf si les salaires sont marqués payés. Un numéro n'est jamais réutilisé.
-- Les taux et plafonds sont des `Parametre` avec une valeur par défaut ; l'entreprise peut les corriger à partir
-  d'un mois (`paie_correction`). Les tranches de l'impôt (`Bareme`) sont dans le code.
+- Les règles sont datées et par pays (`paie_regles`, contenu JSON relu avec des valeurs par défaut pour les champs
+  absents). Kauris propose des modèles recommandés, avec notes et sources (`ModelesRecommandes` : Togo, Côte
+  d'Ivoire) ; l'entreprise les active puis corrige tout, l'éditeur montrant les écarts à la recommandation. Ajouter un
+  pays, c'est ajouter un modèle, sans toucher au calcul.
+- Le calcul (`CalculPaie`) est du Java pur, piloté par les règles, testé sur des cas comptés à la main.
+- Un mois ouvert ne stocke aucun bulletin : il se recalcule. La clôture fige et numérote les bulletins
+  (`paie_bulletin`, `paie_bulletin_ligne`, avec les comptes comptables de chaque ligne) ; les mois se clôturent dans
+  l'ordre ; la réouverture les efface, sauf si les salaires sont payés ou un mois suivant clos. Un numéro n'est jamais
+  réutilisé.
+- Avances et prêts (`paie_avance`) : la retenue du mois ne dépasse jamais le net disponible ; les remboursements se
+  lisent sur les bulletins clos (lignes `AV:id`).
 - Les salaires sont confidentiels : les quatre permissions (`paie.consulter`, `paie.preparer`, `paie.cloturer`,
   `paie.parametres.modifier`) sont au niveau « administrer ».
 - Ce que l'application peut y brancher : `PortsPaie.Versements` (verser les salaires d'un mois clos). Le mode

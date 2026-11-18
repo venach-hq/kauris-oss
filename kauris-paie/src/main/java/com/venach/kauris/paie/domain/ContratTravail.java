@@ -56,8 +56,9 @@ public record ContratTravail(UUID id, UUID tenantId, UUID salarieId, String nume
         if (elements.size() > ELEMENTS_MAX) {
             throw new ErreurMetier("Au plus " + ELEMENTS_MAX + " éléments fixes par contrat.");
         }
-        if (elements.stream().anyMatch(e -> e.type() == TypeElement.RETENUE)) {
-            throw new ErreurMetier("Une retenue se saisit dans le mois où elle s'applique, pas dans le contrat.");
+        if (elements.stream().anyMatch(e -> !e.type().dansLeContrat())) {
+            throw new ErreurMetier("Une retenue ou une prime exceptionnelle se saisit dans le mois où elle s'applique, "
+                    + "pas dans le contrat.");
         }
     }
 

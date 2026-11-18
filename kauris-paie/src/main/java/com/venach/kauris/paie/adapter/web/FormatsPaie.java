@@ -2,7 +2,7 @@ package com.venach.kauris.paie.adapter.web;
 
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.entreprise.domain.Devise;
-import com.venach.kauris.paie.domain.Parametre;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.PeriodePaie;
 
 import java.math.BigDecimal;
@@ -53,13 +53,50 @@ public final class FormatsPaie {
         return d == null ? "" : d.stripTrailingZeros().toPlainString().replace('.', ',');
     }
 
-    /** La valeur d'un paramètre selon son unité : « 12,5 % », « 70 000 F CFA », « 6 ». */
-    public String parametre(Parametre p, BigDecimal v) {
-        return switch (p.unite()) {
-            case TAUX -> taux(v);
-            case MONTANT -> v.signum() == 0 ? "aucun" : montant(v.longValue());
-            case NOMBRE -> v.stripTrailingZeros().toPlainString();
-        };
+    /** « 12,5 % », ou « aucun » pour 0. */
+    public String tauxOuAucun(BigDecimal t) {
+        return t == null || t.signum() == 0 ? "aucun" : taux(t);
+    }
+
+    /** « 70 000 F CFA », ou « aucun » pour 0. */
+    public String montantOuAucun(long m) {
+        return m == 0 ? "aucun" : montant(m);
+    }
+
+    /** Un taux pour un champ de saisie : « 12.5 », vide pour 0 quand {@code videSiZero}. */
+    public String saisie(BigDecimal t) {
+        return t == null ? "" : t.stripTrailingZeros().toPlainString();
+    }
+
+    /** « jusqu'à 900 000 : 0 % ; jusqu'à 3 000 000 : 3 % ; au-delà : 35 % ». */
+    public String bareme(java.util.List<ReglesPaie.Tranche> tranches) {
+        StringBuilder s = new StringBuilder();
+        for (ReglesPaie.Tranche t : tranches) {
+            if (!s.isEmpty()) {
+                s.append(" ; ");
+            }
+            s.append(t.jusqua() == 0 ? "au-delà" : "jusqu'à " + nombre(t.jusqua())).append(" : ").append(taux(t.taux()));
+        }
+        return s.toString();
+    }
+
+    /** « célibataire 1, marié 2, seul avec enfants 1,5, veuf avec enfants 2, par enfant 0,5, au plus 5 ». */
+    public String parts(ReglesPaie.Parts p) {
+        return "célibataire " + decimal(p.celibataire()) + ", marié " + decimal(p.marie()) + ", seul avec enfants "
+                + decimal(p.seulAvecEnfants()) + ", veuf avec enfants " + decimal(p.veufAvecEnfants())
+                + ", par enfant " + decimal(p.parEnfant()) + ", au plus " + decimal(p.maximum());
+    }
+
+    /** « 41e à 46e heure +15 % ; nuit +75 % ». */
+    public String majorations(java.util.List<ReglesPaie.Majoration> m) {
+        StringBuilder s = new StringBuilder();
+        for (ReglesPaie.Majoration x : m) {
+            if (!s.isEmpty()) {
+                s.append(" ; ");
+            }
+            s.append(x.libelle()).append(" +").append(taux(x.taux()));
+        }
+        return s.isEmpty() ? "aucune" : s.toString();
     }
 
     public String devise() {

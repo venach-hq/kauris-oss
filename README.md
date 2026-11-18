@@ -47,7 +47,7 @@ make image     # construit l'image Docker
 | `kauris-kernel` | Socle commun : registre des modules, organisation, établissements, membres, rôles et permissions, paramètres de l'entreprise, ossature des documents et PDF, comptes locaux, interface commune, notifications |
 | `kauris-ventes` | Ventes, caisse, stock et achats (ils partagent le catalogue) |
 | `kauris-flotte` | Flotte : motos, taxis, tricycles, bus, camions ; conducteurs, contrats, versements journaliers, papiers |
-| `kauris-paie` | Paie Togo et Côte d'Ivoire : salariés, contrats, bulletins, cotisations, impôt, déclarations, virement |
+| `kauris-paie` | Paie de l'UEMOA à règles modifiables (recommandées Togo, Côte d'Ivoire) : bulletins, avances, déclarations, virement, écritures |
 | `kauris-standalone` | Le lanceur autonome, avec la connexion par email et mot de passe |
 | `deploy/` | Installation par `docker compose` |
 | `docs/guide/` | Guide d'utilisation |

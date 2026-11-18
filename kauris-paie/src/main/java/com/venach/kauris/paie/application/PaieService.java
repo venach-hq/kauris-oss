@@ -3,15 +3,16 @@ package com.venach.kauris.paie.application;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
+import com.venach.kauris.paie.domain.Avance;
 import com.venach.kauris.paie.domain.Bulletin;
 import com.venach.kauris.paie.domain.CalculPaie;
 import com.venach.kauris.paie.domain.ContratTravail;
 import com.venach.kauris.paie.domain.Element;
-import com.venach.kauris.paie.domain.Parametre;
-import com.venach.kauris.paie.domain.Parametres;
-import com.venach.kauris.paie.domain.PaysPaie;
+import com.venach.kauris.paie.domain.ModelesRecommandes;
 import com.venach.kauris.paie.domain.PeriodePaie;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.Variables;
 
@@ -36,8 +37,9 @@ import static com.venach.kauris.paie.application.PermissionsPaie.PREPARER;
 import static com.venach.kauris.paie.application.PermissionsPaie.exiger;
 
 /**
- * La paie : salariés, contrats, mois de paie, bulletins, paramètres. Un mois ouvert se recalcule à chaque lecture à
- * partir des contrats et des éléments du mois ; sa clôture fige et numérote les bulletins.
+ * La paie : règles de paie datées, salariés, contrats, avances, mois de paie, bulletins. Un mois ouvert se recalcule
+ * à chaque lecture à partir des règles en vigueur, des contrats et des éléments du mois ; sa clôture fige et
+ * numérote les bulletins.
  */
 public class PaieService {
 
@@ -45,8 +47,8 @@ public class PaieService {
     public record LigneSalarie(Salarie salarie, ContratTravail contrat) {
     }
 
-    /** Un mois de paie avec ses totaux. */
-    public record Mois(PeriodePaie periode, List<Bulletin> bulletins, Totaux totaux) {
+    /** Un mois de paie avec ses totaux et les règles appliquées (nulles si aucune). */
+    public record Mois(PeriodePaie periode, List<Bulletin> bulletins, Totaux totaux, ReglesPaie regles) {
     }
 
     /** Les totaux d'une liste de bulletins. */
@@ -66,7 +68,8 @@ public class PaieService {
     }
 
     /** Ce qui demande de l'attention : CDD qui finissent bientôt, salariés sans contrat, mois à clôturer. */
-    public record Alertes(List<LigneSalarie> finsDeContrat, List<Salarie> sansContrat, List<PeriodePaie> aCloturer) {
+    public record Alertes(List<LigneSalarie> finsDeContrat, List<Salarie> sansContrat, List<PeriodePaie> aCloturer,
+                          boolean sansRegles) {
         public int total() {
             return finsDeContrat.size() + sansContrat.size();
         }
@@ -74,6 +77,13 @@ public class PaieService {
 
     /** Un calcul qui échoue pour un salarié (retenues trop fortes…) : le mois s'affiche, avec le problème. */
     public record Probleme(Salarie salarie, String message) {
+    }
+
+    /** Une avance avec ce qui en a déjà été remboursé sur les bulletins clos. */
+    public record SuiviAvance(Avance avance, long rembourse) {
+        public long reste() {
+            return avance.annulee() ? 0 : Math.max(0, avance.montant() - rembourse);
+        }
     }
 
     /** Fin de CDD signalée ce nombre de jours à l'avance. */
@@ -84,7 +94,8 @@ public class PaieService {
     private final PortsPaie.Periodes periodes;
     private final PortsPaie.VariablesDuMois variables;
     private final PortsPaie.Bulletins bulletins;
-    private final PortsPaie.Corrections corrections;
+    private final PortsPaie.Regles regles;
+    private final PortsPaie.Avances avances;
     private final PortsPaie.Numeros numeros;
     private final PortsPaie.PaysEntreprise paysEntreprise;
     private final PortsPaie.Versements versements;
@@ -92,16 +103,16 @@ public class PaieService {
     private final Clock horloge;
 
     public PaieService(PortsPaie.Salaries salaries, PortsPaie.Contrats contrats, PortsPaie.Periodes periodes,
-                       PortsPaie.VariablesDuMois variables, PortsPaie.Bulletins bulletins,
-                       PortsPaie.Corrections corrections, PortsPaie.Numeros numeros,
-                       PortsPaie.PaysEntreprise paysEntreprise, PortsPaie.Versements versements,
-                       UniteDeTravail transaction, Clock horloge) {
+                       PortsPaie.VariablesDuMois variables, PortsPaie.Bulletins bulletins, PortsPaie.Regles regles,
+                       PortsPaie.Avances avances, PortsPaie.Numeros numeros, PortsPaie.PaysEntreprise paysEntreprise,
+                       PortsPaie.Versements versements, UniteDeTravail transaction, Clock horloge) {
         this.salaries = salaries;
         this.contrats = contrats;
         this.periodes = periodes;
         this.variables = variables;
         this.bulletins = bulletins;
-        this.corrections = corrections;
+        this.regles = regles;
+        this.avances = avances;
         this.numeros = numeros;
         this.paysEntreprise = paysEntreprise;
         this.versements = versements;
@@ -117,22 +128,125 @@ public class PaieService {
         return Instant.now(horloge);
     }
 
-    /** Le pays de paie de l'entreprise ; vide si la fiche de l'entreprise n'a pas de pays géré par la paie. */
-    public Optional<PaysPaie> pays(UUID tenantId) {
-        return paysEntreprise.pays(tenantId).flatMap(PaysPaie::de);
+    /** Le pays de l'entreprise (fiche de l'entreprise). */
+    public Optional<Pays> pays(UUID tenantId) {
+        return paysEntreprise.pays(tenantId);
     }
 
-    private PaysPaie paysExige(UUID tenantId) {
-        return pays(tenantId).orElseThrow(() -> new ErreurMetier("La paie calcule pour le Togo et la Côte d'Ivoire : "
-                + "indiquez l'un de ces pays sur la fiche de l'entreprise."));
+    private Pays paysExige(UUID tenantId) {
+        return pays(tenantId).orElseThrow(() -> new ErreurMetier("Indiquez le pays sur la fiche de l'entreprise."));
+    }
+
+    // ================================================================== règles de paie
+
+    /** Toutes les versions des règles, du pays de l'entreprise d'abord, les plus récentes en premier. */
+    public List<ReglesPaie> regles(Acces a) {
+        exiger(a, CONSULTER);
+        Pays p = pays(a.tenantId()).orElse(null);
+        return regles.toutes(a.tenantId()).stream()
+                .sorted(Comparator.comparing((ReglesPaie r) -> r.pays() != p).thenComparing(r -> r.pays().nom())
+                        .thenComparing(ReglesPaie::depuis, Comparator.reverseOrder())).toList();
+    }
+
+    public ReglesPaie reglesParId(Acces a, UUID id) {
+        exiger(a, CONSULTER);
+        return regles.regles(a.tenantId(), id).orElseThrow(() -> new ElementIntrouvable("Règles introuvables."));
+    }
+
+    /** Les règles en vigueur pour ce pays à la fin de ce mois : la version la plus récente déjà commencée. */
+    public Optional<ReglesPaie> reglesDuMois(UUID tenantId, Pays pays, YearMonth mois) {
+        LocalDate fin = mois.atEndOfMonth();
+        return regles.toutes(tenantId).stream().filter(r -> r.pays() == pays && !r.depuis().isAfter(fin))
+                .max(Comparator.comparing(ReglesPaie::depuis));
+    }
+
+    /** Le modèle recommandé dont viennent ces règles, pour comparer et afficher les recommandations. */
+    public Optional<ModelesRecommandes.Modele> recommandation(ReglesPaie r) {
+        return ModelesRecommandes.parCode(r.modele());
+    }
+
+    /**
+     * Active les règles recommandées pour un pays (ou un modèle vide à compléter) : une copie que l'entreprise
+     * corrige ensuite à sa guise.
+     */
+    public ReglesPaie activerModele(Acces a, String code, Pays pays, LocalDate depuis) {
+        exiger(a, PARAMETRER);
+        ModelesRecommandes.Modele m = ModelesRecommandes.VIDE.equals(code)
+                ? ModelesRecommandes.vide(pays == null ? paysExige(a.tenantId()) : pays,
+                depuis == null ? aujourdHui() : depuis)
+                : ModelesRecommandes.parCode(code).orElseThrow(() -> new ErreurMetier("Modèle de règles inconnu."));
+        LocalDate effet = (depuis == null ? m.depuis() : depuis).withDayOfMonth(1);
+        ReglesPaie r = new ReglesPaie(UUID.randomUUID(), a.tenantId(), m.pays(), effet, m.nom(), m.code(),
+                m.contenu(), m.notes(), maintenant(), a.nomMembre());
+        return transaction.executer(() -> {
+            verifierDateLibre(a.tenantId(), r.pays(), r.depuis(), null);
+            regles.sauvegarder(r);
+            return r;
+        });
+    }
+
+    /** Une nouvelle version, copie d'une autre, à partir d'un mois (loi de finances, nouveau taux). */
+    public ReglesPaie nouvelleVersion(Acces a, UUID sourceId, LocalDate depuis) {
+        exiger(a, PARAMETRER);
+        ReglesPaie source = reglesParId(a, sourceId);
+        if (depuis == null) {
+            throw new ErreurMetier("Indiquez le mois d'effet de la nouvelle version.");
+        }
+        ReglesPaie r = new ReglesPaie(UUID.randomUUID(), a.tenantId(), source.pays(), depuis.withDayOfMonth(1),
+                source.nom(), source.modele(), source.contenu(), source.notes(), maintenant(), a.nomMembre());
+        return transaction.executer(() -> {
+            verifierDateLibre(a.tenantId(), r.pays(), r.depuis(), null);
+            regles.sauvegarder(r);
+            return r;
+        });
+    }
+
+    /** Enregistre les règles corrigées. Les mois déjà clos ne bougent pas ; les mois ouverts suivent. */
+    public ReglesPaie enregistrerRegles(Acces a, UUID id, String nom, LocalDate depuis, ReglesPaie.Contenu contenu,
+                                        String notes) {
+        exiger(a, PARAMETRER);
+        return transaction.executer(() -> {
+            ReglesPaie avant = regles.regles(a.tenantId(), id)
+                    .orElseThrow(() -> new ElementIntrouvable("Règles introuvables."));
+            ReglesPaie r = avant.avec(depuis == null ? avant.depuis() : depuis.withDayOfMonth(1), nom, contenu, notes,
+                    a.nomMembre(), maintenant());
+            verifierDateLibre(a.tenantId(), r.pays(), r.depuis(), r.id());
+            regles.sauvegarder(r);
+            return r;
+        });
+    }
+
+    public void supprimerRegles(Acces a, UUID id) {
+        exiger(a, PARAMETRER);
+        transaction.executer(() -> {
+            ReglesPaie r = regles.regles(a.tenantId(), id)
+                    .orElseThrow(() -> new ElementIntrouvable("Règles introuvables."));
+            boolean ouvertSansAutre = periodes.periodes(a.tenantId()).stream().filter(p -> !p.close()
+                    && p.pays() == r.pays()).anyMatch(p -> reglesDuMois(a.tenantId(), r.pays(), p.mois())
+                    .filter(x -> x.id().equals(r.id())).isPresent()
+                    && regles.toutes(a.tenantId()).stream().noneMatch(x -> !x.id().equals(r.id())
+                    && x.pays() == r.pays() && !x.depuis().isAfter(p.mois().atEndOfMonth())));
+            if (ouvertSansAutre) {
+                throw new ErreurMetier("Un mois en préparation n'aurait plus de règles : clôturez-le ou créez "
+                        + "d'abord une autre version.");
+            }
+            regles.supprimerRegles(a.tenantId(), id);
+        });
+    }
+
+    private void verifierDateLibre(UUID tenantId, Pays pays, LocalDate depuis, UUID sauf) {
+        if (regles.toutes(tenantId).stream().anyMatch(x -> x.pays() == pays && x.depuis().equals(depuis)
+                && !x.id().equals(sauf))) {
+            throw new ErreurMetier("Des règles pour " + pays.nom() + " commencent déjà en "
+                    + PeriodePaie.libelle(YearMonth.from(depuis)) + " : corrigez-les plutôt.");
+        }
     }
 
     // ================================================================== salariés
 
     public List<LigneSalarie> salaries(Acces a) {
         exiger(a, CONSULTER);
-        LocalDate j = aujourdHui();
-        Map<UUID, ContratTravail> enCours = contratsEnCours(a.tenantId(), j);
+        Map<UUID, ContratTravail> enCours = contratsEnCours(a.tenantId(), aujourdHui());
         return salaries.salaries(a.tenantId()).stream()
                 .sorted(Comparator.comparing(Salarie::actif).reversed()
                         .thenComparing(Salarie::nomComplet, String.CASE_INSENSITIVE_ORDER))
@@ -194,6 +308,9 @@ public class PaieService {
                     .orElseThrow(() -> new ElementIntrouvable("Salarié introuvable."));
             if (!s.actif()) {
                 throw new ErreurMetier(s.nomComplet() + " est archivé : réactivez sa fiche d'abord.");
+            }
+            if (saisie.debut() == null) {
+                throw new ErreurMetier("Indiquez la date d'embauche.");
             }
             for (ContratTravail c : contrats.contrats(a.tenantId())) {
                 if (c.salarieId().equals(salarieId) && (c.sortie() == null || !c.sortie().isBefore(saisie.debut()))) {
@@ -270,6 +387,55 @@ public class PaieService {
         });
     }
 
+    // ================================================================== avances et prêts
+
+    public List<SuiviAvance> avances(Acces a, UUID salarieId) {
+        salarie(a, salarieId);
+        return avances.avances(a.tenantId()).stream().filter(x -> x.salarieId().equals(salarieId))
+                .sorted(Comparator.comparing(Avance::accordeeLe).reversed())
+                .map(x -> new SuiviAvance(x, rembourseAvant(a.tenantId(), x, null))).toList();
+    }
+
+    public Avance accorderAvance(Acces a, UUID salarieId, Avance.Type type, String libelle, long montant,
+                                 long mensualite, YearMonth premierMois, String note) {
+        exiger(a, PREPARER);
+        return transaction.executer(() -> {
+            Salarie s = salaries.salarie(a.tenantId(), salarieId)
+                    .orElseThrow(() -> new ElementIntrouvable("Salarié introuvable."));
+            if (premierMois != null) {
+                periodes.parMois(a.tenantId(), premierMois).filter(PeriodePaie::close).ifPresent(p -> {
+                    throw new ErreurMetier("La paie de " + p.libelle() + " est close : la première retenue doit "
+                            + "tomber sur un mois ouvert.");
+                });
+            }
+            Avance x = new Avance(UUID.randomUUID(), a.tenantId(), s.id(), type, libelle, montant, mensualite,
+                    premierMois, aujourdHui(), false, note, maintenant(), a.nomMembre());
+            avances.sauvegarder(x);
+            return x;
+        });
+    }
+
+    /** Arrête les retenues d'une avance (soldée autrement, accordée par erreur). Ce qui a été retenu reste. */
+    public Avance annulerAvance(Acces a, UUID avanceId) {
+        exiger(a, PREPARER);
+        return transaction.executer(() -> {
+            Avance x = avances.avance(a.tenantId(), avanceId)
+                    .orElseThrow(() -> new ElementIntrouvable("Avance introuvable."));
+            Avance annulee = x.annuler();
+            avances.sauvegarder(annulee);
+            return annulee;
+        });
+    }
+
+    /** Ce qui a été retenu pour cette avance sur les bulletins clos (des mois avant {@code avant}, si donné). */
+    private long rembourseAvant(UUID tenantId, Avance x, YearMonth avant) {
+        Map<UUID, YearMonth> moisDe = periodes.periodes(tenantId).stream()
+                .collect(Collectors.toMap(PeriodePaie::id, PeriodePaie::mois));
+        return bulletins.bulletinsDuSalarie(tenantId, x.salarieId()).stream()
+                .filter(b -> avant == null || moisDe.getOrDefault(b.periodeId(), avant).isBefore(avant))
+                .mapToLong(b -> b.resultat().rembourse(x.code())).sum();
+    }
+
     // ================================================================== mois de paie
 
     public List<PeriodePaie> periodes(Acces a) {
@@ -283,19 +449,22 @@ public class PaieService {
         return periodes.periode(a.tenantId(), id).orElseThrow(() -> new ElementIntrouvable("Mois de paie introuvable."));
     }
 
-    /** Le mois à préparer quand on n'en ouvre pas un autre : le mois en cours. */
     public YearMonth moisCourant() {
         return YearMonth.from(aujourdHui());
     }
 
     public PeriodePaie ouvrirMois(Acces a, YearMonth mois) {
         exiger(a, PREPARER);
-        PaysPaie pays = paysExige(a.tenantId());
+        Pays pays = paysExige(a.tenantId());
         if (mois == null) {
             throw new ErreurMetier("Choisissez le mois.");
         }
         if (mois.isAfter(moisCourant().plusMonths(1))) {
             throw new ErreurMetier("On prépare au plus la paie du mois prochain.");
+        }
+        if (reglesDuMois(a.tenantId(), pays, mois).isEmpty()) {
+            throw new ErreurMetier("Aucune règle de paie pour " + pays.nom() + " en " + PeriodePaie.libelle(mois)
+                    + " : activez les règles recommandées ou saisissez les vôtres (Règles de paie).");
         }
         return transaction.executer(() -> {
             if (periodes.parMois(a.tenantId(), mois).isPresent()) {
@@ -310,11 +479,12 @@ public class PaieService {
     /** Le mois et ses bulletins : figés s'il est clos, recalculés sinon (les salariés en erreur sont écartés). */
     public Mois mois(Acces a, UUID periodeId) {
         PeriodePaie p = periode(a, periodeId);
+        ReglesPaie r = reglesDuMois(a.tenantId(), p.pays(), p.mois()).orElse(null);
         List<Bulletin> b = p.close() ? figes(p) : calculer(p).bulletins();
-        return new Mois(p, b, Totaux.de(b));
+        return new Mois(p, b, Totaux.de(b), r);
     }
 
-    /** Les problèmes de calcul d'un mois ouvert (retenues trop fortes…). */
+    /** Les problèmes de calcul d'un mois ouvert (retenues trop fortes, règles manquantes…). */
     public List<Probleme> problemes(Acces a, UUID periodeId) {
         PeriodePaie p = periode(a, periodeId);
         return p.close() ? List.of() : calculer(p).problemes();
@@ -354,9 +524,9 @@ public class PaieService {
                 .findFirst().orElse(Variables.aucune(a.tenantId(), p.id(), salarieId));
     }
 
-    /** Les éléments du mois d'un salarié : absences, primes, avances. Remplace ce qui était saisi. */
+    /** Les éléments du mois d'un salarié : absences, heures, primes, retenues. Remplace ce qui était saisi. */
     public Variables enregistrerVariables(Acces a, UUID periodeId, UUID salarieId, int joursAbsence,
-                                          List<Element> elements) {
+                                          List<Variables.Heures> heures, List<Element> elements) {
         exiger(a, PREPARER);
         return transaction.executer(() -> {
             PeriodePaie p = periodes.verrouiller(a.tenantId(), periodeId)
@@ -364,29 +534,45 @@ public class PaieService {
             if (p.close()) {
                 throw new ErreurMetier("La paie de " + p.libelle() + " est close : rouvrez-la pour la modifier.");
             }
-            salaries.salarie(a.tenantId(), salarieId).orElseThrow(() -> new ElementIntrouvable("Salarié introuvable."));
-            Variables v = new Variables(a.tenantId(), p.id(), salarieId, joursAbsence, elements);
-            // On calcule tout de suite : une retenue trop forte est refusée à la saisie, pas à la clôture.
+            Salarie s = salaries.salarie(a.tenantId(), salarieId)
+                    .orElseThrow(() -> new ElementIntrouvable("Salarié introuvable."));
+            Variables v = new Variables(a.tenantId(), p.id(), salarieId, joursAbsence, heures, elements);
+            // Calcul immédiat : une retenue trop forte est refusée à la saisie, pas à la clôture.
+            ReglesPaie r = reglesDuMois(a.tenantId(), p.pays(), p.mois()).orElse(null);
             Optional<ContratTravail> c = contratDuMois(a.tenantId(), salarieId, p.mois());
-            Salarie s = salaries.salarie(a.tenantId(), salarieId).orElseThrow();
-            c.ifPresent(x -> calculerUn(p, s, x, v, parametres(a.tenantId(), p.mois())));
+            if (r != null && c.isPresent()) {
+                calculerUn(p, r, s, c.get(), v, avancesDues(a.tenantId(), s.id(), p.mois()));
+            }
             variables.sauvegarder(v);
             return v;
         });
     }
 
-    /** Le contrat qui paie ce salarié ce mois-ci : le plus récent de ceux qui touchent le mois. */
     private Optional<ContratTravail> contratDuMois(UUID tenantId, UUID salarieId, YearMonth mois) {
         return contrats.contrats(tenantId).stream()
                 .filter(c -> c.salarieId().equals(salarieId) && c.joursDans(mois) > 0)
                 .max(Comparator.comparing(ContratTravail::debut));
     }
 
+    /** Les échéances d'avances et de prêts de ce salarié pour ce mois, compte tenu des mois déjà clos. */
+    private List<CalculPaie.AvanceDue> avancesDues(UUID tenantId, UUID salarieId, YearMonth mois) {
+        List<CalculPaie.AvanceDue> dues = new ArrayList<>();
+        avances.avances(tenantId).stream().filter(x -> x.salarieId().equals(salarieId))
+                .sorted(Comparator.comparing(Avance::accordeeLe).thenComparing(Avance::creeLe))
+                .forEach(x -> {
+                    long voulu = x.aRetenir(mois, rembourseAvant(tenantId, x, mois));
+                    if (voulu > 0) {
+                        dues.add(new CalculPaie.AvanceDue(x.code(), x.type().libelle() + " " + x.libelle(), voulu));
+                    }
+                });
+        return dues;
+    }
+
     private record Calcul(List<Bulletin> bulletins, List<Probleme> problemes) {
     }
 
     private Calcul calculer(PeriodePaie p) {
-        Parametres parametres = parametres(p.tenantId(), p.mois());
+        ReglesPaie r = reglesDuMois(p.tenantId(), p.pays(), p.mois()).orElse(null);
         Map<UUID, Variables> v = variables.variables(p.tenantId(), p.id()).stream()
                 .collect(Collectors.toMap(Variables::salarieId, Function.identity()));
         Map<UUID, Salarie> parId = salaries.salaries(p.tenantId()).stream()
@@ -400,9 +586,14 @@ public class PaieService {
         duMois.values().stream().map(c -> parId.get(c.salarieId()))
                 .sorted(Comparator.comparing(Salarie::nomComplet, String.CASE_INSENSITIVE_ORDER))
                 .forEach(s -> {
+                    if (r == null) {
+                        ko.add(new Probleme(s, "Aucune règle de paie pour " + p.pays().nom() + " ce mois-ci."));
+                        return;
+                    }
                     try {
-                        ok.add(calculerUn(p, s, duMois.get(s.id()), v.getOrDefault(s.id(),
-                                Variables.aucune(p.tenantId(), p.id(), s.id())), parametres));
+                        ok.add(calculerUn(p, r, s, duMois.get(s.id()), v.getOrDefault(s.id(),
+                                Variables.aucune(p.tenantId(), p.id(), s.id())), avancesDues(p.tenantId(), s.id(),
+                                p.mois())));
                     } catch (ErreurMetier e) {
                         ko.add(new Probleme(s, e.getMessage()));
                     }
@@ -410,15 +601,16 @@ public class PaieService {
         return new Calcul(ok, ko);
     }
 
-    private static Bulletin calculerUn(PeriodePaie p, Salarie s, ContratTravail c, Variables v, Parametres parametres) {
+    private static Bulletin calculerUn(PeriodePaie p, ReglesPaie r, Salarie s, ContratTravail c, Variables v,
+                                       List<CalculPaie.AvanceDue> avances) {
         int jours = Math.max(0, c.joursDans(p.mois()) - v.joursAbsence());
         List<Element> elements = Stream.concat(c.elements().stream(), v.elements().stream()).toList();
-        CalculPaie.Resultat r = CalculPaie.calculer(new CalculPaie.Entree(p.pays(), c.salaireBase(), jours, elements,
-                s.foyer(), s.expatrie()), parametres);
-        return Bulletin.brouillon(p.tenantId(), p.id(), s, c, jours, r);
+        CalculPaie.Resultat res = CalculPaie.calculer(new CalculPaie.Entree(r.contenu(), c.salaireBase(), jours,
+                v.heures(), elements, s.foyer(), s.expatrie(), s.regime(), avances));
+        return Bulletin.brouillon(p.tenantId(), p.id(), s, c, jours, r, res);
     }
 
-    /** Clôture : les bulletins sont figés et numérotés ; ils ne bougent plus, même si un contrat change. */
+    /** Clôture : les bulletins sont figés et numérotés ; ils ne bougent plus, même si un contrat ou une règle change. */
     public PeriodePaie clore(Acces a, UUID periodeId) {
         exiger(a, CLOTURER);
         return transaction.executer(() -> {
@@ -426,6 +618,12 @@ public class PaieService {
                     .orElseThrow(() -> new ElementIntrouvable("Mois de paie introuvable."));
             if (p.close()) {
                 throw new ErreurMetier("Ce mois est déjà clos.");
+            }
+            boolean anterieurOuvert = periodes.periodes(a.tenantId()).stream()
+                    .anyMatch(x -> !x.close() && x.mois().isBefore(p.mois()));
+            if (anterieurOuvert) {
+                throw new ErreurMetier("Clôturez d'abord les mois précédents : les avances et prêts se suivent mois "
+                        + "après mois.");
             }
             Calcul c = calculer(p);
             if (!c.problemes().isEmpty()) {
@@ -447,13 +645,18 @@ public class PaieService {
         });
     }
 
-    /** Réouverture (avant paiement) : les bulletins figés sont effacés et le mois se recalcule. */
+    /** Réouverture (avant paiement, et si aucun mois suivant n'est clos) : les bulletins sont recalculés. */
     public PeriodePaie rouvrir(Acces a, UUID periodeId) {
         exiger(a, CLOTURER);
         return transaction.executer(() -> {
             PeriodePaie p = periodes.verrouiller(a.tenantId(), periodeId)
                     .orElseThrow(() -> new ElementIntrouvable("Mois de paie introuvable."));
             PeriodePaie ouverte = p.rouvrir();
+            boolean suivantClos = periodes.periodes(a.tenantId()).stream()
+                    .anyMatch(x -> x.close() && x.mois().isAfter(p.mois()));
+            if (suivantClos) {
+                throw new ErreurMetier("Un mois suivant est clos : rouvrez d'abord le plus récent.");
+            }
             bulletins.supprimer(a.tenantId(), p.id());
             periodes.sauvegarder(ouverte);
             return ouverte;
@@ -476,7 +679,6 @@ public class PaieService {
         });
     }
 
-    /** Vrai si les salaires peuvent partir d'ici (Kauris Cloud) ; sinon l'écran propose le fichier de virement. */
     public boolean versementDisponible(Acces a) {
         exiger(a, CONSULTER);
         return versements.disponible(a.tenantId());
@@ -504,46 +706,6 @@ public class PaieService {
         return b.stream().filter(x -> x.modePaiement().parVirement() && x.net() > 0).toList();
     }
 
-    // ================================================================== paramètres
-
-    /** Les valeurs des paramètres pour ce mois, compte tenu des corrections de l'entreprise. */
-    public Parametres parametres(UUID tenantId, YearMonth mois) {
-        return Parametres.au(mois.atEndOfMonth(), corrections.corrections(tenantId));
-    }
-
-    public List<Parametres.Correction> corrections(Acces a) {
-        exiger(a, CONSULTER);
-        return corrections.corrections(a.tenantId()).stream()
-                .sorted(Comparator.comparing((Parametres.Correction c) -> c.parametre().ordinal())
-                        .thenComparing(Parametres.Correction::depuis)).toList();
-    }
-
-    /**
-     * Corrige un paramètre à partir d'un mois. Un mois déjà clos à cette date ou après n'est pas touché : il faut
-     * le rouvrir pour qu'il suive la correction.
-     */
-    public void corriger(Acces a, Parametres.Correction c) {
-        exiger(a, PARAMETRER);
-        if (!c.tenantId().equals(a.tenantId())) {
-            throw new IllegalArgumentException("Organisation inattendue");
-        }
-        if (c.depuis().getDayOfMonth() != 1) {
-            throw new ErreurMetier("Une correction s'applique à partir du premier jour d'un mois.");
-        }
-        transaction.executer(() -> {
-            if (corrections.corrections(a.tenantId()).stream().anyMatch(x -> x.parametre() == c.parametre()
-                    && x.depuis().equals(c.depuis()))) {
-                corrections.retirer(a.tenantId(), c.parametre(), c.depuis());
-            }
-            corrections.ajouter(c);
-        });
-    }
-
-    public void retirerCorrection(Acces a, Parametre parametre, LocalDate depuis) {
-        exiger(a, PARAMETRER);
-        transaction.executer(() -> corrections.retirer(a.tenantId(), parametre, depuis));
-    }
-
     // ================================================================== alertes
 
     public Alertes alertes(Acces a) {
@@ -558,6 +720,8 @@ public class PaieService {
         List<PeriodePaie> aClore = periodes.periodes(a.tenantId()).stream()
                 .filter(p -> !p.close() && p.mois().isBefore(YearMonth.from(j)))
                 .sorted(Comparator.comparing(PeriodePaie::mois)).toList();
-        return new Alertes(fins, sans, aClore);
+        boolean sansRegles = pays(a.tenantId()).map(p -> reglesDuMois(a.tenantId(), p, moisCourant()).isEmpty())
+                .orElse(true);
+        return new Alertes(fins, sans, aClore, sansRegles);
     }
 }

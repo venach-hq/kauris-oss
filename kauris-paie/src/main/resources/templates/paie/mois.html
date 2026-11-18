@@ -6,6 +6,9 @@
     <th:block th:replace="~{paie/commun :: navigation}"></th:block>
 
     <h2 th:text="${'Paie de ' + p.libelle()}">Paie de novembre 2026</h2>
+    <p class="k-discret" th:if="${m.regles() != null}">Règles appliquées :
+        <a th:href="@{/paie/regles/{id}(id=${m.regles().id()})}" th:text="${m.regles().nom()}">Togo</a>
+        <span th:if="${p.close()}"> (les bulletins clos gardent les montants calculés à la clôture)</span></p>
     <p>
         <span class="k-pastille" th:classappend="${p.payeLe() != null ? 'k-ok' : (p.close() ? '' : 'p-jaune')}"
               th:text="${p.payeLe() != null ? 'Salaires payés le ' + f.jour(p.payeLe()) : (p.close() ? 'Clos' : 'En préparation : les bulletins sont des brouillons')}">Clos</span>
@@ -53,7 +56,7 @@
         <a th:href="@{/paie/salaries}">Voir les salariés</a></p>
     <table class="k-table" th:unless="${m.bulletins().isEmpty()}">
         <thead><tr><th>Salarié</th><th>Poste</th><th class="p-montant">Jours</th><th class="p-montant">Brut</th>
-            <th class="p-montant">Cotisations</th><th class="p-montant" th:text="${p.pays().impot()}">IRPP</th>
+            <th class="p-montant">Cotisations</th><th class="p-montant" th:text="${impot}">IRPP</th>
             <th class="p-montant">Retenues</th><th class="p-montant">Net à payer</th><th class="p-montant">Coût total</th><th></th></tr></thead>
         <tbody>
         <tr th:each="b : ${m.bulletins()}" th:with="r=${b.resultat()}">
@@ -86,9 +89,10 @@
     <p class="k-discret" th:unless="${p.close()}">Mois non clôturé : les documents portent la mention « brouillon ».</p>
     <div class="k-pile">
         <span th:replace="~{paie/commun :: exports(${p}, 'livre', 'Livre de paie')}"></span>
-        <span th:replace="~{paie/commun :: exports(${p}, 'sociale', ${'Cotisations ' + organismes.get(0) + ' et ' + organismes.get(1)})}"></span>
-        <span th:replace="~{paie/commun :: exports(${p}, 'fiscale', ${p.pays().impot() + (p.pays().name() == 'COTE_D_IVOIRE' ? ' et taxes sur les salaires' : ' retenu à la source')})}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'sociale', ${'Cotisations' + (organismes.isEmpty() ? '' : ' ' + #strings.listJoin(organismes, ', '))})}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'fiscale', ${impot + ' et taxes sur les salaires'})}"></span>
         <span th:replace="~{paie/commun :: exports(${p}, 'virements', ${'Ordre de virement (' + aVirer.size() + ' salarié(s))'})}"></span>
+        <span th:replace="~{paie/commun :: exports(${p}, 'ecritures', 'Écritures comptables (journal OD)')}"></span>
     </div>
     <p class="k-discret">Salaires payés en espèces ou par chèque : voir le mode de paiement sur chaque bulletin.
         Les déclarations se déposent ensuite sur les portails de la caisse sociale et des impôts.</p>

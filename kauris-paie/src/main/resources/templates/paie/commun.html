@@ -28,17 +28,25 @@
         .p-elements td { padding: .2rem .2rem .2rem 0; vertical-align: top; }
         .p-elements input, .p-elements select { width: 100%; }
         .p-total td { font-weight: 700; border-top: 2px solid var(--k-bord); }
+        .p-reco { display: block; font-size: 12px; color: #7a5300; background: #fff4d6; border-radius: 4px; padding: 0 .3rem; margin-top: .15rem; }
+        .p-note { font-size: 12px; color: var(--k-discret); }
+        .p-regles table input, .p-regles table select { width: 100%; min-width: 4.5rem; }
+        .p-regles table td { vertical-align: top; padding: .15rem .2rem; }
+        .p-regles fieldset { margin-bottom: 1.2rem; }
+        .p-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .6rem 1rem; }
     </style>
     <nav class="p-onglets" aria-label="Paie">
         <a th:href="@{/paie}" th:classappend="${onglet == 'mois'} ? 'p-actif'">Mois de paie
             <span class="p-compte" th:if="${!alertes.aCloturer().isEmpty()}" th:text="${alertes.aCloturer().size()}">1</span></a>
         <a th:href="@{/paie/salaries}" th:classappend="${onglet == 'salaries'} ? 'p-actif'">Salariés
             <span class="p-compte" th:if="${alertes.total() > 0}" th:text="${alertes.total()}">1</span></a>
-        <a th:href="@{/paie/reglages}" th:classappend="${onglet == 'reglages'} ? 'p-actif'">Taux et plafonds</a>
+        <a th:href="@{/paie/regles}" th:classappend="${onglet == 'regles'} ? 'p-actif'">Règles de paie
+            <span class="p-compte" th:if="${alertes.sansRegles()}">!</span></a>
     </nav>
-    <div class="p-alertes" th:if="${pays == null}">
-        <strong>La paie calcule pour le Togo et la Côte d'Ivoire.</strong>
-        Indiquez l'un de ces pays sur la <a th:href="@{/entreprise}">fiche de l'entreprise</a> pour préparer les bulletins.
+    <div class="p-alertes" th:if="${alertes.sansRegles() and onglet != 'regles'}">
+        <strong>Aucune règle de paie pour ce mois<span th:if="${pays != null}" th:text="${' (' + pays.nom() + ')'}"></span>.</strong>
+        Kauris recommande des règles (cotisations, impôt, taxes) que vous vérifiez et corrigez :
+        <a th:href="@{/paie/regles}">activer ou saisir les règles de paie</a>.
     </div>
 </th:block>
 

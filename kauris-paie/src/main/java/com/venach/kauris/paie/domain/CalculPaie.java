@@ -1,16 +1,35 @@
 package com.venach.kauris.paie.domain;
 
 import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.paie.domain.ReglesPaie.Cotisation;
+import com.venach.kauris.paie.domain.ReglesPaie.Deduction;
+import com.venach.kauris.paie.domain.ReglesPaie.Famille;
+import com.venach.kauris.paie.domain.ReglesPaie.Impot;
+import com.venach.kauris.paie.domain.ReglesPaie.TaxeEmployeur;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Le calcul d'un bulletin de paie, du salaire de base au net à payer et au coût pour l'employeur. Pur calcul : rien
- * n'est lu ni écrit ailleurs. Montants en francs CFA, sans décimales ; une cotisation s'arrondit au franc le plus
- * proche.
+ * Le calcul d'un bulletin de paie, entièrement piloté par les règles du pays ({@link ReglesPaie.Contenu}) : aucun
+ * taux, plafond ou barème n'est écrit ici. Pur calcul, sans base de données. Montants en francs, sans décimales ;
+ * chaque ligne s'arrondit au franc le plus proche, l'impôt selon ses propres règles d'arrondi.
+ * <ol>
+ *   <li>Salaire de base au prorata des jours payés (sur 30), heures supplémentaires au taux horaire majoré.</li>
+ *   <li>Éléments : primes soumises, primes exceptionnelles, avantages en nature (soumis, jamais payés), frais
+ *       d'emploi (non soumis, sauf dirigeant ou gérant), indemnités non soumises, retenues.</li>
+ *   <li>Cotisations sur le brut soumis, primes exceptionnelles comprises : plafond, assiette minimale, ou montant
+ *       fixe par personne couverte ; selon le personnel (local, expatrié, apprenti).</li>
+ *   <li>Impôt : revenu du mois (ou de l'année), moins les cotisations déductibles (retraite plafonnée), l'abattement
+ *       et les personnes à charge ; arrondi, barème, réduction par demi-part, arrondi ; primes exceptionnelles par
+ *       différence ; régimes apprenti et gérant.</li>
+ *   <li>Taxes de l'employeur sur les salaires.</li>
+ *   <li>Retenues, puis avances et prêts plafonnés au net disponible (le reste est reporté).</li>
+ * </ol>
  */
 public final class CalculPaie {
 
@@ -24,9 +43,9 @@ public final class CalculPaie {
 
     /** Ce que la ligne représente sur le bulletin. */
     public enum Nature {
-        /** Salaire de base, prime, avantage en nature : entre dans le brut soumis. */
+        /** Salaire, heures supplémentaires, prime, avantage en nature : entre dans le brut soumis. */
         GAIN,
-        /** Indemnité non soumise : payée, sans cotisation ni impôt. */
+        /** Indemnité non soumise, frais d'emploi : payée, sans cotisation ni impôt. */
         GAIN_NON_SOUMIS,
         /** Cotisation sociale : part du salarié et part de l'employeur. */
         COTISATION,
@@ -34,26 +53,41 @@ public final class CalculPaie {
         IMPOT,
         /** Taxe sur les salaires, payée par l'employeur seul. */
         TAXE_EMPLOYEUR,
-        /** Avance, acompte, prêt : retenu sur le net. */
+        /** Retenue sur le net, remboursement d'avance ou de prêt. */
         RETENUE
     }
 
     /**
      * Une ligne du bulletin.
      *
-     * @param organisme à qui l'argent est versé : CNSS, AMU, OTR, CNPS, CMU, DGI, FDFP ; vide pour un gain
-     * @param base      montant sur lequel s'applique le taux (ou nombre de personnes pour la CMU)
-     * @param gain      montant ajouté au brut (gains seulement)
-     * @param salarie   montant retenu au salarié
-     * @param employeur montant payé par l'employeur en plus du salaire
+     * @param organisme     à qui l'argent est versé (CNSS, AMU, OTR, CNPS, CMU, DGI, FDFP…) ; vide pour un gain
+     * @param base          montant sur lequel s'applique le taux (nombre de personnes pour un montant par personne,
+     *                      nombre d'heures × 100 pour des heures supplémentaires)
+     * @param gain          montant ajouté au brut
+     * @param salarie       montant retenu au salarié
+     * @param employeur     montant payé par l'employeur en plus du salaire
+     * @param compte        compte crédité dans les écritures de paie (organisme, impôt, avances)
+     * @param compteCharge  compte de charge débité (salaires, indemnités, charges sociales, taxes) ; vide pour un
+     *                      avantage en nature, qui ne se comptabilise pas dans la paie
      */
     public record Ligne(String code, String libelle, Nature nature, String organisme, long base,
-                        BigDecimal tauxSalarie, long gain, long salarie, BigDecimal tauxEmployeur, long employeur) {
+                        BigDecimal tauxSalarie, long gain, long salarie, BigDecimal tauxEmployeur, long employeur,
+                        String compte, String compteCharge) {
 
-        static Ligne gain(String code, String libelle, long montant, boolean soumis) {
-            return new Ligne(code, libelle, soumis ? Nature.GAIN : Nature.GAIN_NON_SOUMIS, "", 0, null, montant, 0,
-                    null, 0);
+        public Ligne {
+            organisme = organisme == null ? "" : organisme;
+            compte = compte == null ? "" : compte;
+            compteCharge = compteCharge == null ? "" : compteCharge;
         }
+
+        static Ligne gain(String code, String libelle, long montant, boolean soumis, String compteCharge) {
+            return new Ligne(code, libelle, soumis ? Nature.GAIN : Nature.GAIN_NON_SOUMIS, "", 0, null, montant, 0,
+                    null, 0, "", compteCharge);
+        }
+    }
+
+    /** Une avance ou un prêt à rembourser ce mois-ci (montant voulu, avant le plafond du net). */
+    public record AvanceDue(String code, String libelle, long montant) {
     }
 
     /**
@@ -61,15 +95,17 @@ public final class CalculPaie {
      *
      * @param salaireBase  salaire de base mensuel du contrat, pour un mois complet
      * @param joursPayes   jours payés sur 30 (moins les absences non payées, entrée ou sortie en cours de mois)
+     * @param heures       heures supplémentaires du mois
      * @param elements     primes, avantages et retenues du contrat et du mois
-     * @param expatrie     Côte d'Ivoire : l'impôt patronal d'un salarié expatrié est plus élevé
+     * @param avances      avances et prêts dont une échéance tombe ce mois-ci
      */
-    public record Entree(PaysPaie pays, long salaireBase, int joursPayes, List<Element> elements, Foyer foyer,
-                         boolean expatrie) {
+    public record Entree(ReglesPaie.Contenu regles, long salaireBase, int joursPayes, List<Variables.Heures> heures,
+                         List<Element> elements, Foyer foyer, boolean expatrie, RegimeFiscal regime,
+                         List<AvanceDue> avances) {
 
         public Entree {
-            if (pays == null) {
-                throw new ErreurMetier("La paie n'est pas disponible pour ce pays.");
+            if (regles == null) {
+                throw new ErreurMetier("Aucune règle de paie pour ce mois : activez ou saisissez les règles du pays.");
             }
             if (salaireBase < 0 || salaireBase > Element.MONTANT_MAX) {
                 throw new ErreurMetier("Salaire de base invalide.");
@@ -77,8 +113,11 @@ public final class CalculPaie {
             if (joursPayes < 0 || joursPayes > JOURS_DU_MOIS) {
                 throw new ErreurMetier("Jours payés : entre 0 et " + JOURS_DU_MOIS + ".");
             }
-            elements = List.copyOf(elements);
+            heures = List.copyOf(heures == null ? List.of() : heures);
+            elements = List.copyOf(elements == null ? List.of() : elements);
+            avances = List.copyOf(avances == null ? List.of() : avances);
             foyer = foyer == null ? Foyer.seul() : foyer;
+            regime = regime == null ? RegimeFiscal.NORMAL : regime;
         }
     }
 
@@ -86,27 +125,25 @@ public final class CalculPaie {
      * Le bulletin calculé.
      *
      * @param brut             tout ce que le salarié gagne, avantages en nature et indemnités non soumises compris
-     * @param brutSoumis       la base des cotisations et de l'impôt
-     * @param baseImpot        le revenu sur lequel s'applique le barème (mensuel ; annuel au Togo)
+     * @param brutSoumis       la base des cotisations et de l'impôt (primes exceptionnelles comprises)
+     * @param baseImpot        revenu imposable arrondi de la période de l'impôt (mois ou année)
      * @param detailImpot      comment l'impôt a été obtenu, en une phrase pour le bulletin
-     * @param netAPayer        ce que le salarié reçoit
+     * @param impotNom         IRPP, ITS…
+     * @param compteNet        compte crédité du net à payer dans les écritures de paie
      */
     public record Resultat(List<Ligne> lignes, long brut, long brutSoumis, long cotisationsSalarie, long impot,
                            long retenues, long avantagesNature, long netAPayer, long chargesEmployeur,
-                           long baseImpot, String detailImpot) {
+                           long baseImpot, String detailImpot, String impotNom, String compteNet) {
 
         public Resultat {
             lignes = List.copyOf(lignes);
+            impotNom = impotNom == null ? "" : impotNom;
+            compteNet = compteNet == null ? "" : compteNet;
         }
 
         /** Le salaire plus tout ce que l'employeur paie en plus. */
         public long coutEmployeur() {
             return brut + chargesEmployeur;
-        }
-
-        /** Le net avant les retenues (avances, prêts) : le « net imposable » que l'on voit sur un bulletin. */
-        public long netAvantRetenues() {
-            return netAPayer + retenues;
         }
 
         public long salarieDe(String organisme) {
@@ -115,6 +152,25 @@ public final class CalculPaie {
 
         public long employeurDe(String organisme) {
             return lignes.stream().filter(l -> l.organisme().equals(organisme)).mapToLong(Ligne::employeur).sum();
+        }
+
+        /** Les organismes des cotisations, dans l'ordre du bulletin. */
+        public List<String> organismesSociaux() {
+            Set<String> o = new LinkedHashSet<>();
+            lignes.stream().filter(l -> l.nature() == Nature.COTISATION).forEach(l -> o.add(l.organisme()));
+            return List.copyOf(o);
+        }
+
+        /** Les organismes des taxes de l'employeur. */
+        public List<String> organismesTaxes() {
+            Set<String> o = new LinkedHashSet<>();
+            lignes.stream().filter(l -> l.nature() == Nature.TAXE_EMPLOYEUR).forEach(l -> o.add(l.organisme()));
+            return List.copyOf(o);
+        }
+
+        /** Ce qui a été retenu pour rembourser cette avance. */
+        public long rembourse(String codeAvance) {
+            return lignes.stream().filter(l -> l.code().equals(codeAvance)).mapToLong(Ligne::salarie).sum();
         }
     }
 
@@ -127,156 +183,270 @@ public final class CalculPaie {
                 .divide(BigDecimal.valueOf(JOURS_DU_MOIS), 0, RoundingMode.HALF_UP).longValue();
     }
 
-    public static Resultat calculer(Entree e, Parametres p) {
+    public static Resultat calculer(Entree e) {
+        ReglesPaie.Contenu r = e.regles();
+        ReglesPaie.Comptes comptes = r.comptes();
         List<Ligne> lignes = new ArrayList<>();
+        boolean dirigeant = e.regime() == RegimeFiscal.DIRIGEANT || e.regime() == RegimeFiscal.GERANT;
+        boolean apprenti = e.regime() == RegimeFiscal.APPRENTI;
+
+        // 1. Salaire et heures supplémentaires
         long salaire = prorata(e.salaireBase(), e.joursPayes());
         lignes.add(Ligne.gain("BASE", e.joursPayes() >= JOURS_DU_MOIS ? "Salaire de base"
-                : "Salaire de base (" + e.joursPayes() + " j / " + JOURS_DU_MOIS + ")", salaire, true));
-        long soumis = salaire;
+                : "Salaire de base (" + e.joursPayes() + " j / " + JOURS_DU_MOIS + ")", salaire, true,
+                comptes.salaires()));
+        long regulier = salaire;
+        BigDecimal horaire = BigDecimal.valueOf(e.salaireBase()).divide(r.heures().heuresDuMois(), 6,
+                RoundingMode.HALF_UP);
+        int rang = 1;
+        for (Variables.Heures h : e.heures()) {
+            long m = horaire.multiply(CENT.add(h.majoration())).divide(CENT, 6, RoundingMode.HALF_UP)
+                    .multiply(h.nombre()).setScale(0, RoundingMode.HALF_UP).longValue();
+            lignes.add(new Ligne("HS" + rang++, "Heures supplémentaires : " + h.libelle() + " ("
+                    + h.nombre().toPlainString().replace('.', ',') + " h à +" + h.majoration().toPlainString()
+                    .replace('.', ',') + " %)", Nature.GAIN, "", 0, null, m, 0, null, 0, "", comptes.salaires()));
+            regulier += m;
+        }
+
+        // 2. Éléments
+        long exceptionnelles = 0;
         long avantages = 0;
         long nonSoumis = 0;
         long retenues = 0;
-        int rang = 1;
+        rang = 1;
         for (Element x : e.elements()) {
             String code = "E" + rang++;
             switch (x.type()) {
                 case GAIN_SOUMIS -> {
-                    lignes.add(Ligne.gain(code, x.libelle(), x.montant(), true));
-                    soumis += x.montant();
+                    lignes.add(Ligne.gain(code, x.libelle(), x.montant(), true, comptes.salaires()));
+                    regulier += x.montant();
+                }
+                case PRIME_EXCEPTIONNELLE -> {
+                    lignes.add(Ligne.gain(code, x.libelle() + " (prime exceptionnelle)", x.montant(), true,
+                            comptes.salaires()));
+                    exceptionnelles += x.montant();
                 }
                 case AVANTAGE_NATURE -> {
-                    lignes.add(Ligne.gain(code, x.libelle() + " (en nature)", x.montant(), true));
-                    soumis += x.montant();
+                    lignes.add(Ligne.gain(code, x.libelle() + " (en nature)", x.montant(), true, ""));
+                    regulier += x.montant();
                     avantages += x.montant();
                 }
+                case FRAIS_EMPLOI -> {
+                    if (dirigeant) {
+                        lignes.add(Ligne.gain(code, x.libelle() + " (frais d'emploi, imposables pour un dirigeant)",
+                                x.montant(), true, comptes.indemnites()));
+                        regulier += x.montant();
+                    } else {
+                        lignes.add(Ligne.gain(code, x.libelle() + " (frais d'emploi, non soumis)", x.montant(), false,
+                                comptes.indemnites()));
+                        nonSoumis += x.montant();
+                    }
+                }
                 case GAIN_NON_SOUMIS -> {
-                    lignes.add(Ligne.gain(code, x.libelle(), x.montant(), false));
+                    lignes.add(Ligne.gain(code, x.libelle(), x.montant(), false, comptes.indemnites()));
                     nonSoumis += x.montant();
                 }
                 case RETENUE -> {
-                    lignes.add(new Ligne(code, x.libelle(), Nature.RETENUE, "", 0, null, 0, x.montant(), null, 0));
+                    lignes.add(new Ligne(code, x.libelle(), Nature.RETENUE, "", 0, null, 0, x.montant(), null, 0,
+                            comptes.avances(), ""));
                     retenues += x.montant();
                 }
             }
         }
-        Impot impot = switch (e.pays()) {
-            case TOGO -> togo(lignes, soumis, e, p);
-            case COTE_D_IVOIRE -> coteDIvoire(lignes, soumis, e, p);
-        };
-        long cotisations = lignes.stream().filter(l -> l.nature() == Nature.COTISATION).mapToLong(Ligne::salarie)
-                .sum();
-        long charges = lignes.stream().mapToLong(Ligne::employeur).sum();
+        long soumis = regulier + exceptionnelles;
+
+        // 3. Cotisations
+        List<Cotisation> applicables = r.cotisations().stream()
+                .filter(c -> c.application().concerne(e.expatrie()) && (!apprenti || c.apprentis())).toList();
+        long cotisationsSalarie = 0;
+        for (Cotisation c : applicables) {
+            long base;
+            long sal;
+            long emp;
+            if (c.fixe()) {
+                int personnes = c.personnesMax() == 0 ? 1 : Math.min(e.foyer().personnesCouvertes(), c.personnesMax());
+                base = personnes;
+                sal = c.fixeSalarie() * personnes;
+                emp = c.fixeEmployeur() * personnes;
+            } else {
+                base = assiette(c, soumis);
+                sal = taux(base, c.tauxSalarie());
+                emp = taux(base, c.tauxEmployeur());
+            }
+            if (sal == 0 && emp == 0) {
+                continue;
+            }
+            String libelle = c.fixe() ? c.libelle() + ", " + base + " personne(s)" : c.libelle();
+            lignes.add(new Ligne(c.code(), libelle, Nature.COTISATION, c.organisme(), base,
+                    c.fixe() ? null : c.tauxSalarie(), 0, sal, c.fixe() ? null : c.tauxEmployeur(), emp, c.compte(),
+                    comptes.chargesSociales()));
+            cotisationsSalarie += sal;
+        }
+
+        // 4. Impôt
+        Impot i = r.impot();
+        Calcule impot = impot(i, applicables, e, regulier, exceptionnelles, soumis);
+        lignes.add(new Ligne(i.nom(), i.nom() + (impot.montant == 0 && apprenti && i.apprentisExoneres()
+                ? " (apprenti, exonéré)" : ""), Nature.IMPOT, i.organisme(), impot.base, null, 0, impot.montant, null,
+                0, i.compte(), ""));
+
+        // 5. Taxes de l'employeur
+        for (TaxeEmployeur t : r.taxes()) {
+            if (!t.application().concerne(e.expatrie()) || (apprenti && !t.apprentis())) {
+                continue;
+            }
+            long base = t.plafond() > 0 ? Math.min(soumis, t.plafond()) : soumis;
+            long montant = taux(base, t.taux());
+            if (montant > 0) {
+                lignes.add(new Ligne(t.code(), t.libelle(), Nature.TAXE_EMPLOYEUR, t.organisme(), base, null, 0, 0,
+                        t.taux(), montant, t.compte(), t.compteCharge()));
+            }
+        }
+
+        // 6. Net avant avances ; les retenues ne peuvent pas rendre le net négatif
         long brut = soumis + nonSoumis;
-        long net = brut - avantages - cotisations - impot.montant() - retenues;
-        if (net < 0) {
+        long disponible = brut - avantages - cotisationsSalarie - impot.montant - retenues;
+        if (disponible < 0) {
             throw new ErreurMetier("Les retenues dépassent ce que le salarié gagne ce mois-ci : le net serait négatif ("
-                    + net + "). Réduisez une retenue ou reportez-la au mois suivant.");
+                    + disponible + "). Réduisez une retenue ou reportez-la au mois suivant.");
         }
-        return new Resultat(lignes, brut, soumis, cotisations, impot.montant(), retenues, avantages, net, charges,
-                impot.base(), impot.detail());
-    }
-
-    private record Impot(long montant, long base, String detail) {
-    }
-
-    // ================================================================== Togo
-
-    /**
-     * Togo : CNSS (pension pour le salarié ; pension, prestations familiales et risques professionnels pour
-     * l'employeur), AMU, puis IRPP. L'IRPP se calcule sur l'année : (brut soumis − CNSS − AMU du salarié) × 12, moins
-     * l'abattement de 28 % (sur la part du revenu qui ne dépasse pas la limite), moins les personnes à charge ;
-     * le revenu s'arrondit au millier inférieur, l'impôt annuel à la dizaine inférieure, et le mois en paie le
-     * douzième.
-     */
-    private static Impot togo(List<Ligne> lignes, long soumis, Entree e, Parametres p) {
-        long plafond = p.montant(Parametre.TG_CNSS_PLAFOND);
-        long baseCnss = plafond > 0 ? Math.min(soumis, plafond) : soumis;
-        BigDecimal tauxSal = p.valeur(Parametre.TG_CNSS_SALARIE);
-        BigDecimal tauxPension = p.valeur(Parametre.TG_CNSS_PENSION_EMPLOYEUR);
-        long cnssSal = taux(baseCnss, tauxSal);
-        lignes.add(new Ligne("CNSS_PENSION", "CNSS : pension vieillesse, invalidité, décès", Nature.COTISATION,
-                "CNSS", baseCnss, tauxSal, 0, cnssSal, tauxPension, taux(baseCnss, tauxPension)));
-        BigDecimal tauxFamille = p.valeur(Parametre.TG_CNSS_FAMILLE_EMPLOYEUR);
-        lignes.add(new Ligne("CNSS_FAMILLE", "CNSS : prestations familiales", Nature.COTISATION, "CNSS", baseCnss,
-                null, 0, 0, tauxFamille, taux(baseCnss, tauxFamille)));
-        BigDecimal tauxRisques = p.valeur(Parametre.TG_CNSS_RISQUES_EMPLOYEUR);
-        lignes.add(new Ligne("CNSS_RISQUES", "CNSS : risques professionnels", Nature.COTISATION, "CNSS", baseCnss,
-                null, 0, 0, tauxRisques, taux(baseCnss, tauxRisques)));
-        BigDecimal amuSalTaux = p.valeur(Parametre.TG_AMU_SALARIE);
-        BigDecimal amuPatTaux = p.valeur(Parametre.TG_AMU_EMPLOYEUR);
-        long amuSal = taux(soumis, amuSalTaux);
-        lignes.add(new Ligne("AMU", "Assurance maladie universelle (AMU)", Nature.COTISATION, "AMU", soumis,
-                amuSalTaux, 0, amuSal, amuPatTaux, taux(soumis, amuPatTaux)));
-
-        long annuel = Math.max(0, soumis - cnssSal - amuSal) * 12;
-        long limite = p.montant(Parametre.TG_IRPP_ABATTEMENT_LIMITE);
-        long abattement = taux(limite > 0 ? Math.min(annuel, limite) : annuel, p.valeur(Parametre.TG_IRPP_ABATTEMENT));
-        int personnes = Math.min(e.foyer().personnesACharge(), p.nombre(Parametre.TG_IRPP_CHARGES_MAX));
-        long famille = (long) personnes * p.montant(Parametre.TG_IRPP_CHARGE_FAMILLE) * 12;
-        long imposable = Math.max(0, annuel - abattement - famille) / 1000 * 1000;
-        long annuelImpot = Bareme.IRPP_TOGO.impot(imposable) / 10 * 10;
-        long mois = annuelImpot / 12;
-        lignes.add(new Ligne("IRPP", "IRPP retenu à la source", Nature.IMPOT, "OTR", imposable, null, 0, mois, null,
-                0));
-        String detail = "Revenu annuel " + annuel + " − abattement " + abattement + " − " + personnes
-                + " personne(s) à charge " + famille + " = " + imposable + " imposable ; IRPP annuel " + annuelImpot
-                + ", soit " + mois + " par mois.";
-        return new Impot(mois, imposable, detail);
-    }
-
-    // ================================================================== Côte d'Ivoire
-
-    /**
-     * Côte d'Ivoire : CNPS (retraite, plafonnée ; prestations familiales, maternité et accidents du travail, à la
-     * charge de l'employeur, sur un plafond plus bas), CMU par personne couverte, ITS sur le brut soumis réduit par
-     * les charges de famille (RICF), puis les taxes de l'employeur sur les salaires.
-     */
-    private static Impot coteDIvoire(List<Ligne> lignes, long soumis, Entree e, Parametres p) {
-        long baseRetraite = Math.min(soumis, p.montant(Parametre.CI_RETRAITE_PLAFOND));
-        BigDecimal retSal = p.valeur(Parametre.CI_RETRAITE_SALARIE);
-        BigDecimal retPat = p.valeur(Parametre.CI_RETRAITE_EMPLOYEUR);
-        lignes.add(new Ligne("CNPS_RETRAITE", "CNPS : retraite", Nature.COTISATION, "CNPS", baseRetraite, retSal, 0,
-                taux(baseRetraite, retSal), retPat, taux(baseRetraite, retPat)));
-        long basePlafonnee = Math.min(soumis, p.montant(Parametre.CI_FAMILLE_PLAFOND));
-        for (Parametre x : List.of(Parametre.CI_FAMILLE_EMPLOYEUR, Parametre.CI_MATERNITE_EMPLOYEUR,
-                Parametre.CI_ACCIDENT_EMPLOYEUR)) {
-            BigDecimal t = p.valeur(x);
-            String[] codeEtLibelle = switch (x) {
-                case CI_FAMILLE_EMPLOYEUR -> new String[]{"CNPS_FAMILLE", "CNPS : prestations familiales"};
-                case CI_MATERNITE_EMPLOYEUR -> new String[]{"CNPS_MATERNITE", "CNPS : assurance maternité"};
-                default -> new String[]{"CNPS_ACCIDENT", "CNPS : accidents du travail"};
-            };
-            lignes.add(new Ligne(codeEtLibelle[0], codeEtLibelle[1], Nature.COTISATION, "CNPS", basePlafonnee, null,
-                    0, 0, t, taux(basePlafonnee, t)));
+        // 7. Avances et prêts, plafonnés au net disponible
+        long avancesRetenues = 0;
+        for (AvanceDue a : e.avances()) {
+            long retenu = Math.min(Math.max(0, a.montant()), disponible - avancesRetenues);
+            if (retenu <= 0 && a.montant() <= 0) {
+                continue;
+            }
+            lignes.add(new Ligne(a.code(), "Remboursement : " + a.libelle() + (retenu < a.montant()
+                    ? " (" + (a.montant() - retenu) + " reportés)" : ""), Nature.RETENUE, "", 0, null, 0, retenu,
+                    null, 0, comptes.avances(), ""));
+            avancesRetenues += retenu;
         }
-        int personnes = Math.min(e.foyer().personnesCmu(), p.nombre(Parametre.CI_CMU_PERSONNES_MAX));
-        long cmu = (long) personnes * p.montant(Parametre.CI_CMU_PAR_PERSONNE);
-        long cmuPat = taux(cmu, p.valeur(Parametre.CI_CMU_PART_EMPLOYEUR));
-        lignes.add(new Ligne("CMU", "Couverture maladie universelle (CMU), " + personnes + " personne(s)",
-                Nature.COTISATION, "CMU", personnes, null, 0, cmu - cmuPat, null, cmuPat));
-
-        long brutImpot = Bareme.ITS_COTE_D_IVOIRE.impot(soumis);
-        BigDecimal parts = e.foyer().parts();
-        long demiParts = parts.subtract(BigDecimal.ONE).multiply(BigDecimal.valueOf(2)).longValue();
-        long ricf = demiParts * p.montant(Parametre.CI_ITS_RICF_DEMI_PART);
-        long its = Math.max(0, brutImpot - ricf);
-        lignes.add(new Ligne("ITS", "Impôt sur les traitements et salaires (ITS)", Nature.IMPOT, "DGI", soumis, null,
-                0, its, null, 0));
-
-        Parametre patronal = e.expatrie() ? Parametre.CI_IMPOT_PATRONAL_EXPATRIE : Parametre.CI_IMPOT_PATRONAL_LOCAL;
-        lignes.add(taxe("IMPOT_PATRONAL", "Impôt patronal sur les salaires" + (e.expatrie() ? " (expatrié)" : ""),
-                "DGI", soumis, p.valeur(patronal)));
-        lignes.add(taxe("TA", "Taxe d'apprentissage", "FDFP", soumis, p.valeur(Parametre.CI_TAXE_APPRENTISSAGE)));
-        lignes.add(taxe("FPC", "Formation professionnelle continue", "FDFP", soumis, p.valeur(Parametre.CI_FPC)));
-        lignes.add(taxe("FPC_COMPLEMENTAIRE", "Formation professionnelle continue (taxe additionnelle)", "FDFP",
-                soumis, p.valeur(Parametre.CI_FPC_COMPLEMENTAIRE)));
-        String detail = "Impôt brut " + brutImpot + " sur " + soumis + " − réduction pour charges de famille ("
-                + parts.stripTrailingZeros().toPlainString() + " part(s)) " + ricf + " = " + its + ".";
-        return new Impot(its, soumis, detail);
+        long charges = lignes.stream().mapToLong(Ligne::employeur).sum();
+        long net = disponible - avancesRetenues;
+        return new Resultat(lignes, brut, soumis, cotisationsSalarie, impot.montant, retenues + avancesRetenues,
+                avantages, net, charges, impot.base, impot.detail, i.nom(), comptes.remunerationsDues());
     }
 
-    private static Ligne taxe(String code, String libelle, String organisme, long base, BigDecimal t) {
-        return new Ligne(code, libelle, Nature.TAXE_EMPLOYEUR, organisme, base, null, 0, 0, t, taux(base, t));
+    /** L'assiette d'une cotisation à taux : brut soumis, plafonné, au moins l'assiette minimale (s'il y a un salaire). */
+    static long assiette(Cotisation c, long soumis) {
+        if (soumis <= 0) {
+            return 0;
+        }
+        long base = c.plafond() > 0 ? Math.min(soumis, c.plafond()) : soumis;
+        return Math.max(base, c.assietteMinimale());
+    }
+
+    // ================================================================== impôt
+
+    private record Calcule(long montant, long base, String detail) {
+    }
+
+    private record Periode(long abattement, long famille, long imposable, long impot, long reduction) {
+    }
+
+    private static Calcule impot(Impot i, List<Cotisation> applicables, Entree e, long regulier, long exceptionnelles,
+                                 long soumis) {
+        RegimeFiscal regime = e.regime();
+        if (regime == RegimeFiscal.APPRENTI && i.apprentisExoneres()) {
+            return new Calcule(0, 0, "Apprenti : exonéré d'impôt.");
+        }
+        int mois = i.periodicite().mois();
+        boolean gerant = regime == RegimeFiscal.GERANT && i.gerantAbattement().signum() > 0;
+        long dedRegulier = gerant || !i.deduireCotisations() ? 0 : deductible(i, applicables, e, regulier);
+        long dedTotal = gerant || !i.deduireCotisations() ? 0 : deductible(i, applicables, e, soumis);
+        long r;
+        long avecPrimes;
+        if (mois == 1) {
+            r = soumis - dedTotal;
+            avecPrimes = r;
+        } else {
+            r = (regulier - dedRegulier) * mois;
+            avecPrimes = r + exceptionnelles - (dedTotal - dedRegulier);
+        }
+        Periode sans = periode(i, e.foyer(), Math.max(0, r), gerant, mois);
+        long montant;
+        String detail;
+        if (mois == 1) {
+            montant = sans.impot;
+            detail = "Revenu du mois " + r + (sans.abattement > 0 ? " − abattement " + sans.abattement : "")
+                    + (sans.famille > 0 ? " − personnes à charge " + sans.famille : "") + " = " + sans.imposable
+                    + " imposable ; " + i.nom() + " " + (sans.impot + sans.reduction)
+                    + (sans.reduction > 0 ? " − réduction pour charges de famille " + sans.reduction : "") + " = "
+                    + montant + ".";
+        } else {
+            long annuel = sans.impot;
+            long duMois = i.arrondiMensuel().appliquer(BigDecimal.valueOf(annuel).divide(BigDecimal.valueOf(mois), 6,
+                    RoundingMode.HALF_UP), 1);
+            long surPrimes = 0;
+            if (exceptionnelles > 0) {
+                if (i.primesDifferentielles()) {
+                    surPrimes = Math.max(0, periode(i, e.foyer(), Math.max(0, avecPrimes), gerant, mois).impot
+                            - annuel);
+                } else {
+                    long avec = periode(i, e.foyer(), Math.max(0, avecPrimes), gerant, mois).impot;
+                    surPrimes = Math.max(0, i.arrondiMensuel().appliquer(BigDecimal.valueOf(avec)
+                            .divide(BigDecimal.valueOf(mois), 6, RoundingMode.HALF_UP), 1) - duMois);
+                }
+            }
+            montant = duMois + surPrimes;
+            detail = (gerant ? "Gérant : revenu annuel " : "Revenu annuel ") + r
+                    + (sans.abattement > 0 ? " − " + (gerant ? "frais forfaitaires " : "abattement ") + sans.abattement
+                    : "") + (sans.famille > 0 ? " − personnes à charge " + sans.famille : "") + " = " + sans.imposable
+                    + " imposable ; " + i.nom() + " annuel " + annuel + (sans.reduction > 0 ? " (après réduction "
+                    + sans.reduction + ")" : "") + ", soit " + duMois + " par mois"
+                    + (surPrimes > 0 ? " ; " + surPrimes + " sur les primes exceptionnelles" : "") + ".";
+        }
+        return new Calcule(montant, sans.imposable, detail);
+    }
+
+    private static Periode periode(Impot i, Foyer foyer, long revenu, boolean gerant, int mois) {
+        long abattement;
+        long famille = 0;
+        if (gerant) {
+            long limite = i.gerantAbattementLimite();
+            abattement = taux(limite > 0 ? Math.min(revenu, limite) : revenu, i.gerantAbattement());
+        } else {
+            long limite = i.abattementLimite();
+            abattement = taux(limite > 0 ? Math.min(revenu, limite) : revenu, i.abattement());
+            if (i.famille() == Famille.DEDUCTION_PAR_PERSONNE) {
+                int personnes = Math.min(foyer.personnesACharge(), i.personnesMax());
+                famille = (long) personnes * i.deductionParPersonne() * mois;
+            }
+        }
+        abattement = Math.min(abattement, revenu);
+        long imposable = ReglesPaie.Arrondi.INFERIEUR.appliquer(Math.max(0, revenu - abattement - famille),
+                i.arrondiRevenu());
+        long brut = i.bareme(imposable);
+        long reduction = 0;
+        if (!gerant && i.famille() == Famille.REDUCTION_PAR_DEMI_PART) {
+            long demiParts = i.parts().de(foyer).subtract(BigDecimal.ONE).multiply(BigDecimal.valueOf(2))
+                    .setScale(0, RoundingMode.FLOOR).longValue();
+            reduction = Math.min(brut, Math.max(0, demiParts) * i.reductionParDemiPart() * mois);
+        }
+        long impot = ReglesPaie.Arrondi.INFERIEUR.appliquer(brut - reduction, i.arrondiImpot());
+        return new Periode(abattement, famille, imposable, impot, reduction);
+    }
+
+    /** Les cotisations du salarié déductibles du revenu imposable, la retraite dans la limite fixée. */
+    private static long deductible(Impot i, List<Cotisation> applicables, Entree e, long assiette) {
+        long totales = 0;
+        long retraite = 0;
+        for (Cotisation c : applicables) {
+            long part = c.fixe()
+                    ? c.fixeSalarie() * (c.personnesMax() == 0 ? 1 : Math.min(e.foyer().personnesCouvertes(),
+                    c.personnesMax()))
+                    : taux(assiette(c, assiette), c.tauxSalarie());
+            if (c.deduction() == Deduction.TOTALE) {
+                totales += part;
+            } else if (c.deduction() == Deduction.RETRAITE_PLAFONNEE) {
+                retraite += part;
+            }
+        }
+        if (i.retraiteDeductibleMax().signum() > 0) {
+            retraite = Math.min(retraite, taux(Math.max(0, assiette), i.retraiteDeductibleMax()));
+        }
+        return totales + retraite;
     }
 
     /** {@code base × taux %}, au franc le plus proche. */

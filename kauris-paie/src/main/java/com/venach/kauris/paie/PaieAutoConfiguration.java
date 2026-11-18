@@ -48,7 +48,7 @@ public class PaieAutoConfiguration {
     public PaieService paieService(StockagePaie s, GererEntrepriseUseCase entreprises, PortsPaie.Versements versements,
                                    UniteDeTravail transaction, Clock horloge) {
         PortsPaie.PaysEntreprise pays = tenantId -> Optional.ofNullable(entreprises.consulter(tenantId).pays());
-        return new PaieService(s, s, s, s, s, s, s, pays, versements, transaction, horloge);
+        return new PaieService(s, s, s, s, s, s, s, s, pays, versements, transaction, horloge);
     }
 
     @Bean

@@ -18,7 +18,7 @@
                 <label>Adresse <input name="adresse" maxlength="190" th:value="${s?.adresse()}"></label>
                 <label>Pièce d'identité <input name="pieceIdentite" maxlength="60" th:value="${s?.pieceIdentite()}"
                                                placeholder="Carte nationale, passeport…"></label>
-                <label><span th:text="${'Numéro d''assuré ' + (pays == null ? 'social' : pays.caisseSociale())}">Numéro CNSS</span>
+                <label>Numéro d'assuré à la sécurité sociale (CNSS, CNPS…)
                     <input name="numeroSocial" maxlength="40" th:value="${s?.numeroSocial()}"></label>
 
                 <label>Situation de famille
@@ -30,9 +30,16 @@
                     <small class="k-discret">Mineurs, ou moins de 27 ans qui étudient, sans revenu.</small></label>
                 <label><input type="checkbox" name="conjointACharge" th:checked="${s != null and s.foyer().conjointACharge()}">
                     Conjoint sans revenu, à charge</label>
-                <label th:if="${pays == null or pays.name() == 'COTE_D_IVOIRE'}">
-                    <input type="checkbox" name="expatrie" th:checked="${s != null and s.expatrie()}">
-                    Salarié expatrié (impôt patronal plus élevé en Côte d'Ivoire)</label>
+                <label>Autres personnes à charge <input name="autresPersonnes" inputmode="numeric"
+                                                        th:value="${s == null ? 0 : s.foyer().autresPersonnes()}">
+                    <small class="k-discret">Ascendants ou autres personnes à charge effective, quand la loi du pays les compte.</small></label>
+                <label>Régime fiscal
+                    <select name="regime">
+                        <option th:each="x : ${regimes}" th:value="${x.name()}" th:text="${x.libelle()}"
+                                th:selected="${s != null and s.regime() == x}">Salarié</option>
+                    </select></label>
+                <label><input type="checkbox" name="expatrie" th:checked="${s != null and s.expatrie()}">
+                    Salarié expatrié (certaines cotisations et taxes diffèrent selon les règles du pays)</label>
 
                 <label>Mode de paiement du salaire
                     <select name="modePaiement">
@@ -67,6 +74,43 @@
                 </tr>
                 </tbody>
             </table>
+
+            <h2>Avances et prêts</h2>
+            <p class="k-discret" th:if="${avances.isEmpty()}">Aucune avance ni prêt.</p>
+            <table class="k-table" th:unless="${avances.isEmpty()}">
+                <thead><tr><th>Date</th><th>Objet</th><th class="p-montant">Montant</th><th class="p-montant">Par mois</th>
+                    <th class="p-montant">Reste</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="x : ${avances}" th:with="av=${x.avance()}" th:classappend="${av.annulee()} ? 'p-barre' : ''">
+                    <td th:text="${f.jour(av.accordeeLe())}">01/11/2026</td>
+                    <td><span th:text="${av.type().libelle() + ' · ' + av.libelle()}">Prêt</span>
+                        <div class="k-discret" th:text="${'dès ' + f.mois(av.premierMois()) + (av.note().isEmpty() ? '' : ' · ' + av.note())}"></div></td>
+                    <td class="p-montant" th:text="${f.nombre(av.montant())}">0</td>
+                    <td class="p-montant" th:text="${f.nombre(av.mensualite())}">0</td>
+                    <td class="p-montant" th:text="${av.annulee() ? 'arrêtée' : f.nombre(x.reste())}">0</td>
+                    <td><form th:if="${droits.preparer() and !av.annulee() and x.reste() > 0}" method="post"
+                              th:action="@{/paie/avances/{id}/annuler(id=${av.id()})}"
+                              onsubmit="return confirm('Arrêter les retenues de cette avance ?')">
+                        <input type="hidden" name="salarie" th:value="${s.id()}">
+                        <button type="submit" class="k-bouton k-secondaire">Arrêter</button></form></td>
+                </tr>
+                </tbody>
+            </table>
+            <details th:if="${droits.preparer() and s.actif()}">
+                <summary><strong>Accorder une avance ou un prêt</strong></summary>
+                <form class="k-pile" method="post" th:action="@{/paie/salaries/{id}/avances(id=${s.id()})}">
+                    <label>Type <select name="type">
+                        <option th:each="t : ${typesAvance}" th:value="${t.name()}" th:text="${t.libelle()}">Avance</option>
+                    </select></label>
+                    <label>Objet <input name="libelle" required maxlength="80" placeholder="Fête de fin d'année, achat de moto…"></label>
+                    <label>Montant total <input name="montant" required inputmode="numeric"></label>
+                    <label>Retenue par mois <input name="mensualite" required inputmode="numeric">
+                        <small class="k-discret">Jamais plus que le net du mois : le reste est reporté au mois suivant.</small></label>
+                    <label>Premier mois de retenue <input type="month" name="premierMois" required th:value="${moisCourant}"></label>
+                    <label>Note <input name="note" maxlength="300" placeholder="Accord écrit du…"></label>
+                    <button type="submit" class="k-bouton">Enregistrer</button>
+                </form>
+            </details>
 
             <h2>Bulletins</h2>
             <p class="k-discret" th:if="${bulletins.isEmpty()}">Aucun bulletin clôturé.</p>

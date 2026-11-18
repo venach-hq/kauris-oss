@@ -7,12 +7,13 @@
 
     <details class="k-aide">
         <summary>Comment ça marche ?</summary>
-        <p>1. Enregistrez vos <strong>salariés</strong> et leur <strong>contrat</strong> : poste, salaire de base, primes fixes.</p>
-        <p>2. Chaque mois, <strong>ouvrez la paie du mois</strong>. Kauris calcule tout seul les bulletins : cotisations
-            <span th:text="${pays == null ? 'sociales' : pays.caisseSociale() + ' et ' + pays.assuranceMaladie()}">CNSS et AMU</span>,
-            <span th:text="${pays == null ? 'impôt' : pays.impot()}">IRPP</span>, net à payer et coût pour l'entreprise.</p>
-        <p>3. Saisissez ce qui change ce mois-là : absences non payées, primes, avances. Le bulletin se recalcule aussitôt.</p>
-        <p>4. <strong>Clôturez</strong> : les bulletins sont numérotés et figés. Téléchargez le livre de paie, les déclarations
+        <p>1. Dans <strong>Règles de paie</strong>, activez les règles recommandées pour votre pays (ou saisissez les vôtres)
+            et corrigez ce qui est propre à votre entreprise : taux d'accident du travail, convention collective…</p>
+        <p>2. Enregistrez vos <strong>salariés</strong> et leur <strong>contrat</strong> : poste, salaire de base, primes fixes.</p>
+        <p>3. Chaque mois, <strong>ouvrez la paie du mois</strong>. Kauris calcule tout seul les bulletins selon vos règles :
+            cotisations, impôt, net à payer et coût pour l'entreprise.</p>
+        <p>4. Saisissez ce qui change ce mois-là : absences, heures supplémentaires, primes, retenues. Le bulletin se recalcule aussitôt.</p>
+        <p>5. <strong>Clôturez</strong> : les bulletins sont numérotés et figés. Téléchargez le livre de paie, les déclarations
             et l'ordre de virement à remettre à la banque.</p>
         <p th:if="${liens != null}"><a th:href="${liens.page('paie')}" target="_blank" rel="noopener">Guide complet de la paie</a></p>
     </details>
@@ -23,7 +24,16 @@
            th:text="${p.libelle() + (i.last ? '' : ', ')}">octobre 2026</a>
     </div>
 
-    <div class="p-boutons" th:if="${droits.preparer() and pays != null}">
+    <form class="p-alertes" style="background:#f4fbf6;border-color:#bfe3c9" method="post" th:action="@{/paie/regles/activer}"
+          th:if="${alertes.sansRegles() and modele != null and droits.parametrer()}">
+        <strong th:text="${modele.nom()}">Règles recommandées</strong> :
+        <span th:text="${#lists.size(modele.contenu().cotisations()) + ' cotisations, ' + modele.contenu().impot().nom() + ', '
+              + #lists.size(modele.contenu().taxes()) + ' taxe(s) de l''employeur.'}">…</span>
+        <input type="hidden" name="modele" th:value="${modele.code()}">
+        <button type="submit" class="k-bouton">Activer et vérifier ces règles</button>
+    </form>
+
+    <div class="p-boutons" th:if="${droits.preparer() and pays != null and !alertes.sansRegles()}">
         <form method="post" th:action="@{/paie/mois}">
             <label>Mois <input type="month" name="mois" required th:value="${moisPropose}"></label>
             <button type="submit" class="k-bouton">Ouvrir la paie du mois</button>

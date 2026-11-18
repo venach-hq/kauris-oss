@@ -16,7 +16,7 @@
                     <div class="k-doc-etiquette">Salarié</div>
                     <div class="k-doc-nom-tiers" th:text="${b.nomSalarie()}">MENSAH Awa</div>
                     <div th:text="${b.poste()}">Poste</div>
-                    <div th:unless="${b.numeroSocial().isEmpty()}"><strong th:text="${pays.caisseSociale() + ' :'}">CNSS :</strong>
+                    <div th:unless="${b.numeroSocial().isEmpty()}"><strong>Sécurité sociale :</strong>
                         <span th:text="${b.numeroSocial()}">123</span></div>
                     <div th:if="${b.modePaiement().parVirement() and !b.compte().isEmpty()}"><strong>Payé sur :</strong>
                         <span th:text="${(b.banque().isEmpty() ? '' : b.banque() + ' ') + b.compte()}">Compte</span></div>
@@ -61,7 +61,7 @@
         <tr><td>Salaire brut</td><td class="k-doc-montant" th:text="${f.montant(r.brut())}">0</td></tr>
         <tr><td>Brut soumis aux cotisations et à l'impôt</td><td class="k-doc-montant" th:text="${f.montant(r.brutSoumis())}">0</td></tr>
         <tr><td>Cotisations du salarié</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.cotisationsSalarie())}">0</td></tr>
-        <tr><td th:text="${pays.impot()}">IRPP</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.impot())}">0</td></tr>
+        <tr><td th:text="${r.impotNom()}">IRPP</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.impot())}">0</td></tr>
         <tr th:if="${r.avantagesNature() > 0}"><td>Avantages en nature (non payés)</td>
             <td class="k-doc-montant" th:text="${'- ' + f.montant(r.avantagesNature())}">0</td></tr>
         <tr th:if="${r.retenues() > 0}"><td>Avances et retenues</td>
@@ -70,7 +70,8 @@
     </table>
 
     <p class="k-doc-note"><strong>Net à payer :</strong> <span th:text="${netEnLettres}">deux cent mille francs CFA</span>.</p>
-    <p class="k-doc-note" th:text="${pays.impot() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
+    <p class="k-doc-note" th:text="${r.impotNom() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
+    <p class="k-doc-note" th:unless="${b.regles().isEmpty()}" th:text="${'Règles de paie : ' + b.regles() + ' (' + pays.nom() + ').'}">Règles</p>
     <p class="k-doc-note">Coût total pour l'employeur : <strong th:text="${f.montant(r.coutEmployeur())}">0</strong>
         (salaire brut et charges de l'employeur). Pour vous aider à faire valoir vos droits, conservez ce bulletin
         sans limitation de durée.</p>

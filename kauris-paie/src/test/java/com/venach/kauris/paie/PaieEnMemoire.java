@@ -1,17 +1,15 @@
 package com.venach.kauris.paie;
 
 import com.venach.kauris.paie.application.PortsPaie;
+import com.venach.kauris.paie.domain.Avance;
 import com.venach.kauris.paie.domain.Bulletin;
 import com.venach.kauris.paie.domain.ContratTravail;
-import com.venach.kauris.paie.domain.Parametre;
-import com.venach.kauris.paie.domain.Parametres;
 import com.venach.kauris.paie.domain.PeriodePaie;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.Variables;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,14 +19,15 @@ import java.util.UUID;
 
 /** Le stockage de la paie en mémoire, pour les tests. */
 public class PaieEnMemoire implements PortsPaie.Salaries, PortsPaie.Contrats, PortsPaie.Periodes,
-        PortsPaie.VariablesDuMois, PortsPaie.Bulletins, PortsPaie.Corrections, PortsPaie.Numeros {
+        PortsPaie.VariablesDuMois, PortsPaie.Bulletins, PortsPaie.Regles, PortsPaie.Avances, PortsPaie.Numeros {
 
     final Map<UUID, Salarie> salaries = new LinkedHashMap<>();
     final Map<UUID, ContratTravail> contrats = new LinkedHashMap<>();
     final Map<UUID, PeriodePaie> periodes = new LinkedHashMap<>();
     final Map<String, Variables> variables = new LinkedHashMap<>();
     final Map<UUID, Bulletin> bulletins = new LinkedHashMap<>();
-    final List<Parametres.Correction> corrections = new ArrayList<>();
+    final Map<UUID, ReglesPaie> regles = new LinkedHashMap<>();
+    final Map<UUID, Avance> avances = new LinkedHashMap<>();
     final Map<String, Long> compteurs = new HashMap<>();
 
     @Override
@@ -130,18 +129,38 @@ public class PaieEnMemoire implements PortsPaie.Salaries, PortsPaie.Contrats, Po
     }
 
     @Override
-    public List<Parametres.Correction> corrections(UUID t) {
-        return corrections.stream().filter(x -> x.tenantId().equals(t)).toList();
+    public void sauvegarder(ReglesPaie r) {
+        regles.put(r.id(), r);
     }
 
     @Override
-    public void ajouter(Parametres.Correction c) {
-        corrections.add(c);
+    public Optional<ReglesPaie> regles(UUID t, UUID id) {
+        return Optional.ofNullable(regles.get(id)).filter(x -> x.tenantId().equals(t));
     }
 
     @Override
-    public void retirer(UUID t, Parametre parametre, LocalDate depuis) {
-        corrections.removeIf(x -> x.tenantId().equals(t) && x.parametre() == parametre && x.depuis().equals(depuis));
+    public List<ReglesPaie> toutes(UUID t) {
+        return regles.values().stream().filter(x -> x.tenantId().equals(t)).toList();
+    }
+
+    @Override
+    public void supprimerRegles(UUID t, UUID id) {
+        regles(t, id).ifPresent(x -> regles.remove(id));
+    }
+
+    @Override
+    public void sauvegarder(Avance a) {
+        avances.put(a.id(), a);
+    }
+
+    @Override
+    public Optional<Avance> avance(UUID t, UUID id) {
+        return Optional.ofNullable(avances.get(id)).filter(x -> x.tenantId().equals(t));
+    }
+
+    @Override
+    public List<Avance> avances(UUID t) {
+        return avances.values().stream().filter(x -> x.tenantId().equals(t)).toList();
     }
 
     @Override

@@ -3,15 +3,14 @@ package com.venach.kauris.paie.application;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.entreprise.domain.Pays;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
+import com.venach.kauris.paie.domain.Avance;
 import com.venach.kauris.paie.domain.Bulletin;
 import com.venach.kauris.paie.domain.ContratTravail;
-import com.venach.kauris.paie.domain.Parametre;
-import com.venach.kauris.paie.domain.Parametres;
 import com.venach.kauris.paie.domain.PeriodePaie;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.Variables;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
@@ -72,12 +71,23 @@ public final class PortsPaie {
         void supprimer(UUID tenantId, UUID periodeId);
     }
 
-    public interface Corrections {
-        List<Parametres.Correction> corrections(UUID tenantId);
+    /** Les règles de paie de l'entreprise, toutes versions et tous pays. */
+    public interface Regles {
+        void sauvegarder(ReglesPaie r);
 
-        void ajouter(Parametres.Correction c);
+        Optional<ReglesPaie> regles(UUID tenantId, UUID id);
 
-        void retirer(UUID tenantId, Parametre parametre, LocalDate depuis);
+        List<ReglesPaie> toutes(UUID tenantId);
+
+        void supprimerRegles(UUID tenantId, UUID id);
+    }
+
+    public interface Avances {
+        void sauvegarder(Avance a);
+
+        Optional<Avance> avance(UUID tenantId, UUID id);
+
+        List<Avance> avances(UUID tenantId);
     }
 
     public interface Numeros {
@@ -92,13 +102,13 @@ public final class PortsPaie {
     }
 
     /**
-     * Le versement des salaires. Sans branchement, la paie produit un fichier de virement et un ordre de virement à
-     * remettre à la banque ; Kauris Cloud peut y brancher un paiement des salaires (PI-SPI). Un module open source
-     * n'appelle jamais lui-même un prestataire de paiement.
+     * Le versement des salaires. Sans branchement, la paie produit un ordre de virement à remettre à la banque ;
+     * Kauris Cloud peut y brancher un paiement des salaires (PI-SPI). Un module open source n'appelle jamais lui-même
+     * un prestataire de paiement.
      */
     public interface Versements {
 
-        /** Vrai si les salaires peuvent partir d'ici ; sinon l'écran propose le fichier de virement. */
+        /** Vrai si les salaires peuvent partir d'ici ; sinon l'écran propose l'ordre de virement. */
         boolean disponible(UUID tenantId);
 
         /** Lance le versement des bulletins à payer ; rend une phrase pour l'écran. */
@@ -112,8 +122,8 @@ public final class PortsPaie {
 
             @Override
             public String verser(Acces acces, PeriodePaie periode, List<Bulletin> bulletins) {
-                throw new ErreurMetier("Le versement automatique n'est pas disponible ici : téléchargez le fichier "
-                        + "de virement et remettez-le à votre banque.");
+                throw new ErreurMetier("Le versement automatique n'est pas disponible ici : téléchargez l'ordre de "
+                        + "virement et remettez-le à votre banque.");
             }
         };
     }

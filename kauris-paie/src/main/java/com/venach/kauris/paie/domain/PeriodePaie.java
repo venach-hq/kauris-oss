@@ -1,6 +1,7 @@
 package com.venach.kauris.paie.domain;
 
 import com.venach.kauris.kernel.commun.ErreurMetier;
+import com.venach.kauris.kernel.entreprise.domain.Pays;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,7 +16,7 @@ import java.util.UUID;
  *
  * @param payeLe jour où les salaires ont été versés (marqué après le virement)
  */
-public record PeriodePaie(UUID id, UUID tenantId, YearMonth mois, PaysPaie pays, boolean close, Instant closeLe,
+public record PeriodePaie(UUID id, UUID tenantId, YearMonth mois, Pays pays, boolean close, Instant closeLe,
                           String closePar, LocalDate payeLe, Instant creeLe) {
 
     public PeriodePaie {
@@ -25,7 +26,7 @@ public record PeriodePaie(UUID id, UUID tenantId, YearMonth mois, PaysPaie pays,
         closePar = closePar == null ? "" : closePar;
     }
 
-    public static PeriodePaie ouvrir(UUID tenantId, YearMonth mois, PaysPaie pays, Instant maintenant) {
+    public static PeriodePaie ouvrir(UUID tenantId, YearMonth mois, Pays pays, Instant maintenant) {
         return new PeriodePaie(UUID.randomUUID(), tenantId, mois, pays, false, null, "", null, maintenant);
     }
 

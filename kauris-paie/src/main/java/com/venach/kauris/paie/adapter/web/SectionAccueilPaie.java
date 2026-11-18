@@ -39,6 +39,9 @@ public class SectionAccueilPaie implements SectionAccueil {
         }
         PaieService.Alertes al = paie.alertes(a);
         List<Chiffre> c = new ArrayList<>();
+        if (al.sansRegles()) {
+            c.add(new Chiffre("Règles de paie", "à activer", "aucune règle pour ce mois", "/paie/regles", Ton.ALERTE));
+        }
         c.add(Chiffre.de("Salariés sous contrat", String.valueOf(sousContrat), "/paie/salaries"));
         List<PeriodePaie> periodes = paie.periodes(a);
         if (!periodes.isEmpty()) {

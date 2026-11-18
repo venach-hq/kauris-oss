@@ -39,7 +39,7 @@
                 <div class="p-chiffre"><span>Net à payer</span><strong th:text="${f.montant(r.netAPayer())}">0</strong></div>
                 <div class="p-chiffre"><span>Coût pour l'entreprise</span><strong th:text="${f.montant(r.coutEmployeur())}">0</strong></div>
             </div>
-            <p class="k-discret" th:text="${p.pays().impot() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
+            <p class="k-discret" th:text="${r.impotNom() + ' : ' + r.detailImpot()}">Détail de l'impôt</p>
             <p><a class="k-bouton k-secondaire" target="_blank" rel="noopener"
                   th:href="@{/paie/mois/{id}/salaries/{s}/bulletin(id=${p.id()},s=${s.id()})}">Voir et imprimer le bulletin</a></p>
         </div>
@@ -50,8 +50,27 @@
                 <legend>Ce qui change ce mois-ci</legend>
                 <label>Jours d'absence non payés (sur 30)
                     <input name="joursAbsence" inputmode="numeric" th:value="${v.joursAbsence()}"></label>
-                <p class="k-discret">Primes du mois, heures supplémentaires, avances et remboursements de prêt.
-                    Les primes fixes se mettent dans le contrat.</p>
+                <p class="k-discret" th:if="${majorations.isEmpty()}">Heures supplémentaires : aucune majoration dans les
+                    <a th:href="@{/paie/regles}">règles de paie</a>.</p>
+                <table class="p-elements" th:unless="${majorations.isEmpty()}">
+                    <thead><tr><th>Heures supplémentaires</th><th class="p-montant">Nombre d'heures</th></tr></thead>
+                    <tbody>
+                    <tr th:each="i : ${#numbers.sequence(0, lignesHeures - 1)}"
+                        th:with="h=${i < v.heures().size() ? v.heures().get(i) : null}">
+                        <td><select th:name="${'heure_maj_' + i}">
+                            <option value="">—</option>
+                            <option th:each="mj : ${majorations}" th:value="${mj.libelle() + '|' + mj.taux().toPlainString()}"
+                                    th:text="${mj.libelle() + ' (+' + f.taux(mj.taux()) + ')'}"
+                                    th:selected="${h != null and h.libelle() == mj.libelle()}">Jour</option>
+                        </select></td>
+                        <td><input th:name="${'heure_nombre_' + i}" inputmode="decimal" class="p-montant"
+                                   th:value="${h == null ? '' : h.nombre().toPlainString()}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p class="k-discret">Primes du mois, primes exceptionnelles (13e mois, bonus), retenues (syndicat, saisie).
+                    Les primes fixes vont dans le contrat ; les avances et prêts, sur la
+                    <a th:href="@{/paie/salaries/{id}(id=${s.id()})}">fiche du salarié</a>.</p>
                 <table th:replace="~{paie/commun :: elements(${v.elements()}, ${types}, ${lignes})}"></table>
                 <button type="submit" class="k-bouton">Enregistrer et recalculer</button>
             </fieldset>

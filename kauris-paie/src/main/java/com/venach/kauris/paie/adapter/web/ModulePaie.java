@@ -30,8 +30,8 @@ public class ModulePaie implements ModuleKauris {
 
     @Override
     public String description() {
-        return "Paie du Togo et de la Côte d'Ivoire : salariés, contrats, bulletins, CNSS, AMU, IRPP, CNPS, CMU, "
-                + "ITS, livre de paie, déclarations et virement des salaires.";
+        return "Paie de l'UEMOA, règles recommandées pour le Togo et la Côte d'Ivoire, toutes modifiables : salariés, "
+                + "contrats, avances, bulletins, livre de paie, déclarations, virement et écritures comptables.";
     }
 
     @Override

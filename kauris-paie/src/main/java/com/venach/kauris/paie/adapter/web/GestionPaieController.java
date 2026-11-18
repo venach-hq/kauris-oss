@@ -6,12 +6,13 @@ import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.kernel.ui.ContexteCourant;
 import com.venach.kauris.paie.application.PaieService;
 import com.venach.kauris.paie.application.PermissionsPaie;
+import com.venach.kauris.kernel.entreprise.domain.Pays;
+import com.venach.kauris.paie.domain.Avance;
 import com.venach.kauris.paie.domain.ContratTravail;
 import com.venach.kauris.paie.domain.ModePaiement;
-import com.venach.kauris.paie.domain.Parametre;
-import com.venach.kauris.paie.domain.Parametres;
-import com.venach.kauris.paie.domain.PaysPaie;
-import com.venach.kauris.paie.domain.PeriodePaie;
+import com.venach.kauris.paie.domain.ModelesRecommandes;
+import com.venach.kauris.paie.domain.RegimeFiscal;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.SituationFamiliale;
 import com.venach.kauris.paie.domain.TypeContrat;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -74,6 +74,8 @@ public class GestionPaieController {
     private static void listesSalarie(Model model) {
         model.addAttribute("situations", SituationFamiliale.values());
         model.addAttribute("modes", ModePaiement.values());
+        model.addAttribute("regimes", RegimeFiscal.values());
+        model.addAttribute("typesAvance", Avance.Type.values());
     }
 
     @PostMapping("/salaries")
@@ -96,7 +98,8 @@ public class GestionPaieController {
         model.addAttribute("s", paie.salarie(a, id));
         model.addAttribute("contrats", paie.contratsDuSalarie(a, id));
         model.addAttribute("bulletins", paie.bulletinsDuSalarie(a, id));
-        model.addAttribute("periodes", paie.periodes(a));
+        model.addAttribute("avances", paie.avances(a, id));
+        model.addAttribute("moisCourant", paie.moisCourant());
         model.addAttribute("aujourdhui", paie.aujourdHui());
         return "paie/salarie";
     }
@@ -117,9 +120,42 @@ public class GestionPaieController {
                 "Date de naissance"), c.get("telephone"), c.get("email"), c.get("adresse"), c.get("pieceIdentite"),
                 c.get("numeroSocial"), FormatsPaie.lireChoix(SituationFamiliale.class, c.get("situation"),
                 "Situation de famille"), FormatsPaie.lireEntier(c.get("enfants"), "Enfants à charge", 0),
-                "on".equals(c.get("conjointACharge")), "on".equals(c.get("expatrie")),
+                "on".equals(c.get("conjointACharge")), FormatsPaie.lireEntier(c.get("autresPersonnes"),
+                "Autres personnes à charge", 0), "on".equals(c.get("expatrie")),
+                c.get("regime") == null || c.get("regime").isBlank() ? RegimeFiscal.NORMAL
+                        : FormatsPaie.lireChoix(RegimeFiscal.class, c.get("regime"), "Régime fiscal"),
                 FormatsPaie.lireChoix(ModePaiement.class, c.get("modePaiement"), "Mode de paiement"), c.get("banque"),
                 c.get("compte"), actif, c.get("notes"));
+    }
+
+    // ================================================================== avances et prêts
+
+    @PostMapping("/salaries/{id}/avances")
+    public String accorderAvance(@PathVariable UUID id, @RequestParam Map<String, String> c,
+                                 HttpServletRequest requete, RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, PermissionsPaie.PREPARER);
+        return agir(flash, () -> {
+            Avance x = paie.accorderAvance(a, id, FormatsPaie.lireChoix(Avance.Type.class, c.get("type"), "Type"),
+                    c.get("libelle"), FormatsPaie.lireMontant(c.get("montant"), "Montant"),
+                    FormatsPaie.lireMontant(c.get("mensualite"), "Retenue par mois"),
+                    FormatsPaie.lireMois(c.get("premierMois"), "Premier mois de retenue"), c.get("note"));
+            flash.addFlashAttribute("succes", x.type().libelle() + " enregistré(e) : " + x.mensualite()
+                    + " retenus chaque mois à partir de " + com.venach.kauris.paie.domain.PeriodePaie.libelle(
+                    x.premierMois()) + ", sans jamais rendre le net négatif.");
+            return "redirect:" + PAGE + "/salaries/" + id;
+        }, PAGE + "/salaries/" + id);
+    }
+
+    @PostMapping("/avances/{id}/annuler")
+    public String annulerAvance(@PathVariable UUID id, @RequestParam(defaultValue = "") String salarie,
+                                HttpServletRequest requete, RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, PermissionsPaie.PREPARER);
+        String retour = PAGE + "/salaries/" + FormatsPaie.lireId(salarie);
+        return agir(flash, () -> {
+            paie.annulerAvance(a, id);
+            flash.addFlashAttribute("succes", "Retenues arrêtées. Ce qui a déjà été retenu reste sur les bulletins.");
+            return "redirect:" + retour;
+        }, retour);
     }
 
     // ================================================================== contrats
@@ -138,8 +174,8 @@ public class GestionPaieController {
 
     private static void listesContrat(Model model, int elements) {
         model.addAttribute("typesContrat", TypeContrat.values());
-        model.addAttribute("types", List.of(TypeElement.GAIN_SOUMIS, TypeElement.AVANTAGE_NATURE,
-                TypeElement.GAIN_NON_SOUMIS));
+        model.addAttribute("types", java.util.Arrays.stream(TypeElement.values()).filter(TypeElement::dansLeContrat)
+                .toList());
         model.addAttribute("lignes", elements + PaieController.LIGNES_VIDES);
     }
 
@@ -210,47 +246,90 @@ public class GestionPaieController {
                 c.get("notes"));
     }
 
-    // ================================================================== réglages
+    // ================================================================== règles de paie
 
-    @GetMapping("/reglages")
-    public String reglages(HttpServletRequest requete, Model model) {
+    @GetMapping("/regles")
+    public String regles(HttpServletRequest requete, Model model) {
         Acces a = contexte.exiger(requete, CONSULTER);
-        commun(model, a, entreprises, paie, "reglages");
-        PaysPaie pays = paie.pays(a.tenantId()).orElse(null);
-        model.addAttribute("parametres", pays == null ? List.of() : Parametre.de(pays));
-        model.addAttribute("valeurs", paie.parametres(a.tenantId(), paie.moisCourant()));
-        model.addAttribute("corrections", paie.corrections(a).stream()
-                .filter(x -> pays != null && x.parametre().pays() == pays).toList());
+        commun(model, a, entreprises, paie, "regles");
+        Pays pays = paie.pays(a.tenantId()).orElse(null);
+        model.addAttribute("regles", paie.regles(a));
+        model.addAttribute("enVigueur", pays == null ? null : paie.reglesDuMois(a.tenantId(), pays,
+                paie.moisCourant()).orElse(null));
+        model.addAttribute("modeles", ModelesRecommandes.tous());
+        model.addAttribute("tousLesPays", Pays.values());
         model.addAttribute("moisCourant", paie.moisCourant());
-        return "paie/reglages";
+        return "paie/regles";
     }
 
-    @PostMapping("/reglages")
-    public String corriger(@RequestParam Map<String, String> c, HttpServletRequest requete, RedirectAttributes flash) {
+    @PostMapping("/regles/activer")
+    public String activer(@RequestParam Map<String, String> c, HttpServletRequest requete, RedirectAttributes flash) {
         Acces a = contexte.exiger(requete, PermissionsPaie.PARAMETRER);
         return agir(flash, () -> {
-            Parametre p = Parametre.parCode(c.get("parametre"))
-                    .orElseThrow(() -> new ErreurMetier("Choisissez le paramètre."));
-            LocalDate depuis = FormatsPaie.lireMois(c.get("depuis"), "À partir de").atDay(1);
-            paie.corriger(a, new Parametres.Correction(a.tenantId(), p, depuis,
-                    FormatsPaie.lireDecimal(c.get("valeur"), p.libelle()), c.get("note")));
-            flash.addFlashAttribute("succes", "« " + p.libelle() + " » corrigé à partir de "
-                    + PeriodePaie.libelle(YearMonth.from(depuis))
-                    + ". Les mois déjà clos ne changent pas : rouvrez-les s'il le faut.");
-            return "redirect:" + PAGE + "/reglages";
-        }, PAGE + "/reglages");
+            String code = c.getOrDefault("modele", "");
+            Pays pays = c.get("pays") == null || c.get("pays").isBlank() ? null
+                    : FormatsPaie.lireChoix(Pays.class, c.get("pays"), "Pays");
+            LocalDate depuis = c.get("depuis") == null || c.get("depuis").isBlank() ? null
+                    : FormatsPaie.lireMois(c.get("depuis"), "À partir de").atDay(1);
+            ReglesPaie r = paie.activerModele(a, code, pays, depuis);
+            flash.addFlashAttribute("succes", "Règles « " + r.nom() + " » enregistrées. Vérifiez-les et corrigez ce "
+                    + "qui ne correspond pas à votre entreprise (taux d'accident du travail, convention collective…).");
+            return "redirect:" + PAGE + "/regles/" + r.id();
+        }, PAGE + "/regles");
     }
 
-    @PostMapping("/reglages/retirer")
-    public String retirer(@RequestParam Map<String, String> c, HttpServletRequest requete, RedirectAttributes flash) {
+    @GetMapping("/regles/{id}")
+    public String regle(@PathVariable UUID id, HttpServletRequest requete, Model model) {
+        Acces a = contexte.exiger(requete, CONSULTER);
+        FormatsPaie f = commun(model, a, entreprises, paie, "regles");
+        ReglesPaie r = paie.reglesParId(a, id);
+        var modele = paie.recommandation(r);
+        model.addAttribute("r", r);
+        model.addAttribute("c", r.contenu());
+        model.addAttribute("modele", modele.orElse(null));
+        model.addAttribute("reco", FormulaireRegles.ecarts(r.contenu(), modele, f));
+        model.addAttribute("plus", FormulaireRegles.LIGNES_EN_PLUS);
+        model.addAttribute("deductions", ReglesPaie.Deduction.values());
+        model.addAttribute("applications", ReglesPaie.Application.values());
+        model.addAttribute("periodicites", ReglesPaie.Periodicite.values());
+        model.addAttribute("familles", ReglesPaie.Famille.values());
+        model.addAttribute("arrondis", ReglesPaie.Arrondi.values());
+        model.addAttribute("moisCourant", paie.moisCourant());
+        return "paie/regle";
+    }
+
+    @PostMapping("/regles/{id}")
+    public String enregistrerRegles(@PathVariable UUID id, @RequestParam Map<String, String> c,
+                                    HttpServletRequest requete, RedirectAttributes flash) {
         Acces a = contexte.exiger(requete, PermissionsPaie.PARAMETRER);
         return agir(flash, () -> {
-            Parametre p = Parametre.parCode(c.get("parametre"))
-                    .orElseThrow(() -> new ErreurMetier("Paramètre inconnu."));
-            paie.retirerCorrection(a, p, FormatsPaie.lireDate(c.get("depuis"), "Date"));
-            flash.addFlashAttribute("succes", "Correction retirée : « " + p.libelle() + " » reprend sa valeur "
-                    + "précédente.");
-            return "redirect:" + PAGE + "/reglages";
-        }, PAGE + "/reglages");
+            ReglesPaie r = paie.enregistrerRegles(a, id, c.get("nom"), FormatsPaie.lireMois(c.get("depuis"),
+                    "À partir de").atDay(1), FormulaireRegles.lire(c), c.get("notes"));
+            flash.addFlashAttribute("succes", "Règles enregistrées. Les mois en préparation sont recalculés ; les mois "
+                    + "clos ne changent pas (rouvrez-les s'il le faut).");
+            return "redirect:" + PAGE + "/regles/" + r.id();
+        }, PAGE + "/regles/" + id);
+    }
+
+    @PostMapping("/regles/{id}/version")
+    public String nouvelleVersion(@PathVariable UUID id, @RequestParam(defaultValue = "") String depuis,
+                                  HttpServletRequest requete, RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, PermissionsPaie.PARAMETRER);
+        return agir(flash, () -> {
+            ReglesPaie r = paie.nouvelleVersion(a, id, FormatsPaie.lireMois(depuis, "À partir de").atDay(1));
+            flash.addFlashAttribute("succes", "Nouvelle version à partir de " + com.venach.kauris.paie.domain
+                    .PeriodePaie.libelle(java.time.YearMonth.from(r.depuis())) + " : corrigez ce qui change.");
+            return "redirect:" + PAGE + "/regles/" + r.id();
+        }, PAGE + "/regles/" + id);
+    }
+
+    @PostMapping("/regles/{id}/supprimer")
+    public String supprimerRegles(@PathVariable UUID id, HttpServletRequest requete, RedirectAttributes flash) {
+        Acces a = contexte.exiger(requete, PermissionsPaie.PARAMETRER);
+        return agir(flash, () -> {
+            paie.supprimerRegles(a, id);
+            flash.addFlashAttribute("succes", "Version supprimée.");
+            return "redirect:" + PAGE + "/regles";
+        }, PAGE + "/regles/" + id);
     }
 }

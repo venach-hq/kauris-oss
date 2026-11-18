@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Paie : règles de paie', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{paie/commun :: navigation}"></th:block>
+
+    <details class="k-aide" th:open="${regles.isEmpty()}">
+        <summary>Comment ça marche ?</summary>
+        <p>Les <strong>règles de paie</strong> disent comment Kauris calcule : cotisations sociales (taux, plafonds, assiette
+            minimale, montants par personne), impôt sur les salaires (barème, abattement, charges de famille, parts,
+            arrondis, régimes), taxes de l'employeur, heures supplémentaires et comptes comptables.</p>
+        <p><strong>Kauris recommande, vous décidez.</strong> Activez les règles recommandées pour votre pays : elles sont
+            vérifiées et sourcées, mais tout se corrige (votre taux d'accident du travail, votre convention collective, une
+            loi de finances nouvelle). Chaque valeur qui s'écarte de la recommandation l'affiche à côté.</p>
+        <p>Une loi change ? Créez une <strong>nouvelle version</strong> à partir du mois où elle s'applique : les mois
+            précédents gardent l'ancienne. Un pays sans recommandation ? Partez d'un modèle vide et saisissez ses règles.</p>
+        <p th:if="${liens != null}"><a th:href="${liens.page('paie')}" target="_blank" rel="noopener">Guide de la paie</a></p>
+    </details>
+
+    <p th:if="${enVigueur != null}">En vigueur ce mois-ci pour <strong th:text="${pays.nom()}">Togo</strong> :
+        <a th:href="@{/paie/regles/{id}(id=${enVigueur.id()})}" th:text="${enVigueur.nom()}">Togo</a>
+        <span class="k-discret" th:text="${'depuis ' + f.moisDe(enVigueur.depuis())}"></span></p>
+
+    <table class="k-table" th:unless="${regles.isEmpty()}">
+        <thead><tr><th>Pays</th><th>À partir de</th><th>Nom</th><th>Impôt</th><th>Cotisations</th><th>Modifiées</th></tr></thead>
+        <tbody>
+        <tr th:each="r : ${regles}">
+            <td th:text="${r.pays().nom()}">Togo</td>
+            <td th:text="${f.moisDe(r.depuis())}">janvier 2026</td>
+            <td><a th:href="@{/paie/regles/{id}(id=${r.id()})}" th:text="${r.nom()}">Togo</a>
+                <span class="k-pastille k-ok" th:if="${enVigueur != null and enVigueur.id() == r.id()}">En vigueur</span></td>
+            <td th:text="${r.contenu().impot().nom()}">IRPP</td>
+            <td th:text="${#lists.size(r.contenu().cotisations())}">4</td>
+            <td class="k-discret" th:text="${f.instant(r.modifieLe()) + (r.modifiePar().isEmpty() ? '' : ' par ' + r.modifiePar())}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="p-deux" th:if="${droits.parametrer()}">
+        <div>
+            <h2>Règles recommandées</h2>
+            <form class="k-carte k-pile" method="post" th:action="@{/paie/regles/activer}" th:each="m : ${modeles}">
+                <strong th:text="${m.nom()}">Togo</strong>
+                <span class="k-discret" th:text="${'Depuis ' + f.moisDe(m.depuis()) + ' · ' + #lists.size(m.contenu().cotisations())
+                      + ' cotisations · ' + m.contenu().impot().nom() + ' · ' + #lists.size(m.contenu().taxes()) + ' taxe(s)'}"></span>
+                <span class="p-note" th:unless="${m.notes().isEmpty()}" th:text="${m.notes()}"></span>
+                <span class="p-note" th:each="src : ${m.sources()}" th:text="${'Source : ' + src}"></span>
+                <input type="hidden" name="modele" th:value="${m.code()}">
+                <label>À partir de <input type="month" name="depuis" th:value="${#strings.substring(m.depuis(), 0, 7)}"></label>
+                <button type="submit" class="k-bouton">Activer ces règles</button>
+            </form>
+        </div>
+        <div>
+            <h2>Autre pays</h2>
+            <form class="k-carte k-pile" method="post" th:action="@{/paie/regles/activer}">
+                <p class="k-discret">Pas encore de recommandation pour ce pays : partez d'un modèle vide et saisissez ses
+                    cotisations, son impôt et ses taxes avec votre conseil.</p>
+                <input type="hidden" name="modele" value="VIDE">
+                <label>Pays <select name="pays">
+                    <option th:each="x : ${tousLesPays}" th:value="${x.name()}" th:text="${x.nom()}"
+                            th:selected="${pays != null and pays == x}">Sénégal</option>
+                </select></label>
+                <label>À partir de <input type="month" name="depuis" required th:value="${moisCourant}"></label>
+                <button type="submit" class="k-bouton k-secondaire">Créer des règles à compléter</button>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>

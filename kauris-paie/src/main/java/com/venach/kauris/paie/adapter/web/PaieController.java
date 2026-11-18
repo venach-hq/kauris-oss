@@ -16,7 +16,8 @@ import com.venach.kauris.paie.domain.Bulletin;
 import com.venach.kauris.paie.domain.CalculPaie;
 import com.venach.kauris.paie.domain.ContratTravail;
 import com.venach.kauris.paie.domain.Element;
-import com.venach.kauris.paie.domain.PaysPaie;
+import com.venach.kauris.paie.domain.ModelesRecommandes;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.PeriodePaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.TypeElement;
@@ -81,6 +82,28 @@ public class PaieController {
         return f;
     }
 
+    /**
+     * Les heures supplémentaires saisies : champs {@code heure_maj_N} (« libellé|taux » d'une majoration des règles,
+     * ou vide), {@code heure_nombre_N} ; une ligne sans nombre est ignorée.
+     */
+    static List<Variables.Heures> lireHeures(Map<String, String> c) {
+        List<Variables.Heures> h = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            String nombre = c.getOrDefault("heure_nombre_" + i, "").strip();
+            String maj = c.getOrDefault("heure_maj_" + i, "").strip();
+            if (nombre.isEmpty()) {
+                continue;
+            }
+            int barre = maj.lastIndexOf('|');
+            if (barre < 0) {
+                throw new ErreurMetier("Heures supplémentaires : choisissez la majoration.");
+            }
+            h.add(new Variables.Heures(maj.substring(0, barre), FormatsPaie.lireDecimal(maj.substring(barre + 1),
+                    "Majoration"), FormatsPaie.lireDecimal(nombre, "Nombre d'heures")));
+        }
+        return h;
+    }
+
     /** Une erreur prévue devient un message à l'écran ; les autres (accès, introuvable) suivent leur cours. */
     static String agir(RedirectAttributes flash, Supplier<String> action, String retourEnErreur) {
         try {
@@ -133,6 +156,7 @@ public class PaieController {
                 : periodes.get(0).mois().plusMonths(1).isAfter(paie.moisCourant().plusMonths(1))
                 ? paie.moisCourant() : periodes.get(0).mois().plusMonths(1));
         model.addAttribute("salaries", paie.salaries(a).stream().filter(l -> l.contrat() != null).count());
+        model.addAttribute("modele", paie.pays(a.tenantId()).flatMap(ModelesRecommandes::pour).orElse(null));
         return "paie/accueil";
     }
 
@@ -161,7 +185,8 @@ public class PaieController {
         model.addAttribute("aVirer", PaieService.aVirer(m.bulletins()));
         model.addAttribute("versementDisponible", paie.versementDisponible(a));
         model.addAttribute("aujourdhui", paie.aujourdHui());
-        model.addAttribute("organismes", ExportsPaie.organismesSociaux(m.periode().pays()));
+        model.addAttribute("organismes", ExportsPaie.organismesSociaux(m.bulletins()));
+        model.addAttribute("impot", m.regles() == null ? "Impôt" : m.regles().contenu().impot().nom());
         return "paie/mois";
     }
 
@@ -227,6 +252,16 @@ public class PaieController {
                 .map(PaieService.Probleme::message).findFirst().orElse(null));
         model.addAttribute("types", TypeElement.values());
         model.addAttribute("lignes", v.elements().size() + LIGNES_VIDES);
+        ReglesPaie regles = m.regles();
+        model.addAttribute("regles", regles);
+        // Les majorations des règles, plus celles déjà saisies qui n'y figurent plus (règles corrigées depuis).
+        List<ReglesPaie.Majoration> majorations = new ArrayList<>(regles == null ? List.of()
+                : regles.contenu().heures().majorations());
+        v.heures().stream().filter(h -> majorations.stream().noneMatch(x -> x.libelle().equals(h.libelle())))
+                .forEach(h -> majorations.add(new ReglesPaie.Majoration(h.libelle(), h.majoration())));
+        model.addAttribute("majorations", majorations);
+        model.addAttribute("lignesHeures", v.heures().size() + LIGNES_VIDES);
+        model.addAttribute("impot", regles == null ? "Impôt" : regles.contenu().impot().nom());
         // Le salarié précédent et le suivant, pour passer d'un bulletin à l'autre.
         List<UUID> ordre = m.bulletins().stream().map(Bulletin::salarieId).toList();
         int i = ordre.indexOf(salarieId);
@@ -243,7 +278,7 @@ public class PaieController {
         String ici = PAGE + "/mois/" + id + "/salaries/" + salarieId;
         return agir(flash, () -> {
             paie.enregistrerVariables(a, id, salarieId, FormatsPaie.lireEntier(c.get("joursAbsence"),
-                    "Jours d'absence", 0), lireElements(c));
+                    "Jours d'absence", 0), lireHeures(c), lireElements(c));
             flash.addFlashAttribute("succes", "Éléments du mois enregistrés : le bulletin est recalculé.");
             return "redirect:" + ici;
         }, ici);
@@ -275,7 +310,6 @@ public class PaieController {
         Habillage h = producteur.habillage(a.tenantId(), "Bulletin de paie", p.libelle()
                 + (b.brouillon() ? " · brouillon" : " · n° " + b.numero()), lienPdf, pdf);
         FormatsPaie f = new FormatsPaie(h.entreprise().devise());
-        PaysPaie pays = p.pays();
         List<Cartouche.Case> cases = new ArrayList<>(List.of(
                 Cartouche.c("Période", p.libelle()),
                 Cartouche.c("Bulletin n°", b.brouillon() ? "brouillon" : b.numero()),
@@ -283,10 +317,13 @@ public class PaieController {
                 Cartouche.c("Embauche", f.jour(c.debut())),
                 Cartouche.c("Emploi", b.poste()),
                 Cartouche.c("Catégorie", b.categorie()),
-                Cartouche.c("N° " + pays.caisseSociale(), b.numeroSocial()),
+                Cartouche.c("N° sécurité sociale", b.numeroSocial()),
                 Cartouche.c("Situation", b.situation() + (b.enfants() > 0 ? ", " + b.enfants() + " enfant(s)" : ""))));
-        if (pays == PaysPaie.COTE_D_IVOIRE) {
-            cases.add(Cartouche.c("Parts", f.decimal(b.parts())));
+        if (!b.famille().isEmpty()) {
+            cases.add(Cartouche.c("Charges de famille", b.famille()));
+        }
+        if (b.regime() != com.venach.kauris.paie.domain.RegimeFiscal.NORMAL) {
+            cases.add(Cartouche.c("Régime", b.regime().libelle()));
         }
         cases.add(Cartouche.c("Jours payés", b.joursPayes() + " / " + CalculPaie.JOURS_DU_MOIS));
         cases.add(Cartouche.c("Salaire de base", f.nombre(b.salaireBase())));
@@ -296,7 +333,7 @@ public class PaieController {
         v.put("f", f);
         v.put("b", b);
         v.put("r", b.resultat());
-        v.put("pays", pays);
+        v.put("pays", p.pays());
         v.put("brouillon", b.brouillon());
         v.put("cartouche", new Cartouche(cases));
         v.put("netEnLettres", MontantEnLettres.montant(b.net(), h.entreprise().devise()));
@@ -307,7 +344,7 @@ public class PaieController {
 
     // ================================================================== exports
 
-    /** {@code quoi} : livre, sociale, fiscale, virements ; {@code format} : csv, xlsx, pdf. */
+    /** {@code quoi} : livre, sociale, fiscale, virements, ecritures ; {@code format} : csv, xlsx, pdf. */
     @GetMapping("/mois/{id}/export/{quoi}.{format}")
     public ResponseEntity<byte[]> exporter(@PathVariable UUID id, @PathVariable String quoi,
                                            @PathVariable String format, HttpServletRequest requete) {
@@ -319,6 +356,7 @@ public class PaieController {
             case "sociale" -> ExportsPaie.sociale(p, m.bulletins());
             case "fiscale" -> ExportsPaie.fiscale(p, m.bulletins());
             case "virements" -> ExportsPaie.virements(p, m.bulletins());
+            case "ecritures" -> ExportsPaie.ecritures(p, m.bulletins());
             default -> throw new ElementIntrouvable("Export inconnu.");
         };
         String nom = ProducteurDocuments.nomDeFichier(t.titre(), p.mois().toString()).replaceAll("\\.pdf$", "");

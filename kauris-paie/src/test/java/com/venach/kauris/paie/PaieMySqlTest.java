@@ -12,7 +12,9 @@ import com.venach.kauris.kernel.ui.SessionKauris;
 import com.venach.kauris.paie.application.PaieService;
 import com.venach.kauris.paie.domain.Bulletin;
 import com.venach.kauris.paie.domain.ContratTravail;
-import com.venach.kauris.paie.domain.Parametre;
+import com.venach.kauris.paie.adapter.web.FormulaireReglesTest;
+import com.venach.kauris.paie.domain.ModelesRecommandes;
+import com.venach.kauris.paie.domain.ReglesPaie;
 import com.venach.kauris.paie.domain.PeriodePaie;
 import com.venach.kauris.paie.domain.Salarie;
 import com.venach.kauris.paie.domain.TypeElement;
@@ -114,6 +116,31 @@ class PaieMySqlTest {
     @Test
     void moisDePaieParLesEcrans() throws Exception {
         Acces a = ouvrir("Boulangerie du Port", "TG");
+        // Sans règles : l'accueil propose les règles recommandées ; un mois ne s'ouvre pas.
+        mvc.perform(get("/paie")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Activer et vérifier ces règles")));
+        mvc.perform(post("/paie/mois").param("mois", mois.toString()))
+                .andExpect(flash().attribute("erreur", containsString("Aucune règle")));
+        mvc.perform(get("/paie/regles")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Togo — règles recommandées 2026")));
+        mvc.perform(post("/paie/regles/activer").param("modele", ModelesRecommandes.TOGO_2026))
+                .andExpect(redirectedUrlPattern("/paie/regles/*"));
+        ReglesPaie regles = paie.regles(a).get(0);
+        mvc.perform(get("/paie/regles/" + regles.id())).andExpect(status().isOk())
+                .andExpect(content().string(containsString("aucun écart")))
+                .andExpect(content().string(containsString("CNSS_PENSION")));
+        // L'entreprise corrige son taux de risques professionnels dans l'éditeur.
+        Map<String, String> champs = FormulaireReglesTest.champs(regles.contenu());
+        champs.put("cot_2_te", "2,5");
+        champs.put("nom", "Togo — Boulangerie");
+        champs.put("depuis", "2026-01");
+        champs.put("notes", "Taux notifié par la CNSS");
+        var requete = post("/paie/regles/" + regles.id());
+        champs.forEach(requete::param);
+        mvc.perform(requete).andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/paie/regles/" + regles.id())).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Recommandé : 2")))
+                .andExpect(content().string(containsString("Togo — Boulangerie")));
         mvc.perform(get("/paie")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ouvrir la paie du mois")))
                 .andExpect(content().string(containsString("ajouter un salarié")));
@@ -121,6 +148,7 @@ class PaieMySqlTest {
         // Un salarié, puis son contrat avec une prime de transport non soumise.
         mvc.perform(post("/paie/salaries").param("nom", "Mensah").param("prenoms", "Akosua")
                         .param("situation", "MARIE").param("enfants", "2").param("conjointACharge", "on")
+                        .param("autresPersonnes", "1").param("regime", "NORMAL")
                         .param("numeroSocial", "CNSS-778899").param("modePaiement", "VIREMENT")
                         .param("banque", "Ecobank").param("compte", "TG001 0000 1234"))
                 .andExpect(redirectedUrlPattern("/paie/salaries/*/contrats/nouveau"));
@@ -155,6 +183,7 @@ class PaieMySqlTest {
         // Éléments du mois : une prime et une avance.
         String ici = "/paie/mois/" + p.id() + "/salaries/" + s.id();
         mvc.perform(post(ici + "/variables").param("joursAbsence", "0")
+                        .param("heure_maj_0", "Heures de jour, jours ouvrables|15").param("heure_nombre_0", "4")
                         .param("element_libelle_0", "Prime de fin d'année").param("element_type_0", "GAIN_SOUMIS")
                         .param("element_montant_0", "50000")
                         .param("element_libelle_1", "Avance").param("element_type_1", "RETENUE")
@@ -163,8 +192,17 @@ class PaieMySqlTest {
         mvc.perform(post(ici + "/variables").param("joursAbsence", "trois"))
                 .andExpect(flash().attribute("erreur", containsString("nombre entier")));
         Bulletin b = paie.bulletinDe(a, p.id(), s.id());
-        assertEquals(370_000, b.resultat().brut());
+        // 300 000 + transport 20 000 + prime 50 000 + 4 h à +15 % (300 000 / 173,33 × 1,15 × 4 = 7 962).
+        assertEquals(370_000 + 7_962, b.resultat().brut());
         assertEquals(40_000, b.resultat().retenues());
+        assertEquals("4 personne(s) à charge", b.famille());
+        // Un prêt, retenu dès ce mois-ci.
+        mvc.perform(post("/paie/salaries/" + s.id() + "/avances").param("type", "PRET").param("libelle", "Moto")
+                        .param("montant", "100 000").param("mensualite", "25 000").param("premierMois", mois.toString()))
+                .andExpect(flash().attributeExists("succes"));
+        assertEquals(40_000 + 25_000, paie.bulletinDe(a, p.id(), s.id()).resultat().retenues());
+        mvc.perform(get("/paie/salaries/" + s.id())).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Prêt · Moto")));
         mvc.perform(get(ici)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Prime de fin d")))
                 .andExpect(content().string(containsString("Enregistrer et recalculer")));
@@ -191,7 +229,7 @@ class PaieMySqlTest {
         enregistrer("paie-bulletin.pdf", pdf);
 
         // Les tableaux du mois, dans les trois formats.
-        for (String quoi : new String[]{"livre", "sociale", "fiscale", "virements"}) {
+        for (String quoi : new String[]{"livre", "sociale", "fiscale", "virements", "ecritures"}) {
             byte[] tableau = mvc.perform(get("/paie/mois/" + p.id() + "/export/" + quoi + ".pdf"))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
             assertTrue(texte(tableau).replaceAll("\\s+", "").contains("MENSAHAkosua"), quoi);
@@ -213,18 +251,18 @@ class PaieMySqlTest {
                 .andExpect(flash().attribute("erreur", containsString("payés")));
         assertTrue(paie.periode(a, p.id()).payeLe() != null);
 
-        // Réglages : le taux d'accident du travail corrigé à partir du mois suivant.
-        mvc.perform(post("/paie/reglages").param("parametre", Parametre.TG_CNSS_RISQUES_EMPLOYEUR.name())
-                        .param("depuis", mois.plusMonths(1).toString()).param("valeur", "2,5")
-                        .param("note", "Lettre de la CNSS"))
-                .andExpect(flash().attributeExists("succes"));
-        assertEquals(1, paie.corrections(a).size());
-        mvc.perform(get("/paie/reglages")).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lettre de la CNSS")));
+        // Une nouvelle version des règles le mois suivant : le mois clos garde ses bulletins.
+        mvc.perform(post("/paie/regles/" + regles.id() + "/version").param("depuis", mois.plusMonths(1).toString()))
+                .andExpect(redirectedUrlPattern("/paie/regles/*"));
+        assertEquals(2, paie.regles(a).size());
+        byte[] ecritures = mvc.perform(get("/paie/mois/" + p.id() + "/export/ecritures.csv")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertTrue(new String(ecritures, StandardCharsets.UTF_8).contains("422000"));
 
         // Tous les écrans.
         for (String page : new String[]{"/paie", "/paie/salaries", "/paie/salaries/nouveau", "/paie/salaries/" + s.id(),
-                "/paie/salaries/" + s.id() + "/contrats/nouveau", "/paie/contrats/" + c.id(), "/paie/reglages", ici}) {
+                "/paie/salaries/" + s.id() + "/contrats/nouveau", "/paie/contrats/" + c.id(), "/paie/regles",
+                "/paie/regles/" + regles.id(), ici}) {
             mvc.perform(get(page)).andExpect(status().isOk());
         }
 
@@ -233,12 +271,16 @@ class PaieMySqlTest {
         mvc.perform(get("/paie/mois/" + p.id())).andExpect(status().isNotFound());
         mvc.perform(get("/paie/salaries/" + s.id())).andExpect(status().isNotFound());
         mvc.perform(get("/paie")).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Togo et la Côte d")));
+                .andExpect(content().string(containsString("Aucune règle de paie")));
+        mvc.perform(post("/paie/regles/activer").param("modele", "VIDE").param("pays", "SENEGAL")
+                        .param("depuis", mois.toString()))
+                .andExpect(redirectedUrlPattern("/paie/regles/*"));
     }
 
     @Test
     void coteDIvoire() throws Exception {
         Acces a = ouvrir("Ivoire Services", "CI");
+        paie.activerModele(a, ModelesRecommandes.COTE_D_IVOIRE_2024, null, null);
         mvc.perform(post("/paie/salaries").param("nom", "Kouassi").param("situation", "MARIE").param("enfants", "1")
                         .param("modePaiement", "MOBILE_MONEY").param("compte", "07 07 07 07 07").param("expatrie", "on"))
                 .andExpect(flash().attributeExists("succes"));
@@ -249,7 +291,7 @@ class PaieMySqlTest {
         mvc.perform(post("/paie/mois").param("mois", mois.toString())).andExpect(redirectedUrlPattern("/paie/mois/*"));
         PeriodePaie p = paie.periodes(a).get(0);
         Bulletin b = paie.bulletinDe(a, p.id(), s.id());
-        assertEquals(0, b.parts().compareTo(new java.math.BigDecimal("2.5")));
+        assertEquals("2,5 part(s)", b.famille());
         assertEquals(156_000, b.resultat().employeurDe("DGI"), "10,4 % pour un expatrié");
         mvc.perform(get("/paie/mois/" + p.id())).andExpect(status().isOk())
                 .andExpect(content().string(containsString("ITS")));
