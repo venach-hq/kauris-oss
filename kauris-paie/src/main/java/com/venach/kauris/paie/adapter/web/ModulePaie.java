@@ -30,7 +30,7 @@ public class ModulePaie implements ModuleKauris {
 
     @Override
     public String description() {
-        return "Paie de l'UEMOA, règles recommandées pour le Togo et la Côte d'Ivoire, toutes modifiables : salariés, "
+        return "Paie de l'UEMOA, règles recommandées pour le Togo, la Côte d'Ivoire et le Sénégal, toutes modifiables : salariés, "
                 + "contrats, avances, bulletins, livre de paie, déclarations, virement et écritures comptables.";
     }
 

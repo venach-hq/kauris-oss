@@ -3,6 +3,7 @@ package com.venach.kauris.ventes.achats.application;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.ventes.achats.domain.Commande;
 import com.venach.kauris.ventes.achats.domain.Commande.LigneCommande;
@@ -47,6 +48,8 @@ public class AchatsService {
     private final Ports.Articles articles;
     private final Ports.Reglages reglages;
     private final StockService stock;
+    private Comptabilisation comptabilite =
+            Comptabilisation.AUCUNE;
     private final UniteDeTravail transaction;
     private final Clock horloge;
 
@@ -67,6 +70,11 @@ public class AchatsService {
         this.stock = stock;
         this.transaction = transaction;
         this.horloge = horloge;
+    }
+
+    /** Branche la comptabilité (par le noyau) : elle reçoit les factures fournisseurs et les paiements. */
+    public void brancherComptabilite(Comptabilisation c) {
+        this.comptabilite = c == null ? Comptabilisation.AUCUNE : c;
     }
 
     public LocalDate aujourdHui() {
@@ -333,6 +341,7 @@ public class AchatsService {
                     numeros.prochain(a.tenantId(), "FF", date.getYear()), f, reference, date, limite, objet, ht, tva, c,
                     a.membreId(), Instant.now(horloge));
             factures.sauvegarder(x);
+            comptabilite.enregistrer(ComptabiliteAchats.facture(x));
             return x;
         });
     }
@@ -343,6 +352,8 @@ public class AchatsService {
             FactureFournisseur x = verrouillerFacture(a.tenantId(), id);
             x.annuler();
             factures.sauvegarder(x);
+            comptabilite.annuler(a.tenantId(), ComptabiliteAchats.ORIGINE, ComptabiliteAchats.reference(x),
+                    aujourdHui(), "Facture fournisseur annulée");
         });
     }
 
@@ -423,6 +434,7 @@ public class AchatsService {
         reglements.sauvegarder(r);
         factures.sauvegarder(x);
         decaissements.reglementEnregistre(x, r);
+        comptabilite.enregistrer(ComptabiliteAchats.reglement(x, r));
         return r;
     }
 
@@ -440,6 +452,8 @@ public class AchatsService {
             reglements.sauvegarder(annule);
             factures.sauvegarder(x);
             decaissements.reglementAnnule(x, annule);
+            comptabilite.annuler(a.tenantId(), ComptabiliteAchats.ORIGINE, ComptabiliteAchats.reference(r),
+                    aujourdHui(), "Paiement annulé : " + motif.strip());
         });
     }
 

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : recette ou dépense', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Pour le <strong>système minimal de trésorerie</strong> (et pour tout mouvement simple) : indiquez si l'argent
+            entre ou sort, par où (caisse, banque, Mobile Money), pour quoi, et le montant. Kauris passe l'écriture au
+            brouillard du journal de trésorerie, sur les bons comptes.</p>
+        <p>Les ventes et achats faits dans Kauris arrivent déjà tout seuls : ne les saisissez pas une deuxième fois.</p>
+    </details>
+
+    <div class="c-deux">
+        <form class="k-carte k-pile" method="post" th:action="@{/compta/recettes-depenses}">
+            <h2>Recette</h2>
+            <input type="hidden" name="sens" value="RECETTE">
+            <label>Date <input type="date" name="date" th:value="${aujourdhui}" required></label>
+            <label>Arrivée sur <select name="tresorerie" required>
+                <option th:each="c : ${tresorerie}" th:value="${c.numero()}" th:text="${c.numero() + ' ' + c.libelle()}">571000 Caisse</option>
+            </select></label>
+            <label>Nature de la recette <select name="recette" required>
+                <option th:each="c : ${recettes}" th:value="${c.numero()}" th:text="${c.numero() + ' ' + c.libelle()}"
+                        th:selected="${c.numero() == '701000'}">701000 Ventes</option>
+            </select></label>
+            <label>Montant <input name="montant" inputmode="numeric" required></label>
+            <label>Libellé <input name="libelle" maxlength="160" required placeholder="ventes du jour, apport…"></label>
+            <label>Pièce <input name="piece" maxlength="40"></label>
+            <button type="submit" class="k-bouton">Enregistrer la recette</button>
+        </form>
+        <form class="k-carte k-pile" method="post" th:action="@{/compta/recettes-depenses}">
+            <h2>Dépense</h2>
+            <input type="hidden" name="sens" value="DEPENSE">
+            <label>Date <input type="date" name="date" th:value="${aujourdhui}" required></label>
+            <label>Payée par <select name="tresorerie" required>
+                <option th:each="c : ${tresorerie}" th:value="${c.numero()}" th:text="${c.numero() + ' ' + c.libelle()}">571000 Caisse</option>
+            </select></label>
+            <label>Nature de la dépense <select name="depense" required>
+                <option th:each="c : ${depenses}" th:value="${c.numero()}" th:text="${c.numero() + ' ' + c.libelle()}"
+                        th:selected="${c.numero() == '605000'}">605000 Autres achats</option>
+            </select></label>
+            <label>Montant <input name="montant" inputmode="numeric" required></label>
+            <label>Libellé <input name="libelle" maxlength="160" required placeholder="loyer, carburant, fournitures…"></label>
+            <label>Pièce <input name="piece" maxlength="40"></label>
+            <button type="submit" class="k-bouton">Enregistrer la dépense</button>
+        </form>
+    </div>
+</section>
+</body>
+</html>

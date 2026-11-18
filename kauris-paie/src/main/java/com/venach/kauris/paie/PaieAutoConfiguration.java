@@ -3,6 +3,7 @@ package com.venach.kauris.paie;
 import com.venach.kauris.kernel.InterfaceCommuneAutoConfiguration;
 import com.venach.kauris.kernel.OrganisationAutoConfiguration;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.document.ProducteurDocuments;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.ui.ContexteCourant;
@@ -46,9 +47,11 @@ public class PaieAutoConfiguration {
 
     @Bean
     public PaieService paieService(StockagePaie s, GererEntrepriseUseCase entreprises, PortsPaie.Versements versements,
-                                   UniteDeTravail transaction, Clock horloge) {
+                                   UniteDeTravail transaction, Clock horloge, Comptabilisation comptabilite) {
         PortsPaie.PaysEntreprise pays = tenantId -> Optional.ofNullable(entreprises.consulter(tenantId).pays());
-        return new PaieService(s, s, s, s, s, s, s, s, pays, versements, transaction, horloge);
+        PaieService paie = new PaieService(s, s, s, s, s, s, s, s, pays, versements, transaction, horloge);
+        paie.brancherComptabilite(comptabilite);
+        return paie;
     }
 
     @Bean

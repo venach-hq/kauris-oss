@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : opérations à revoir', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide" open>
+        <summary>Comment ça marche ?</summary>
+        <p>Ces opérations viennent des autres modules (ventes, achats, paie…) mais n'ont pas pu s'écrire. La raison est
+            indiquée : exercice clos, compte désactivé, imputation manquante… Corrigez la cause (dans les
+            <a th:href="@{/compta/parametres}">paramètres</a> ou le <a th:href="@{/compta/plan}">plan comptable</a>), puis
+            <strong>réessayez</strong>. Une opération qui ne doit pas entrer en comptabilité peut être <strong>écartée</strong>.</p>
+    </details>
+
+    <p class="k-discret" th:if="${operations.isEmpty()}">Rien à revoir : toutes les opérations reçues sont écrites.</p>
+    <table class="k-table" th:unless="${operations.isEmpty()}">
+        <thead><tr><th>Date</th><th>Module</th><th>Opération</th><th class="c-montant">Montant</th><th>Raison</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="o : ${operations}">
+            <td th:text="${f.jour(o.operation().date())}">10/11/2026</td>
+            <td th:text="${o.operation().origine()}">ventes</td>
+            <td><span th:text="${o.operation().libelle()}">Facture</span>
+                <span class="k-pastille c-jaune" th:text="${o.statut().libelle()}">À revoir</span></td>
+            <td class="c-montant" th:text="${f.nombre(o.operation().montant())}">0</td>
+            <td th:text="${o.message()}">Exercice clos</td>
+            <td>
+                <form th:if="${droits.saisir()}" method="post" th:action="@{/compta/operations/{id}/reessayer(id=${o.id()})}" style="display:inline">
+                    <button type="submit" class="k-bouton">Réessayer</button></form>
+                <form th:if="${droits.valider()}" method="post" th:action="@{/compta/operations/{id}/ignorer(id=${o.id()})}" style="display:inline">
+                    <button type="submit" class="k-bouton">Écarter</button></form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

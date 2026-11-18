@@ -11,6 +11,7 @@ COPY kauris-kernel/pom.xml kauris-kernel/
 COPY kauris-ventes/pom.xml kauris-ventes/
 COPY kauris-flotte/pom.xml kauris-flotte/
 COPY kauris-paie/pom.xml kauris-paie/
+COPY kauris-compta/pom.xml kauris-compta/
 COPY kauris-standalone/pom.xml kauris-standalone/
 # Les dépendances d'abord : elles restent en cache tant que les pom.xml ne changent pas.
 RUN ./mvnw -B -q dependency:go-offline -pl kauris-standalone -am || true
@@ -18,13 +19,14 @@ COPY kauris-kernel/src kauris-kernel/src
 COPY kauris-ventes/src kauris-ventes/src
 COPY kauris-flotte/src kauris-flotte/src
 COPY kauris-paie/src kauris-paie/src
+COPY kauris-compta/src kauris-compta/src
 COPY kauris-standalone/src kauris-standalone/src
 RUN ./mvnw -B -q -DskipTests package -pl kauris-standalone -am \
     && cp kauris-standalone/target/kauris-standalone.jar /kauris.jar
 
 FROM eclipse-temurin:21-jre
 LABEL org.opencontainers.image.title="Kauris" \
-      org.opencontainers.image.description="Gestion des PME de la zone UEMOA : ventes, caisse, stock, achats, flotte, paie" \
+      org.opencontainers.image.description="Gestion des PME de la zone UEMOA : ventes, caisse, stock, achats, flotte, paie, comptabilité" \
       org.opencontainers.image.source="https://github.com/venach-hq/kauris-oss" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.vendor="Venach"

@@ -3,6 +3,8 @@ package com.venach.kauris.flotte.application;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
+import com.venach.kauris.kernel.comptabilite.OperationComptable;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.flotte.domain.Ajustement;
 import com.venach.kauris.flotte.domain.Compte;
@@ -64,6 +66,26 @@ public class FlotteService {
     private final PortsFlotte.Demandes demandes;
     private final UniteDeTravail transaction;
     private final Clock horloge;
+    private Comptabilisation comptabilite = Comptabilisation.AUCUNE;
+
+    /** Branche la comptabilité (par le noyau) : elle reçoit les versements encaissés et annulés. */
+    public void brancherComptabilite(Comptabilisation c) {
+        this.comptabilite = c == null ? Comptabilisation.AUCUNE : c;
+    }
+
+    /**
+     * Un versement en comptabilité : trésorerie (compte de dépôt, sinon mode) contre un produit de services, avec la
+     * précision « FLOTTE » pour l'imputer à part (location de véhicules) si l'entreprise le souhaite.
+     */
+    static OperationComptable operation(Versement v, Vehicule vehicule, Conducteur conducteur, UUID compteId) {
+        String precision = (compteId == null ? "" : compteId + "|") + v.mode().name();
+        String libelle = "Versement " + v.numero() + " · " + vehicule.immatriculation() + " · " + conducteur.nom();
+        return new OperationComptable(v.tenantId(), "flotte", "VERSEMENT:" + v.id(), v.date(),
+                OperationComptable.Journal.TRESORERIE, v.numero(), libelle.length() > 160 ? libelle.substring(0, 160)
+                : libelle, List.of(
+                OperationComptable.Ligne.debit(OperationComptable.Role.TRESORERIE, precision, v.montant()),
+                OperationComptable.Ligne.credit(OperationComptable.Role.VENTE_SERVICES, "FLOTTE", v.montant())));
+    }
 
     public FlotteService(PortsFlotte.Vehicules vehicules, PortsFlotte.Conducteurs conducteurs,
                          PortsFlotte.Contrats contrats, PortsFlotte.Versements versements,
@@ -425,6 +447,9 @@ public class FlotteService {
             Vehicule vehicule = vehicules.vehicule(tenantId, c.vehiculeId()).orElseThrow();
             Conducteur conducteur = conducteurs.conducteur(tenantId, c.conducteurId()).orElseThrow();
             encaissements.versementEnregistre(c, vehicule, conducteur, v, compteId);
+            if (v.montant() > 0) {
+                comptabilite.enregistrer(operation(v, vehicule, conducteur, compteId));
+            }
             return v;
         });
     }
@@ -437,6 +462,8 @@ public class FlotteService {
             Versement annule = v.annuler(motif, a.nomMembre(), maintenant());
             versements.sauvegarder(annule);
             contrats.contrat(a.tenantId(), v.contratId()).ifPresent(c -> encaissements.versementAnnule(c, annule));
+            comptabilite.annuler(a.tenantId(), "flotte", "VERSEMENT:" + v.id(), aujourdHui().isBefore(v.date())
+                    ? v.date() : aujourdHui(), "Versement annulé : " + annule.motifAnnulation());
             return annule;
         });
     }

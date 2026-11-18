@@ -155,8 +155,26 @@ class PaieServiceTest {
         assertEquals("IR", b.resultat().impotNom());
     }
 
+    /** Une comptabilité qui note ce qu'elle reçoit. */
+    static final class Recue implements com.venach.kauris.kernel.comptabilite.Comptabilisation {
+        final List<com.venach.kauris.kernel.comptabilite.OperationComptable> operations = new java.util.ArrayList<>();
+        final List<String> annulations = new java.util.ArrayList<>();
+
+        @Override
+        public void enregistrer(com.venach.kauris.kernel.comptabilite.OperationComptable o) {
+            operations.add(o);
+        }
+
+        @Override
+        public void annuler(UUID tenantId, String origine, String reference, LocalDate date, String motif) {
+            annulations.add(reference);
+        }
+    }
+
     @Test
     void moisDePaieComplet() {
+        Recue compta = new Recue();
+        paie.brancherComptabilite(compta);
         activerTogo();
         Salarie awa = paie.enregistrerSalarie(patron, null, fiche("Mensah", SituationFamiliale.CELIBATAIRE, 0,
                 ModePaiement.VIREMENT, "TG001 0000 1234"));
@@ -203,6 +221,15 @@ class PaieServiceTest {
         paie.clore(patron, p.id());
         List<Bulletin> figes = paie.mois(patron, p.id()).bulletins();
         assertEquals(List.of("BP-202611-0001", "BP-202611-0002"), figes.stream().map(Bulletin::numero).toList());
+        // La comptabilité reçoit un bulletin par salarié : comptes de la paie, net à payer au nom du salarié.
+        assertEquals(2, compta.operations.size());
+        var op = compta.operations.stream().filter(o -> o.piece().equals(figes.get(1).numero())).findFirst()
+                .orElseThrow();
+        assertEquals(com.venach.kauris.kernel.comptabilite.OperationComptable.Journal.PAIE, op.journal());
+        assertEquals(LocalDate.of(2026, 11, 30), op.date());
+        var net = op.lignes().stream().filter(l -> l.compte().equals("422000")).findFirst().orElseThrow();
+        assertEquals(figes.get(1).net(), net.credit());
+        assertEquals("SAL:" + figes.get(1).salarieId(), net.tiers());
         long netAvant = paie.bulletinDe(patron, p.id(), awa.id()).net();
         ReglesPaie r = paie.regles(patron).get(0);
         ReglesPaie.Contenu x = r.contenu();
@@ -217,12 +244,22 @@ class PaieServiceTest {
 
         paie.rouvrir(patron, p.id());
         assertTrue(s.bulletins.isEmpty());
+        assertEquals(figes.stream().map(b -> "BULLETIN:" + b.id()).sorted().toList(),
+                compta.annulations.stream().sorted().toList(), "les bulletins retirés sont annulés en comptabilité");
         assertTrue(paie.bulletinDe(patron, p.id(), awa.id()).net() > netAvant, "sans cotisations, le net monte");
         paie.clore(patron, p.id());
         assertEquals("BP-202611-0004", paie.bulletinDe(patron, p.id(), awa.id()).numero(),
                 "numéros jamais réutilisés, par ordre alphabétique (AGBEKO, puis MENSAH)");
         paie.marquerPaye(patron, p.id(), LocalDate.of(2026, 11, 18));
         assertThrows(ErreurMetier.class, () -> paie.rouvrir(patron, p.id()));
+        // Puis les paiements : le net soldé contre la trésorerie, selon le mode de chaque salarié.
+        var paiements = compta.operations.stream().filter(o -> o.reference().startsWith("PAIEMENT:")).toList();
+        assertEquals(2, paiements.size());
+        assertEquals(java.util.Set.of("VIREMENT", "ESPECES"), paiements.stream().map(o -> o.lignes().get(1).precision())
+                .collect(java.util.stream.Collectors.toSet()));
+        Bulletin final1 = paie.bulletinDe(patron, p.id(), awa.id());
+        assertEquals(final1.net(), paiements.stream().filter(o -> o.piece().equals(final1.numero())).findFirst()
+                .orElseThrow().montant());
     }
 
     @Test

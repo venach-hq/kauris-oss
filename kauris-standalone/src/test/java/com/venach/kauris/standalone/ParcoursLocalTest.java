@@ -1,5 +1,8 @@
 package com.venach.kauris.standalone;
 
+import com.venach.kauris.compta.application.ComptaService;
+import com.venach.kauris.compta.application.PortsCompta;
+import com.venach.kauris.compta.domain.Ecriture;
 import com.venach.kauris.kernel.connexion.local.application.port.in.GererComptesLocauxUseCase;
 import com.venach.kauris.kernel.module.RegistreModules;
 import com.venach.kauris.kernel.organisation.application.port.in.GererEtablissementsUseCase;
@@ -7,6 +10,13 @@ import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCa
 import com.venach.kauris.kernel.organisation.application.port.in.GererMembresUseCase;
 import com.venach.kauris.kernel.organisation.application.port.in.ResoudreAccesUseCase;
 import com.venach.kauris.kernel.organisation.domain.Identite;
+import com.venach.kauris.kernel.organisation.application.port.in.Acces;
+import com.venach.kauris.ventes.application.VentesService;
+import com.venach.kauris.ventes.domain.Client;
+import com.venach.kauris.ventes.domain.DocumentVente;
+import com.venach.kauris.ventes.domain.Ligne;
+import com.venach.kauris.ventes.domain.ModeReglement;
+import com.venach.kauris.ventes.domain.TypeDocument;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,6 +29,9 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
@@ -73,6 +86,10 @@ class ParcoursLocalTest {
     private GererEtablissementsUseCase etablissements;
     @Autowired
     private GererRolesUseCase roles;
+    @Autowired
+    private VentesService ventes;
+    @Autowired
+    private ComptaService compta;
 
     @Test
     void premierDemarragePuisConnexion() throws Exception {
@@ -202,6 +219,86 @@ class ParcoursLocalTest {
                 .andExpect(redirectedUrlPattern("/ventes/clients/*"));
         mvc.perform(post("/ventes/clients").session(session).param("type", "PARTICULIER").param("nom", "Pirate"))
                 .andExpect(status().isForbidden());
+
+        // La comptabilité est installée : une facture émise et encaissée arrive au brouillard, sur les bons comptes.
+        assertTrue(registre.present("compta-syscohada"));
+        Acces patron = acces.accesDe(Identite.locale(comptes.pourConnexion(EMAIL).orElseThrow().compteId()
+                .toString())).get(0);
+        LocalDate jour = ventes.aujourdHui();
+        Client yao = ventes.clients(patron, "Yao", false).get(0);
+        DocumentVente facture = ventes.creerBrouillon(patron, TypeDocument.FACTURE, yao.id(), new DocumentVente.Contenu(
+                jour, jour.plusDays(30), "Prestation", "", List.of(new Ligne(null, "Conseil", BigDecimal.ONE, "u",
+                100_000, BigDecimal.ZERO, new BigDecimal("18"))), BigDecimal.ZERO, ""));
+        facture = ventes.emettre(patron, facture.id());
+        ventes.encaisser(patron, facture.id(), jour, 118_000, ModeReglement.ESPECES, "");
+        List<Ecriture> recues = compta.ecritures(patron, new PortsCompta.Filtre(null, null, null, null, null, 50));
+        assertEquals(2, recues.size(), "la facture et son règlement");
+        Ecriture vente = recues.stream().filter(e -> e.journal().equals("VE")).findFirst().orElseThrow();
+        assertEquals(List.of("411000", "706000", "443100"), vente.lignes().stream().map(l -> l.compte()).toList());
+        assertEquals(118_000, vente.total());
+        mvc.perform(get("/compta").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/compta\"")))
+                .andExpect(content().string(containsString("Dernières écritures")));
+        mvc.perform(post("/compta/brouillard/valider").session(session).with(csrf()).param("jusqua", jour.toString()))
+                .andExpect(flash().attribute("succes", "2 écriture(s) validée(s) et numérotée(s)."));
+        mvc.perform(post("/compta/lettrage/automatique").session(session).with(csrf()).param("compte", "411000"))
+                .andExpect(flash().attribute("succes", "1 groupe(s) de lignes lettré(s)."));
+        // Une écriture saisie à l'écran, puis corrigée au brouillard.
+        String saisie = mvc.perform(post("/compta/ecritures").session(session).with(csrf()).param("journal", "OD")
+                        .param("date", jour.toString()).param("piece", "REL-1").param("libelle", "Frais bancaires")
+                        .param("ligne_compte_0", "631000 Frais bancaires").param("ligne_debit_0", "2 500")
+                        .param("ligne_compte_1", "521000").param("ligne_credit_1", "2500"))
+                .andExpect(redirectedUrlPattern("/compta/ecritures/*")).andReturn().getResponse().getRedirectedUrl();
+        mvc.perform(post("/compta/ecritures").session(session).with(csrf()).param("journal", "OD")
+                        .param("date", jour.toString()).param("libelle", "Déséquilibrée")
+                        .param("ligne_compte_0", "631000").param("ligne_debit_0", "2500")
+                        .param("ligne_compte_1", "521000").param("ligne_credit_1", "2000"))
+                .andExpect(flash().attributeExists("erreur"));
+        mvc.perform(get(saisie).session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Écriture au brouillard")));
+        mvc.perform(post("/compta/recettes-depenses").session(session).with(csrf()).param("sens", "DEPENSE")
+                        .param("date", jour.toString()).param("tresorerie", "571000").param("depense", "605000")
+                        .param("montant", "15000").param("libelle", "Fournitures"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(post("/compta/ecritures").session(session).param("journal", "OD"))
+                .andExpect(status().isForbidden());
+        // Tous les écrans et les exports s'affichent, système normal puis système minimal.
+        String annee = String.valueOf(jour.getYear());
+        String mois = jour.toString().substring(0, 7);
+        for (String page : List.of("/compta/ecritures", "/compta/ecritures?statut=BROUILLARD&q=Frais",
+                "/compta/ecritures/nouvelle", "/compta/recettes-depenses", "/compta/operations",
+                "/compta/grand-livre", "/compta/grand-livre?compte=411000", "/compta/balance",
+                "/compta/balance?compte=411000&brouillard=non", "/compta/lettrage?compte=411000&toutes=1",
+                "/compta/etats?annee=" + annee, "/compta/tva?mois=" + mois, "/compta/exercices", "/compta/parametres",
+                "/compta/plan", "/compta/plan?q=banque", "/compta/ecritures/" + vente.id())) {
+            mvc.perform(get(page).session(session)).andExpect(status().isOk());
+        }
+        for (String format : List.of("xlsx", "csv", "pdf")) {
+            for (String export : List.of("/compta/balance." + format, "/compta/grand-livre." + format + "?compte=411000",
+                    "/compta/grand-livre." + format, "/compta/etats/bilan." + format + "?annee=" + annee,
+                    "/compta/etats/resultat." + format + "?annee=" + annee, "/compta/tva." + format + "?mois=" + mois,
+                    "/compta/plan." + format)) {
+                mvc.perform(get(export).session(session)).andExpect(status().isOk());
+            }
+        }
+        mvc.perform(get("/compta/ecritures/" + vente.id() + ".pdf").session(session)).andExpect(status().isOk());
+        mvc.perform(post("/compta/tva/liquider").session(session).with(csrf()).param("mois", mois))
+                .andExpect(redirectedUrlPattern("/compta/ecritures/*"));
+        mvc.perform(post("/compta/plan").session(session).with(csrf()).param("numero", "521100")
+                        .param("libelle", "Banque Ecobank"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(post("/compta/journaux").session(session).with(csrf()).param("code", "BQ1")
+                        .param("libelle", "Banque Ecobank"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(post("/compta/parametres").session(session).with(csrf()).param("systeme", "MINIMAL"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/compta/etats?annee=" + annee).session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("TOTAL DES RECETTES")));
+        mvc.perform(get("/compta/etats/bilan.pdf?annee=" + annee).session(session)).andExpect(status().isOk());
+        mvc.perform(post("/compta/parametres").session(session).with(csrf()).param("systeme", "NORMAL"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Comptabilité")));
 
         // Établissements.
         mvc.perform(get("/organisation").session(session)).andExpect(status().isOk())

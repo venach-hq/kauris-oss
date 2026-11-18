@@ -3,6 +3,7 @@ package com.venach.kauris.ventes.application;
 import com.venach.kauris.kernel.commun.ElementIntrouvable;
 import com.venach.kauris.kernel.commun.ErreurMetier;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.organisation.application.port.in.Acces;
 import com.venach.kauris.ventes.domain.Article;
 import com.venach.kauris.ventes.domain.Client;
@@ -53,6 +54,8 @@ public class VentesService {
     private final Ports.Reglages reglages;
     private final Ports.Encaissements encaissements;
     private Ports.Stock stock = Ports.Stock.AUCUN;
+    private Comptabilisation comptabilite =
+            Comptabilisation.AUCUNE;
     private final UniteDeTravail transaction;
     private final Clock horloge;
 
@@ -73,6 +76,11 @@ public class VentesService {
         this.reglages = reglages;
         this.transaction = transaction;
         this.horloge = horloge;
+    }
+
+    /** Branche la comptabilité (par le noyau) : elle reçoit les factures, avoirs et règlements. */
+    public void brancherComptabilite(Comptabilisation c) {
+        this.comptabilite = c == null ? Comptabilisation.AUCUNE : c;
     }
 
     /** Branche le stock (module Achats et stock) : il suit les factures et avoirs émis. */
@@ -428,6 +436,9 @@ public class VentesService {
         documents.sauvegarder(d);
         if (d.type() != TypeDocument.DEVIS) {
             stock.documentEmis(d);
+            if (d.totaux().totalTtc() > 0) {
+                comptabilite.enregistrer(ComptabiliteVentes.document(d, id -> articles.article(d.tenantId(), id)));
+            }
         }
         return d;
     }
@@ -662,6 +673,7 @@ public class VentesService {
         reglements.sauvegarder(r);
         documents.sauvegarder(f);
         encaissements.reglementEnregistre(f, r);
+        comptabilite.enregistrer(ComptabiliteVentes.reglement(f, r));
         return r;
     }
 
@@ -679,6 +691,8 @@ public class VentesService {
             reglements.sauvegarder(annule);
             documents.sauvegarder(f);
             encaissements.reglementAnnule(f, annule);
+            comptabilite.annuler(a.tenantId(), ComptabiliteVentes.ORIGINE, ComptabiliteVentes.reference(r),
+                    aujourdHui(), "Règlement annulé : " + motif.strip());
         });
     }
 

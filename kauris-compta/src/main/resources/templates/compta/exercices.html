@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : exercices', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>L'exercice comptable est l'année civile. Il s'ouvre tout seul à la première écriture.</p>
+        <p>Pour <strong>clôturer</strong> : l'année doit être finie, toutes ses écritures validées et ses opérations à revoir
+            traitées, et l'exercice précédent clos. Passez d'abord les écritures d'inventaire (amortissements, stock de fin
+            d'année, provisions, charges à payer). La clôture reprend les soldes de bilan et le résultat
+            (« résultat en instance d'affectation », 1301 ou 1309) dans les <strong>à-nouveaux</strong> du 1er janvier
+            suivant. L'affectation du résultat se saisit ensuite en opération diverse.</p>
+        <p>Une erreur découverte après la clôture ? <strong>Rouvrez</strong> l'exercice (si le suivant n'est pas clos),
+            corrigez, puis clôturez à nouveau : les à-nouveaux sont refaits.</p>
+    </details>
+
+    <table class="k-table">
+        <thead><tr><th>Exercice</th><th>État</th><th>Avant de clôturer</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="x : ${exercices}">
+            <td th:text="${x.annee()}">2026</td>
+            <td><span class="k-pastille" th:classappend="${x.clos()} ? 'k-ok' : 'c-jaune'"
+                      th:text="${x.clos() ? 'Clos le ' + f.instant(x.closLe()) + (x.closPar().isEmpty() ? '' : ' par ' + x.closPar()) : 'Ouvert'}">Ouvert</span></td>
+            <td>
+                <ul th:if="${!x.clos() and !obstacles.get(x.annee()).isEmpty()}" style="margin: 0; padding-left: 1.1rem">
+                    <li th:each="o : ${obstacles.get(x.annee())}" th:text="${o}">Brouillard</li>
+                </ul>
+                <span th:if="${!x.clos() and obstacles.get(x.annee()).isEmpty()}">Prêt à clôturer.</span>
+            </td>
+            <td>
+                <form th:if="${droits.valider() and !x.clos() and obstacles.get(x.annee()).isEmpty()}" method="post"
+                      th:action="@{/compta/exercices/{a}/cloturer(a=${x.annee()})}">
+                    <button type="submit" class="k-bouton">Clôturer</button></form>
+                <form th:if="${droits.valider() and x.clos()}" method="post" th:action="@{/compta/exercices/{a}/rouvrir(a=${x.annee()})}">
+                    <button type="submit" class="k-bouton">Rouvrir</button></form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

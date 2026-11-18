@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : TVA', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>L'état reprend la TVA du mois telle qu'elle est en comptabilité : <strong>collectée</strong> sur les ventes
+            (comptes 443), <strong>déductible</strong> sur les achats et services (445), et le crédit de TVA du mois
+            précédent (4449). Reportez ces montants sur votre déclaration au portail des impôts.</p>
+        <p>Une fois la déclaration faite, <strong>liquidez la TVA</strong> : Kauris prépare l'écriture qui solde les comptes
+            de TVA du mois vers la TVA due (4441) ou le crédit à reporter (4449). Son paiement se passe ensuite en trésorerie.</p>
+    </details>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/tva}">
+        <label>Mois <input type="month" name="mois" th:value="${mois}"></label>
+        <button type="submit" class="k-bouton">Afficher</button>
+    </form>
+    <p th:replace="~{compta/commun :: exports(url='/compta/tva', params=${export}, libelle='Télécharger :')}"></p>
+
+    <h2 th:text="${'TVA de ' + f.mois(mois)}">TVA</h2>
+    <table class="k-table" style="max-width: 46rem">
+        <tbody>
+        <tr><td>Chiffre d'affaires hors taxes (comptes 70)</td><td class="c-montant" th:text="${f.montant(tva.chiffreAffaires())}">0</td></tr>
+        <tr th:each="x : ${tva.collectee()}"><td th:text="${'TVA collectée · ' + x.key + ' ' + libelles.get(x.key)}">443100</td>
+            <td class="c-montant" th:text="${f.montant(x.value)}">0</td></tr>
+        <tr class="c-total"><td>Total TVA collectée</td><td class="c-montant" th:text="${f.montant(tva.totalCollectee())}">0</td></tr>
+        <tr th:each="x : ${tva.deductible()}"><td th:text="${'TVA déductible · ' + x.key + ' ' + libelles.get(x.key)}">445200</td>
+            <td class="c-montant" th:text="${f.montant(x.value)}">0</td></tr>
+        <tr class="c-total"><td>Total TVA déductible</td><td class="c-montant" th:text="${f.montant(tva.totalDeductible())}">0</td></tr>
+        <tr><td>Crédit de TVA du mois précédent</td><td class="c-montant" th:text="${f.montant(tva.creditAnterieur())}">0</td></tr>
+        <tr class="c-total"><td>TVA due</td><td class="c-montant" th:text="${f.montant(tva.due())}">0</td></tr>
+        <tr class="c-total"><td>Crédit de TVA à reporter</td><td class="c-montant" th:text="${f.montant(tva.creditAReporter())}">0</td></tr>
+        </tbody>
+    </table>
+
+    <form th:if="${droits.valider()}" method="post" th:action="@{/compta/tva/liquider}" style="margin-top: 1rem">
+        <input type="hidden" name="mois" th:value="${mois}">
+        <button type="submit" class="k-bouton">Préparer l'écriture de liquidation</button>
+    </form>
+</section>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : écritures', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <div class="c-boutons">
+        <a th:if="${droits.saisir()}" class="k-bouton" th:href="@{/compta/ecritures/nouvelle}">Saisir une écriture</a>
+        <a th:if="${droits.saisir()}" class="k-bouton" th:href="@{/compta/recettes-depenses}">Recette ou dépense</a>
+        <form th:if="${droits.valider()}" method="post" th:action="@{/compta/brouillard/valider}">
+            <label>Valider tout le brouillard jusqu'au <input type="date" name="jusqua" th:value="${aujourdhui}"></label>
+            <button type="submit" class="k-bouton">Valider</button>
+        </form>
+    </div>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/ecritures}">
+        <label>Journal <select name="journal">
+            <option value="">Tous</option>
+            <option th:each="j : ${journaux}" th:value="${j.code()}" th:text="${j.code() + ' — ' + j.libelle()}"
+                    th:selected="${filtre.get('journal') == j.code()}">VE</option>
+        </select></label>
+        <label>Du <input type="date" name="du" th:value="${filtre.get('du')}"></label>
+        <label>Au <input type="date" name="au" th:value="${filtre.get('au')}"></label>
+        <label>État <select name="statut">
+            <option value="">Toutes</option>
+            <option value="BROUILLARD" th:selected="${filtre.get('statut') == 'BROUILLARD'}">Brouillard</option>
+            <option value="VALIDEE" th:selected="${filtre.get('statut') == 'VALIDEE'}">Validées</option>
+        </select></label>
+        <label>Recherche <input name="q" th:value="${filtre.get('q')}" placeholder="libellé, pièce, compte, tiers"></label>
+        <button type="submit" class="k-bouton">Filtrer</button>
+    </form>
+
+    <p class="k-discret" th:if="${ecritures.isEmpty()}">Aucune écriture.</p>
+    <table class="k-table" th:unless="${ecritures.isEmpty()}">
+        <thead><tr><th>Date</th><th>Journal</th><th>N°</th><th>Pièce</th><th>Libellé</th><th>Origine</th>
+            <th class="c-montant">Montant</th></tr></thead>
+        <tbody>
+        <tr th:each="e : ${ecritures}">
+            <td th:text="${f.jour(e.date())}">10/11/2026</td>
+            <td th:text="${e.journal()}">VE</td>
+            <td><a th:href="@{/compta/ecritures/{id}(id=${e.id()})}" th:text="${e.validee() ? e.numero() : 'Brouillard'}">VE-2026-00001</a>
+                <span class="k-pastille c-jaune" th:unless="${e.validee()}">à valider</span></td>
+            <td th:text="${e.piece()}">FA-2026-0001</td>
+            <td th:text="${e.libelle()}">Facture</td>
+            <td class="k-discret" th:text="${e.origine()}">ventes</td>
+            <td class="c-montant" th:text="${f.nombre(e.total())}">0</td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="k-discret" th:if="${ecritures.size() >= 500}">Les 500 dernières écritures : précisez les filtres pour voir les autres.</p>
+</section>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{kauris/layout :: page(titre='Comptabilité : lettrage', contenu=~{::section})}">
+<body>
+<section>
+    <th:block th:replace="~{compta/commun :: navigation}"></th:block>
+
+    <details class="k-aide">
+        <summary>Comment ça marche ?</summary>
+        <p>Lettrer, c'est rapprocher sur un compte de tiers les lignes qui se compensent : une facture et son règlement.
+            Ce qui reste non lettré, c'est ce qui est encore dû. Le <strong>lettrage automatique</strong> rapproche une
+            facture et ses règlements (même pièce), puis tout un tiers dont le solde est nul. Pour le reste, cochez les
+            lignes qui se compensent et lettrez-les. Seules les écritures validées se lettrent.</p>
+    </details>
+
+    <form class="c-filtres" method="get" th:action="@{/compta/lettrage}">
+        <label>Compte <select name="compte">
+            <option th:each="c : ${comptesTiers}" th:value="${c.numero()}" th:selected="${c.numero() == compte}"
+                    th:text="${c.numero() + ' ' + c.libelle()}">411000 Clients</option>
+        </select></label>
+        <label><input type="checkbox" name="toutes" value="1" th:checked="${toutes}"> Voir aussi les lignes lettrées</label>
+        <button type="submit" class="k-bouton">Afficher</button>
+    </form>
+
+    <div class="c-boutons" th:if="${droits.saisir()}">
+        <form method="post" th:action="@{/compta/lettrage/automatique}">
+            <input type="hidden" name="compte" th:value="${compte}">
+            <button type="submit" class="k-bouton">Lettrage automatique</button>
+        </form>
+    </div>
+
+    <p class="k-discret" th:if="${lignes.isEmpty()}">Aucune ligne à lettrer sur ce compte.</p>
+    <form method="post" th:action="@{/compta/lettrage}" th:unless="${lignes.isEmpty()}">
+        <input type="hidden" name="compte" th:value="${compte}">
+        <table class="k-table">
+            <thead><tr><th></th><th>Date</th><th>N°</th><th>Pièce</th><th>Tiers</th><th>Libellé</th>
+                <th class="c-montant">Débit</th><th class="c-montant">Crédit</th><th>Lettrage</th></tr></thead>
+            <tbody>
+            <tr th:each="m : ${lignes}">
+                <td><input type="checkbox" name="ligne" th:value="${m.ecritureId() + ':' + m.rang()}" th:disabled="${m.lettree()}"></td>
+                <td th:text="${f.jour(m.date())}">10/11/2026</td>
+                <td><a th:href="@{/compta/ecritures/{id}(id=${m.ecritureId()})}" th:text="${m.numero()}">VE-2026-00001</a></td>
+                <td th:text="${m.piece()}">FA-2026-0001</td>
+                <td th:text="${m.tiersNom()}">Ets Lawson</td>
+                <td th:text="${m.libelle()}">Libellé</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(m.debit())}">0</td>
+                <td class="c-montant" th:text="${f.nombreOuRien(m.credit())}">0</td>
+                <td th:text="${m.lettrage()}">A</td>
+            </tr>
+            </tbody>
+        </table>
+        <button th:if="${droits.saisir()}" type="submit" class="k-bouton">Lettrer les lignes cochées</button>
+    </form>
+
+    <form th:if="${droits.saisir() and toutes}" class="c-filtres" method="post" th:action="@{/compta/lettrage/delettrer}" style="margin-top: 1rem">
+        <input type="hidden" name="compte" th:value="${compte}">
+        <label>Retirer le lettrage <input name="code" maxlength="10" required placeholder="A"></label>
+        <button type="submit" class="k-bouton">Délettrer</button>
+    </form>
+</section>
+</body>
+</html>

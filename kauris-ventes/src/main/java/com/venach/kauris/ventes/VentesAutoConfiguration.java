@@ -3,6 +3,7 @@ package com.venach.kauris.ventes;
 import com.venach.kauris.kernel.InterfaceCommuneAutoConfiguration;
 import com.venach.kauris.kernel.OrganisationAutoConfiguration;
 import com.venach.kauris.kernel.commun.UniteDeTravail;
+import com.venach.kauris.kernel.comptabilite.Comptabilisation;
 import com.venach.kauris.kernel.document.ProducteurDocuments;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
 import com.venach.kauris.kernel.ui.ContexteCourant;
@@ -65,9 +66,12 @@ public class VentesAutoConfiguration {
 
     @Bean
     public VentesService ventesService(StockageVentes stockage, Ports.Encaissements encaissements,
-                                       UniteDeTravail transaction, Clock horloge) {
-        return new VentesService(stockage, stockage, stockage, stockage, stockage, encaissements, transaction,
-                horloge);
+                                       UniteDeTravail transaction, Clock horloge,
+                                       Comptabilisation comptabilite) {
+        VentesService v = new VentesService(stockage, stockage, stockage, stockage, stockage, encaissements,
+                transaction, horloge);
+        v.brancherComptabilite(comptabilite);
+        return v;
     }
 
     @Bean
@@ -84,8 +88,11 @@ public class VentesAutoConfiguration {
 
     @Bean
     public CaisseService caisseService(VentesService ventes, StockageCaisse stockage, UniteDeTravail transaction,
-                                       Clock horloge) {
-        return new CaisseService(ventes, stockage, stockage, transaction, horloge);
+                                       Clock horloge,
+                                       Comptabilisation comptabilite) {
+        CaisseService c = new CaisseService(ventes, stockage, stockage, transaction, horloge);
+        c.brancherComptabilite(comptabilite);
+        return c;
     }
 
     // ------------------------------------------------------------------ Achats et stock
@@ -119,9 +126,12 @@ public class VentesAutoConfiguration {
     @Bean
     public AchatsService achatsService(StockageAchats a, PortsAchats.Decaissements decaissements,
                                        StockageVentes ventesStockees, StockService stock,
-                                       UniteDeTravail transaction, Clock horloge) {
-        return new AchatsService(a, a, a, a, a, a, decaissements, ventesStockees, ventesStockees, stock, transaction,
-                horloge);
+                                       UniteDeTravail transaction, Clock horloge,
+                                       Comptabilisation comptabilite) {
+        AchatsService s = new AchatsService(a, a, a, a, a, a, decaissements, ventesStockees, ventesStockees, stock,
+                transaction, horloge);
+        s.brancherComptabilite(comptabilite);
+        return s;
     }
 
     @Bean
