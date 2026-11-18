@@ -121,7 +121,7 @@ public class GestionPaieController {
                 c.get("numeroSocial"), FormatsPaie.lireChoix(SituationFamiliale.class, c.get("situation"),
                 "Situation de famille"), FormatsPaie.lireEntier(c.get("enfants"), "Enfants à charge", 0),
                 "on".equals(c.get("conjointACharge")), FormatsPaie.lireEntier(c.get("autresPersonnes"),
-                "Autres personnes à charge", 0), "on".equals(c.get("expatrie")),
+                "Autres personnes à charge", 0), "on".equals(c.get("expatrie")), "on".equals(c.get("cadre")),
                 c.get("regime") == null || c.get("regime").isBlank() ? RegimeFiscal.NORMAL
                         : FormatsPaie.lireChoix(RegimeFiscal.class, c.get("regime"), "Régime fiscal"),
                 FormatsPaie.lireChoix(ModePaiement.class, c.get("modePaiement"), "Mode de paiement"), c.get("banque"),

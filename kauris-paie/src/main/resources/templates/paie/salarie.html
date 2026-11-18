@@ -40,6 +40,8 @@
                     </select></label>
                 <label><input type="checkbox" name="expatrie" th:checked="${s != null and s.expatrie()}">
                     Salarié expatrié (certaines cotisations et taxes diffèrent selon les règles du pays)</label>
+                <label><input type="checkbox" name="cadre" th:checked="${s != null and s.cadre()}">
+                    Cadre (cotisations réservées aux cadres, comme la retraite complémentaire IPRES au Sénégal)</label>
 
                 <label>Mode de paiement du salaire
                     <select name="modePaiement">

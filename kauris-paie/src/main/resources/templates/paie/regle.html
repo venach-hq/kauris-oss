@@ -139,16 +139,34 @@
                         <input name="imp_reduction_demi_part" inputmode="numeric" th:value="${c.impot().reductionParDemiPart() == 0 ? '' : c.impot().reductionParDemiPart()}">
                         <span class="p-reco" th:if="${reco.get('imp_reduction_demi_part') != null}" th:text="${'Recommandé : ' + reco.get('imp_reduction_demi_part')}"></span></label>
                 </div>
-                <p class="p-note">Parts (réduction par demi-part) :</p>
+                <p class="p-note">Parts (réduction par demi-part ou en pourcentage) :</p>
                 <div class="p-grille" th:with="p=${c.impot().parts()}">
                     <label>Célibataire, divorcé, veuf sans enfant <input name="parts_celibataire" inputmode="decimal" th:value="${f.saisie(p.celibataire())}"></label>
                     <label>Marié <input name="parts_marie" inputmode="decimal" th:value="${f.saisie(p.marie())}"></label>
+                    <label>En plus si le conjoint n'a pas de revenu <input name="parts_conjoint" inputmode="decimal" th:value="${p.conjointSansRevenu().signum() == 0 ? '' : f.saisie(p.conjointSansRevenu())}"></label>
                     <label>Seul avec enfants (avant les enfants) <input name="parts_seul_enfants" inputmode="decimal" th:value="${f.saisie(p.seulAvecEnfants())}"></label>
                     <label>Veuf avec enfants (avant les enfants) <input name="parts_veuf_enfants" inputmode="decimal" th:value="${f.saisie(p.veufAvecEnfants())}"></label>
                     <label>Par enfant <input name="parts_enfant" inputmode="decimal" th:value="${f.saisie(p.parEnfant())}"></label>
                     <label>Au plus <input name="parts_max" inputmode="decimal" th:value="${f.saisie(p.maximum())}"></label>
                 </div>
                 <span class="p-reco" th:if="${reco.get('parts') != null}" th:text="${'Parts recommandées : ' + reco.get('parts')}"></span>
+
+                <p class="p-note">Réduction en pourcentage selon les parts : la ligne au plus grand nombre de parts atteint
+                    s'applique ; minimum et maximum dans la période du barème (par an pour un barème annuel), maximum vide
+                    = sans maximum.</p>
+                <table style="max-width: 40rem">
+                    <thead><tr><th>À partir de (parts)</th><th>Taux %</th><th>Minimum</th><th>Maximum</th></tr></thead>
+                    <tbody>
+                    <tr th:each="i : ${#numbers.sequence(0, c.impot().reductions().size() + plus - 1)}"
+                        th:with="x=${i < c.impot().reductions().size() ? c.impot().reductions().get(i) : null}">
+                        <td><input th:name="${'red_' + i + '_parts'}" inputmode="decimal" th:value="${x == null ? '' : f.saisie(x.parts())}"></td>
+                        <td><input th:name="${'red_' + i + '_taux'}" inputmode="decimal" th:value="${x == null ? '' : f.saisie(x.taux())}"></td>
+                        <td><input th:name="${'red_' + i + '_min'}" inputmode="numeric" th:value="${x == null or x.minimum() == 0 ? '' : x.minimum()}"></td>
+                        <td><input th:name="${'red_' + i + '_max'}" inputmode="numeric" th:value="${x == null or x.maximum() == 0 ? '' : x.maximum()}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <span class="p-reco" th:if="${reco.get('reductions') != null}" th:text="${'Réduction recommandée : ' + reco.get('reductions')}"></span>
 
                 <h4>Arrondis, primes et régimes</h4>
                 <div class="p-grille">
@@ -158,6 +176,9 @@
                     <label>Impôt arrondi (à l'inférieur) à
                         <input name="imp_arrondi_impot" inputmode="numeric" th:value="${c.impot().arrondiImpot()}">
                         <span class="p-reco" th:if="${reco.get('imp_arrondi_impot') != null}" th:text="${'Recommandé : ' + reco.get('imp_arrondi_impot')}"></span></label>
+                    <label>Impôt plafonné à (% du revenu imposable, vide = sans plafond)
+                        <input name="imp_plafond" inputmode="decimal" th:value="${c.impot().plafond().signum() == 0 ? '' : f.saisie(c.impot().plafond())}">
+                        <span class="p-reco" th:if="${reco.get('imp_plafond') != null}" th:text="${'Recommandé : ' + reco.get('imp_plafond')}"></span></label>
                     <label>Impôt annuel ÷ 12 arrondi <select name="imp_arrondi_mensuel">
                         <option th:each="x : ${arrondis}" th:value="${x.name()}" th:text="${x.libelle()}"
                                 th:selected="${c.impot().arrondiMensuel() == x}">Au plus proche</option></select></label>
@@ -201,6 +222,40 @@
                     </tr>
                     </tbody>
                 </table>
+            </fieldset>
+
+            <fieldset>
+                <legend>Impôts forfaitaires retenus au salarié</legend>
+                <p class="p-note">Un montant annuel selon le revenu brut annuel du salarié (TRIMF au Sénégal), retenu par
+                    douzième chaque mois. Laissez vide la limite du dernier palier (sans limite). Videz le code et le libellé
+                    pour supprimer la ligne.</p>
+                <div class="k-carte k-pile" style="margin-bottom: 1rem"
+                     th:each="i : ${#numbers.sequence(0, c.forfaits().size())}"
+                     th:with="x=${i < c.forfaits().size() ? c.forfaits().get(i) : null}, k=${x == null ? '' : 'frf_' + x.code() + '_'}">
+                    <div class="p-grille">
+                        <label>Code <input th:name="${'frf_' + i + '_code'}" maxlength="20" th:value="${x?.code()}"></label>
+                        <label>Libellé <input th:name="${'frf_' + i + '_libelle'}" maxlength="80" th:value="${x?.libelle()}"></label>
+                        <label>Organisme <input th:name="${'frf_' + i + '_organisme'}" maxlength="10" th:value="${x?.organisme()}"></label>
+                        <label>Compte <input th:name="${'frf_' + i + '_compte'}" maxlength="12" th:value="${x == null ? '447200' : x.compte()}"></label>
+                        <label><input type="checkbox" th:name="${'frf_' + i + '_conjoint'}" th:checked="${x != null and x.conjoint()}">
+                            Dû aussi pour le conjoint sans revenu
+                            <span class="p-reco" th:if="${x != null and reco.get(k + 'conjoint') != null}" th:text="${'Recommandé : ' + reco.get(k + 'conjoint')}"></span></label>
+                    </div>
+                    <table style="max-width: 32rem">
+                        <thead><tr><th>Revenu brut annuel jusqu'à</th><th>Montant annuel</th></tr></thead>
+                        <tbody>
+                        <tr th:each="j : ${#numbers.sequence(0, (x == null ? 0 : x.paliers().size()) + plus - 1)}"
+                            th:with="y=${x != null and j < x.paliers().size() ? x.paliers().get(j) : null}">
+                            <td><input th:name="${'frf_' + i + '_pal_' + j + '_jusqua'}" inputmode="numeric"
+                                       th:value="${y == null or y.jusqua() == 0 ? '' : y.jusqua()}"
+                                       th:placeholder="${y != null and y.jusqua() == 0 ? 'sans limite' : ''}"></td>
+                            <td><input th:name="${'frf_' + i + '_pal_' + j + '_montant'}" inputmode="numeric" th:value="${y?.montant()}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <span class="p-reco" th:if="${x != null and reco.get(k + 'paliers') != null}" th:text="${'Paliers recommandés : ' + reco.get(k + 'paliers')}"></span>
+                    <label>Note <input th:name="${'frf_' + i + '_note'}" maxlength="300" th:value="${x?.note()}"></label>
+                </div>
             </fieldset>
 
             <fieldset>

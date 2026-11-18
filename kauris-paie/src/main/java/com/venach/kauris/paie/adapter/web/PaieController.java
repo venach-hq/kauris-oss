@@ -186,7 +186,7 @@ public class PaieController {
         model.addAttribute("versementDisponible", paie.versementDisponible(a));
         model.addAttribute("aujourdhui", paie.aujourdHui());
         model.addAttribute("organismes", ExportsPaie.organismesSociaux(m.bulletins()));
-        model.addAttribute("impot", m.regles() == null ? "Impôt" : m.regles().contenu().impot().nom());
+        model.addAttribute("impot", m.regles() == null ? "Impôt" : nomDesImpots(m.regles().contenu()));
         return "paie/mois";
     }
 
@@ -261,7 +261,7 @@ public class PaieController {
                 .forEach(h -> majorations.add(new ReglesPaie.Majoration(h.libelle(), h.majoration())));
         model.addAttribute("majorations", majorations);
         model.addAttribute("lignesHeures", v.heures().size() + LIGNES_VIDES);
-        model.addAttribute("impot", regles == null ? "Impôt" : regles.contenu().impot().nom());
+        model.addAttribute("impot", regles == null ? "Impôt" : nomDesImpots(regles.contenu()));
         // Le salarié précédent et le suivant, pour passer d'un bulletin à l'autre.
         List<UUID> ordre = m.bulletins().stream().map(Bulletin::salarieId).toList();
         int i = ordre.indexOf(salarieId);
@@ -405,5 +405,12 @@ public class PaieController {
     private static ResponseEntity<byte[]> fichier(byte[] contenu, String nom, String type) {
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(type))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nom + "\"").body(contenu);
+    }
+
+    /** « IR + TRIMF » : l'impôt sur les salaires et les impôts forfaitaires retenus avec lui. */
+    static String nomDesImpots(com.venach.kauris.paie.domain.ReglesPaie.Contenu c) {
+        StringBuilder s = new StringBuilder(c.impot().nom());
+        c.forfaits().forEach(x -> s.append(" + ").append(x.code()));
+        return s.toString();
     }
 }

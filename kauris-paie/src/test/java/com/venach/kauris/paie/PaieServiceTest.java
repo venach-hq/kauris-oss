@@ -75,7 +75,7 @@ class PaieServiceTest {
     private static Salarie.Saisie fiche(String nom, SituationFamiliale situation, int enfants, ModePaiement mode,
                                         String compte) {
         return new Salarie.Saisie(nom, "Akosua", LocalDate.of(1990, 3, 4), "+228 90 00 00 01", "", "Lomé", "",
-                "CNSS-" + nom, situation, enfants, false, 0, false, RegimeFiscal.NORMAL, mode, "Ecobank", compte, true,
+                "CNSS-" + nom, situation, enfants, false, 0, false, false, RegimeFiscal.NORMAL, mode, "Ecobank", compte, true,
                 "");
     }
 
@@ -107,7 +107,7 @@ class PaieServiceTest {
                 risques.application(), true, risques.compte(), "Notification CNSS du 3 mars"));
         ReglesPaie.Contenu x = r.contenu();
         paie.enregistrerRegles(patron, r.id(), "Togo — nos règles", null, new ReglesPaie.Contenu(c, x.taxes(),
-                x.impot(), x.heures(), x.comptes()), "");
+                x.forfaits(), x.impot(), x.heures(), x.comptes()), "");
         assertEquals(new BigDecimal("3.5"), paie.reglesDuMois(tenant, Pays.TOGO, NOVEMBRE).orElseThrow().contenu()
                 .cotisations().get(2).tauxEmployeur());
         assertEquals(ModelesRecommandes.TOGO_2026, paie.recommandation(paie.reglesParId(patron, r.id()))
@@ -129,21 +129,21 @@ class PaieServiceTest {
 
     @Test
     void paysSansModele() {
-        pays.set(Pays.SENEGAL);
-        assertTrue(ModelesRecommandes.pour(Pays.SENEGAL).isEmpty());
+        pays.set(Pays.BENIN);
+        assertTrue(ModelesRecommandes.pour(Pays.BENIN).isEmpty());
         ReglesPaie r = paie.activerModele(patron, ModelesRecommandes.VIDE, null, LocalDate.of(2026, 11, 20));
-        assertEquals(Pays.SENEGAL, r.pays());
+        assertEquals(Pays.BENIN, r.pays());
         assertEquals(LocalDate.of(2026, 11, 1), r.depuis());
         // L'entreprise saisit son barème et une cotisation : le calcul les suit.
         ReglesPaie.Impot i = r.contenu().impot();
         ReglesPaie.Impot irpp = new ReglesPaie.Impot("IR", "DGID", ReglesPaie.Periodicite.MENSUELLE, List.of(
                 new ReglesPaie.Tranche(100_000, BigDecimal.ZERO), new ReglesPaie.Tranche(0, new BigDecimal("20"))),
-                false, BigDecimal.ZERO, BigDecimal.ZERO, 0, ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, 1, 1, null,
+                false, BigDecimal.ZERO, BigDecimal.ZERO, 0, ReglesPaie.Famille.AUCUNE, 0, 0, 0, null, null, null, 1, 1, null,
                 false, false, BigDecimal.ZERO, 0, i.compte(), "");
         ReglesPaie.Cotisation ipres = new ReglesPaie.Cotisation("IPRES", "IPRES régime général", "IPRES",
                 new BigDecimal("5.6"), new BigDecimal("8.4"), 432_000, 0, 0, 0, 0, ReglesPaie.Deduction.AUCUNE,
                 ReglesPaie.Application.TOUS, true, "431200", "");
-        paie.enregistrerRegles(patron, r.id(), r.nom(), null, new ReglesPaie.Contenu(List.of(ipres), List.of(), irpp,
+        paie.enregistrerRegles(patron, r.id(), r.nom(), null, new ReglesPaie.Contenu(List.of(ipres), List.of(), List.of(), irpp,
                 null, null), "Saisi avec notre comptable");
         Salarie a = paie.enregistrerSalarie(patron, null, fiche("Diop", SituationFamiliale.CELIBATAIRE, 0,
                 ModePaiement.ESPECES, ""));
@@ -206,7 +206,7 @@ class PaieServiceTest {
         long netAvant = paie.bulletinDe(patron, p.id(), awa.id()).net();
         ReglesPaie r = paie.regles(patron).get(0);
         ReglesPaie.Contenu x = r.contenu();
-        paie.enregistrerRegles(patron, r.id(), r.nom(), null, new ReglesPaie.Contenu(List.of(), x.taxes(), x.impot(),
+        paie.enregistrerRegles(patron, r.id(), r.nom(), null, new ReglesPaie.Contenu(List.of(), x.taxes(), x.forfaits(), x.impot(),
                 x.heures(), x.comptes()), "");
         assertEquals(netAvant, paie.bulletinDe(patron, p.id(), awa.id()).net(), "le bulletin clos ne bouge pas");
         assertThrows(ErreurMetier.class, () -> paie.terminerContrat(patron, ck.id(), LocalDate.of(2026, 11, 30),
@@ -264,7 +264,7 @@ class PaieServiceTest {
                 SituationFamiliale.CELIBATAIRE, 0, ModePaiement.ESPECES, "")), "même numéro CNSS");
         ContratTravail c = paie.creerContrat(patron, s1.id(), cdi("Gardien", 90_000, LocalDate.of(2026, 1, 1)));
         Salarie.Saisie archive = new Salarie.Saisie("Amouzou", "", null, "", "", "", "", "",
-                SituationFamiliale.CELIBATAIRE, 0, false, 0, false, RegimeFiscal.NORMAL, ModePaiement.ESPECES, "", "",
+                SituationFamiliale.CELIBATAIRE, 0, false, 0, false, false, RegimeFiscal.NORMAL, ModePaiement.ESPECES, "", "",
                 false, "");
         assertThrows(ErreurMetier.class, () -> paie.enregistrerSalarie(patron, s1.id(), archive));
         paie.terminerContrat(patron, c.id(), LocalDate.of(2026, 11, 10), "Démission");

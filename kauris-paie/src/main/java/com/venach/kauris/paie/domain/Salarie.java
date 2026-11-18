@@ -10,20 +10,21 @@ import java.util.UUID;
  * Un salarié de l'entreprise : son identité, sa famille (qui compte pour l'impôt), son numéro à la caisse sociale et
  * la façon dont il reçoit son salaire. Ce qu'il gagne est dans son contrat.
  *
- * @param numeroSocial numéro d'assuré à la CNSS (Togo) ou à la CNPS (Côte d'Ivoire)
+ * @param numeroSocial numéro d'assuré à la caisse sociale (CNSS, CNPS, IPRES…)
+ * @param cadre        statut cadre (cotisations réservées aux cadres, comme la retraite complémentaire au Sénégal)
  * @param compte       RIB ou IBAN pour un virement, numéro de téléphone pour le Mobile Money
  */
 public record Salarie(UUID id, UUID tenantId, String matricule, String nom, String prenoms, LocalDate naissance,
                       String telephone, String email, String adresse, String pieceIdentite, String numeroSocial,
-                      Foyer foyer, boolean expatrie, RegimeFiscal regime, ModePaiement modePaiement, String banque,
-                      String compte, boolean actif, String notes, Instant creeLe) {
+                      Foyer foyer, boolean expatrie, boolean cadre, RegimeFiscal regime, ModePaiement modePaiement,
+                      String banque, String compte, boolean actif, String notes, Instant creeLe) {
 
     /** Ce que l'on saisit sur la fiche. */
     public record Saisie(String nom, String prenoms, LocalDate naissance, String telephone, String email,
                          String adresse, String pieceIdentite, String numeroSocial, SituationFamiliale situation,
                          int enfants, boolean conjointACharge, int autresPersonnes, boolean expatrie,
-                         RegimeFiscal regime, ModePaiement modePaiement, String banque, String compte, boolean actif,
-                         String notes) {
+                         boolean cadre, RegimeFiscal regime, ModePaiement modePaiement, String banque,
+                         String compte, boolean actif, String notes) {
     }
 
     public Salarie {
@@ -58,12 +59,12 @@ public record Salarie(UUID id, UUID tenantId, String matricule, String nom, Stri
         return new Salarie(id, tenantId, matricule, s.nom(), s.prenoms(), s.naissance(), s.telephone(), s.email(),
                 s.adresse(), s.pieceIdentite(), s.numeroSocial(),
                 new Foyer(s.situation(), s.enfants(), s.conjointACharge(), s.autresPersonnes()), s.expatrie(),
-                s.regime(), s.modePaiement(), s.banque(), s.compte(), s.actif(), s.notes(), creeLe);
+                s.cadre(), s.regime(), s.modePaiement(), s.banque(), s.compte(), s.actif(), s.notes(), creeLe);
     }
 
     public Saisie saisie() {
         return new Saisie(nom, prenoms, naissance, telephone, email, adresse, pieceIdentite, numeroSocial,
-                foyer.situation(), foyer.enfants(), foyer.conjointACharge(), foyer.autresPersonnes(), expatrie, regime,
+                foyer.situation(), foyer.enfants(), foyer.conjointACharge(), foyer.autresPersonnes(), expatrie, cadre, regime,
                 modePaiement, banque, compte, actif, notes);
     }
 

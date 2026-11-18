@@ -61,7 +61,7 @@
         <tr><td>Salaire brut</td><td class="k-doc-montant" th:text="${f.montant(r.brut())}">0</td></tr>
         <tr><td>Brut soumis aux cotisations et à l'impôt</td><td class="k-doc-montant" th:text="${f.montant(r.brutSoumis())}">0</td></tr>
         <tr><td>Cotisations du salarié</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.cotisationsSalarie())}">0</td></tr>
-        <tr><td th:text="${r.impotNom()}">IRPP</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.impot())}">0</td></tr>
+        <tr><td th:text="${r.lignes().?[nature().name() == 'IMPOT'].size() > 1 ? 'Impôts retenus (' + r.impotNom() + ' et autres)' : r.impotNom()}">IRPP</td><td class="k-doc-montant" th:text="${'- ' + f.montant(r.impot())}">0</td></tr>
         <tr th:if="${r.avantagesNature() > 0}"><td>Avantages en nature (non payés)</td>
             <td class="k-doc-montant" th:text="${'- ' + f.montant(r.avantagesNature())}">0</td></tr>
         <tr th:if="${r.retenues() > 0}"><td>Avances et retenues</td>
