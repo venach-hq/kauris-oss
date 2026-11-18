@@ -1,6 +1,7 @@
 package com.venach.kauris.compta.adapter.web;
 
 import com.venach.kauris.compta.application.PermissionsCompta;
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
@@ -42,6 +43,7 @@ public class ModuleCompta implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Comptabilité", ComptaController.PAGE, PermissionsCompta.CONSULTER));
+        return List.of(new EntreeMenu("Comptabilité", ComptaController.PAGE, PermissionsCompta.CONSULTER,
+                CategorieModule.FINANCES, "#047857", "compta"));
     }
 }

@@ -49,6 +49,10 @@ Tous les écrans utilisent le gabarit du noyau (`templates/kauris/layout.html`) 
 - Un contrôleur obtient l'organisation courante avec `ContexteCourant.exiger(requete)` et passe son
   `tenantId` à tous les appels : aucun identifiant d'organisation ne vient d'un formulaire ou d'une adresse.
 - Un module ajoute ses entrées au menu avec `ModuleKauris.menu()`.
+- Chaque entrée est aussi un grand bouton carré du tableau de bord : elle donne sa catégorie (`CategorieModule`,
+  une ligne de l'accueil par catégorie), sa couleur et son icône (`/kauris/icones.svg`) :
+  `new EntreeMenu(libelle, chemin, permission, CategorieModule.VENTES, "#1D4ED8", "ventes")`. La couleur est
+  foncée : le texte blanc doit garder un contraste d'au moins 4,5 (vérifié par `ParcoursLocalTest`).
 - Après une action : redirection, avec le message dans `succes` ou `erreur` (attributs flash). Les droits
   sont contrôlés par les services, pas par l'écran : cacher un bouton ne protège rien.
 - L'application dit qui est connecté en fournissant un bean `SessionKauris`.

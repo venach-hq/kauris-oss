@@ -3,6 +3,8 @@
       th:replace="~{kauris/layout :: page(titre='Mon profil', contenu=~{::section})}">
 <body>
 <section>
+    <style>.k-apercu-fond { display: block; width: min(100%, 360px); aspect-ratio: 16 / 9; object-fit: cover;
+        border-radius: 10px; border: 1px solid var(--k-bord); }</style>
     <p>Vous êtes connecté avec <strong th:text="${kauris.acces().email()}">email</strong>
         dans <strong th:text="${kauris.acces().organisation()}">Organisation</strong>.</p>
     <p class="k-discret">Vos rôles : <span th:text="${kauris.acces().resumeRoles()}">Rôle</span>.</p>
@@ -16,6 +18,24 @@
         </label>
         <button type="submit" class="k-bouton">Enregistrer</button>
     </form>
+
+    <h2 id="fond">Le fond de mon accueil</h2>
+    <p class="k-discret">Une photo à vous derrière les boutons du tableau de bord (vous seul la voyez). Les textes
+        restent sur des panneaux clairs : ils sont lisibles quelle que soit l'image. Sans image, l'accueil montre
+        « KAURIS » en filigrane.</p>
+    <th:block th:with="version=${@fondsAccueil.version(kauris.acces())}">
+        <p th:if="${version != null}"><img class="k-apercu-fond" th:src="@{/profil/fond(v=${version})}"
+                                          alt="Votre image de fond actuelle"></p>
+        <form class="k-ligne" method="post" enctype="multipart/form-data" th:action="@{/profil/fond}"
+              data-reduire-image="1920">
+            <label for="fichier-fond">Image PNG, JPEG ou WebP (une grande photo est réduite avant l'envoi)</label>
+            <input id="fichier-fond" name="fichier" type="file" accept="image/png,image/jpeg,image/webp" required>
+            <button type="submit" class="k-bouton">Mettre cette image</button>
+        </form>
+        <form method="post" th:action="@{/profil/fond/retirer}" th:if="${version != null}">
+            <button type="submit" class="k-bouton k-secondaire">Revenir au fond par défaut</button>
+        </form>
+    </th:block>
 
     <th:block th:if="${kauris.comptesLocaux()}">
         <h2>Mon mot de passe</h2>

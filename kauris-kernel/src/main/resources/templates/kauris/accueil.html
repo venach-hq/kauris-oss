@@ -4,14 +4,57 @@
 <body>
 <section>
     <style>
-        .a-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .4rem 1rem; margin: 0 0 1rem; }
-        .a-tete p { margin: 0; }
+        /* Le titre « Accueil » du gabarit est remplacé par le message d'accueil. */
+        .k-contenu > h1 { display: none; }
+
+        /* Le fond couvre toute la page, derrière le contenu : l'image du membre, sinon « KAURIS » en filigrane. */
+        .a-fond { position: fixed; inset: 0; z-index: -1; overflow: hidden;
+            background: linear-gradient(140deg, #f8fafc 0%, #eef3f1 55%, #e8eef5 100%); }
+        .a-filigrane { position: absolute; left: 0; right: 0; bottom: 6vh; text-align: center; font-weight: 800;
+            font-size: clamp(64px, 15vw, 210px); letter-spacing: .14em; color: #0f172a; opacity: .045;
+            user-select: none; white-space: nowrap; }
+        .a-image { position: absolute; inset: 0; background-size: cover; background-position: center; }
+        /* Un voile sombre léger : les panneaux clairs et les boutons ressortent sur n'importe quelle photo. */
+        .a-voile { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 23, 42, .28), rgba(15, 23, 42, .5)); }
+
+        /* Tout texte posé sur le fond l'est sur un panneau clair presque opaque : lisible quelle que soit l'image. */
+        .a-panneau { background: rgba(255, 255, 255, .9); color: var(--k-texte); border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, .12); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+        .a-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .6rem 1rem;
+            padding: 1rem 1.2rem; margin: 0 0 1.4rem; }
+        .a-tete h2 { margin: 0; font-size: 1.45rem; letter-spacing: -.02em; }
+        .a-tete p { margin: .2rem 0 0; }
+        .a-tete .k-bouton { white-space: nowrap; }
+
+        .a-ligne { margin: 0 0 1.4rem; }
+        .a-categorie { display: inline-block; margin: 0 0 .6rem; padding: .3rem .8rem; font-size: 14px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .05em; }
+        .a-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 170px)); gap: 14px; }
+        .a-tuile { position: relative; overflow: hidden; aspect-ratio: 1 / 1; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 16px; border-radius: 16px; background: var(--a-couleur, #475569);
+            color: #fff; text-decoration: none; font-weight: 700; font-size: 1.12rem; line-height: 1.2;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, .35); box-shadow: 0 6px 18px rgba(15, 23, 42, .22);
+            transition: transform .12s ease, box-shadow .12s ease; }
+        .a-tuile::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(155deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, .14) 100%); }
+        .a-tuile svg { width: 42px; height: 42px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
+        .a-tuile span { position: relative; z-index: 1; overflow-wrap: anywhere; }
+        .a-tuile:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15, 23, 42, .3); color: #fff; }
+        .a-tuile:focus-visible { outline: 3px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 7px #0f172a; }
+        @media (max-width: 520px) {
+            .a-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (prefers-reduced-motion: reduce) { .a-tuile { transition: none; } .a-tuile:hover { transform: none; } }
+
+        .a-titre-apercu { display: inline-block; margin: .6rem 0 .6rem; padding: .3rem .8rem; font-size: 14px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .05em; }
         .a-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 1rem; align-items: start; }
-        .a-section { background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 12px; padding: .9rem 1rem; min-width: 0; }
+        .a-section { background: var(--k-carte); border: 1px solid var(--k-bord); border-radius: 12px; padding: .9rem 1rem; min-width: 0;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, .1); }
         .a-section.a-alerte { border-left: 5px solid var(--k-rouge); }
-        .a-section h2 { margin: 0 0 .7rem; font-size: 1.15rem; display: flex; justify-content: space-between; gap: .5rem; }
-        .a-section h2 a { text-decoration: none; color: inherit; }
-        .a-section h2 small { font-size: 13px; font-weight: 600; }
+        .a-section h3 { margin: 0 0 .7rem; font-size: 1.15rem; display: flex; justify-content: space-between; gap: .5rem; }
+        .a-section h3 a { text-decoration: none; color: inherit; }
+        .a-section h3 small { font-size: 13px; font-weight: 600; }
         .a-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
         .a-chiffre { display: block; padding: .55rem .7rem; border-radius: 8px; background: #fff; border: 1px solid var(--k-bord);
             text-decoration: none; color: var(--k-texte); min-width: 0; }
@@ -24,35 +67,67 @@
         .a-chiffre.a-BON strong { color: var(--k-vert-fonce); }
         .a-raccourcis { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0 0; }
         .a-raccourcis a { min-height: 44px; display: inline-flex; align-items: center; font-size: 1rem; }
-        .a-vide { padding: 1rem; border: 1px dashed var(--k-bord); border-radius: 12px; }
+        .a-vide { padding: 1rem; }
+        .a-modules { margin-top: 1.5rem; padding: .6rem 1rem; }
+        .k-pied { background: rgba(255, 255, 255, .9); border-radius: 12px; max-width: 1040px; margin-left: auto; margin-right: auto; }
     </style>
 
-    <div class="a-tete">
-        <p>Bonjour <strong th:text="${kauris.nomAffiche()}">Nom</strong>
-            <span class="k-discret" th:text="${'· ' + kauris.acces().resumeRoles()}">· Rôle</span></p>
-        <p class="k-discret" th:if="${aujourdhui != null}" th:text="${aujourdhui}">samedi 14 novembre 2026</p>
+    <div class="a-fond" aria-hidden="true"
+         th:with="version=${@fondsAccueil.version(kauris.acces())},image=@{/profil/fond(v=${version})}">
+        <span class="a-filigrane">KAURIS</span>
+        <th:block th:if="${version != null}">
+            <div class="a-image" th:style="|background-image: url('${image}')|"></div>
+            <div class="a-voile"></div>
+        </th:block>
     </div>
 
-    <div class="a-sections" th:unless="${sections == null or sections.isEmpty()}">
-        <div class="a-section" th:each="s : ${sections}" th:classappend="${s.alerte()} ? 'a-alerte'">
-            <h2><a th:href="@{${s.lien()}}" th:text="${s.titre()}">Ventes</a>
-                <small><a th:href="@{${s.lien()}}">Ouvrir →</a></small></h2>
-            <div class="a-chiffres">
-                <a class="a-chiffre" th:each="c : ${s.chiffres()}" th:href="@{${c.lien()}}" th:classappend="${'a-' + c.ton().name()}">
-                    <span th:text="${c.libelle()}">Reste à encaisser</span>
-                    <strong th:text="${c.valeur()}">0</strong>
-                    <small th:unless="${c.detail().isEmpty()}" th:text="${c.detail()}">dont…</small>
+    <div class="a-tete a-panneau">
+        <div>
+            <h2>Bonjour <span th:text="${kauris.nomAffiche()}">Nom</span>&nbsp;! Sur quoi travaillons-nous aujourd’hui&nbsp;?</h2>
+            <p class="k-discret">
+                <span th:if="${aujourdhui != null}" th:text="${aujourdhui}">samedi 14 novembre 2026</span>
+                <span th:text="${'· ' + kauris.acces().resumeRoles()}">· Rôle</span>
+            </p>
+        </div>
+        <a class="k-bouton k-secondaire" th:href="@{/profil#fond}">Changer le fond</a>
+    </div>
+
+    <nav aria-label="Modules" th:with="icones=@{/kauris/icones.svg}">
+        <div class="a-ligne" th:each="l : ${kauris.lignesDeBoutons()}">
+            <h2 class="a-categorie a-panneau" th:text="${l.categorie().libelle()}">Ventes et clients</h2>
+            <div class="a-tuiles">
+                <a class="a-tuile" th:each="e : ${l.boutons()}" th:href="@{${e.chemin()}}"
+                   th:style="|--a-couleur: ${e.couleur()}|">
+                    <svg aria-hidden="true" focusable="false"><use th:href="|${icones}#${e.icone()}|" href="#module"/></svg>
+                    <span th:text="${e.libelle()}">Ventes</span>
                 </a>
             </div>
-            <div class="a-raccourcis" th:unless="${s.raccourcis().isEmpty()}">
-                <a class="k-bouton k-secondaire" th:each="r : ${s.raccourcis()}" th:href="@{${r.lien()}}" th:text="${r.libelle()}">Nouvelle facture</a>
+        </div>
+    </nav>
+
+    <th:block th:unless="${sections == null or sections.isEmpty()}">
+        <h2 class="a-titre-apercu a-panneau">En un coup d’œil</h2>
+        <div class="a-sections">
+            <div class="a-section" th:each="s : ${sections}" th:classappend="${s.alerte()} ? 'a-alerte'">
+                <h3><a th:href="@{${s.lien()}}" th:text="${s.titre()}">Ventes</a>
+                    <small><a th:href="@{${s.lien()}}">Ouvrir →</a></small></h3>
+                <div class="a-chiffres">
+                    <a class="a-chiffre" th:each="c : ${s.chiffres()}" th:href="@{${c.lien()}}" th:classappend="${'a-' + c.ton().name()}">
+                        <span th:text="${c.libelle()}">Reste à encaisser</span>
+                        <strong th:text="${c.valeur()}">0</strong>
+                        <small th:unless="${c.detail().isEmpty()}" th:text="${c.detail()}">dont…</small>
+                    </a>
+                </div>
+                <div class="a-raccourcis" th:unless="${s.raccourcis().isEmpty()}">
+                    <a class="k-bouton k-secondaire" th:each="r : ${s.raccourcis()}" th:href="@{${r.lien()}}" th:text="${r.libelle()}">Nouvelle facture</a>
+                </div>
             </div>
         </div>
-    </div>
-    <p class="a-vide" th:if="${sections == null or sections.isEmpty()}">Rien à afficher pour le moment : vos rôles ne
-        donnent accès à aucun module, ou rien n'a encore été saisi. Utilisez le menu pour commencer.</p>
+    </th:block>
+    <p class="a-vide a-panneau" th:if="${kauris.lignesDeBoutons().isEmpty()}">Rien à afficher pour le moment : vos
+        rôles ne donnent accès à aucun module. Demandez à un administrateur de l’organisation de vous en attribuer.</p>
 
-    <details style="margin-top:1.5rem">
+    <details class="a-modules a-panneau">
         <summary class="k-discret">Modules installés</summary>
         <table class="k-table">
             <thead><tr><th>Module</th><th>Code</th><th>Version</th></tr></thead>

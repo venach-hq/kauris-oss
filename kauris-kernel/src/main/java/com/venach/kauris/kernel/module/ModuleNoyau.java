@@ -34,10 +34,15 @@ public final class ModuleNoyau implements ModuleKauris {
     @Override
     public List<EntreeMenu> menu() {
         return List.of(new EntreeMenu("Accueil", "/"),
-                new EntreeMenu("Organisation", "/organisation", PermissionsNoyau.ORGANISATION_CONSULTER),
-                new EntreeMenu("Membres", "/organisation/membres", PermissionsNoyau.MEMBRES_CONSULTER),
-                new EntreeMenu("Rôles", "/organisation/roles", PermissionsNoyau.MEMBRES_CONSULTER),
-                new EntreeMenu("Entreprise", "/entreprise", PermissionsNoyau.ENTREPRISE_CONSULTER),
-                new EntreeMenu("Mon profil", "/profil"));
+                new EntreeMenu("Organisation", "/organisation", PermissionsNoyau.ORGANISATION_CONSULTER,
+                        CategorieModule.ORGANISATION, "#334155", "organisation"),
+                new EntreeMenu("Membres", "/organisation/membres", PermissionsNoyau.MEMBRES_CONSULTER,
+                        CategorieModule.ORGANISATION, "#4338CA", "membres"),
+                new EntreeMenu("Rôles", "/organisation/roles", PermissionsNoyau.MEMBRES_CONSULTER,
+                        CategorieModule.ORGANISATION, "#6D28D9", "roles"),
+                new EntreeMenu("Entreprise", "/entreprise", PermissionsNoyau.ENTREPRISE_CONSULTER,
+                        CategorieModule.ORGANISATION, "#0F766E", "entreprise"),
+                new EntreeMenu("Mon profil", "/profil", null, CategorieModule.ORGANISATION, "#475569",
+                        "profil"));
     }
 }
