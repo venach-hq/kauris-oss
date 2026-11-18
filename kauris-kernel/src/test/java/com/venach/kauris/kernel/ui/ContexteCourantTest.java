@@ -110,4 +110,27 @@ class ContexteCourantTest {
         assertEquals(Set.of(AttributionRole.pourTouteLOrganisation(Role.ADMINISTRATEUR)),
                 OrganisationController.attributions("ADMINISTRATEUR", List.of(agence)));
     }
+
+    @Test
+    void lesBoutonsDeLAccueilSeRangentParCategorieSansLAccueilLuiMeme() {
+        List<com.venach.kauris.kernel.module.EntreeMenu> menu = List.of(
+                new com.venach.kauris.kernel.module.EntreeMenu("Accueil", "/"),
+                new com.venach.kauris.kernel.module.EntreeMenu("Mon profil", "/profil", null,
+                        com.venach.kauris.kernel.module.CategorieModule.ORGANISATION, "#475569", "profil"),
+                new com.venach.kauris.kernel.module.EntreeMenu("Rapports", "/rapports"),
+                new com.venach.kauris.kernel.module.EntreeMenu("Caisse", "/caisse", null,
+                        com.venach.kauris.kernel.module.CategorieModule.VENTES, "#0E7490", "caisse"),
+                new com.venach.kauris.kernel.module.EntreeMenu("Ventes", "/ventes", null,
+                        com.venach.kauris.kernel.module.CategorieModule.VENTES, "#1D4ED8", "ventes"));
+        ContexteKauris c = new ContexteKauris(null, null, List.of(), menu, false, 0);
+
+        List<ContexteKauris.LigneDeBoutons> lignes = c.lignesDeBoutons();
+
+        assertEquals(List.of(com.venach.kauris.kernel.module.CategorieModule.VENTES,
+                        com.venach.kauris.kernel.module.CategorieModule.ORGANISATION,
+                        com.venach.kauris.kernel.module.CategorieModule.AUTRES),
+                lignes.stream().map(ContexteKauris.LigneDeBoutons::categorie).toList());
+        assertEquals(List.of("Caisse", "Ventes"),
+                lignes.get(0).boutons().stream().map(com.venach.kauris.kernel.module.EntreeMenu::libelle).toList());
+    }
 }

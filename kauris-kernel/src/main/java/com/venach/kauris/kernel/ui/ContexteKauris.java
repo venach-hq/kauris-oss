@@ -27,4 +27,24 @@ public record ContexteKauris(IdentiteConnectee personne, Acces acces, List<Acces
         }
         return personne.email() != null ? personne.email() : "";
     }
+
+    /** Les grands boutons d'une ligne du tableau de bord. */
+    public record LigneDeBoutons(com.venach.kauris.kernel.module.CategorieModule categorie, List<EntreeMenu> boutons) {
+    }
+
+    /**
+     * Les entrées du menu en lignes de grands boutons, par catégorie (dans l'ordre des catégories, puis du menu),
+     * sans l'accueil lui-même.
+     */
+    public List<LigneDeBoutons> lignesDeBoutons() {
+        java.util.Map<com.venach.kauris.kernel.module.CategorieModule, List<EntreeMenu>> parCategorie =
+                new java.util.EnumMap<>(com.venach.kauris.kernel.module.CategorieModule.class);
+        for (EntreeMenu e : menu) {
+            if (!"/".equals(e.chemin())) {
+                parCategorie.computeIfAbsent(e.categorie(), c -> new java.util.ArrayList<>()).add(e);
+            }
+        }
+        return parCategorie.entrySet().stream().map(x -> new LigneDeBoutons(x.getKey(), List.copyOf(x.getValue())))
+                .toList();
+    }
 }

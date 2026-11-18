@@ -1,5 +1,6 @@
 package com.venach.kauris.paie.adapter.web;
 
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
@@ -41,6 +42,7 @@ public class ModulePaie implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Paie", PaieController.PAGE, PermissionsPaie.CONSULTER));
+        return List.of(new EntreeMenu("Paie", PaieController.PAGE, PermissionsPaie.CONSULTER,
+                CategorieModule.RESSOURCES_HUMAINES, "#7E22CE", "paie"));
     }
 }

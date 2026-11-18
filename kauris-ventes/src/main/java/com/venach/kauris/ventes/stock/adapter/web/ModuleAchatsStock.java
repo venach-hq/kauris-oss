@@ -1,5 +1,6 @@
 package com.venach.kauris.ventes.stock.adapter.web;
 
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
@@ -46,7 +47,9 @@ public class ModuleAchatsStock implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Achats", AchatsController.PAGE, PermissionsAchats.CONSULTER),
-                new EntreeMenu("Stock", StockController.PAGE, PermissionsStock.CONSULTER));
+        return List.of(new EntreeMenu("Achats", AchatsController.PAGE, PermissionsAchats.CONSULTER,
+                        CategorieModule.ACHATS_STOCK, "#B45309", "achats"),
+                new EntreeMenu("Stock", StockController.PAGE, PermissionsStock.CONSULTER,
+                        CategorieModule.ACHATS_STOCK, "#9A3412", "stock"));
     }
 }

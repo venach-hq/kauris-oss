@@ -51,6 +51,8 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -100,6 +102,8 @@ class PersistanceNoyauTest {
     private GererRolesUseCase roles;
     @Autowired
     private GererEntrepriseUseCase entreprises;
+    @Autowired
+    private com.venach.kauris.kernel.accueil.application.port.in.GererFondAccueilUseCase fonds;
     @Autowired
     private MembreRepository membresStockes;
     @Autowired
@@ -293,5 +297,26 @@ class PersistanceNoyauTest {
 
         entreprises.retirerLogo(proprietaire);
         assertFalse(entreprises.consulter(o.tenantId()).aUnLogo());
+    }
+
+    @Test
+    void chaqueMembreASonImageDeFond() {
+        OrganisationOuverte o = ouvrir("Atelier", "sub-" + UUID.randomUUID());
+        Acces proprietaire = acces.accesDe(membresStockes.trouver(o.tenantId(), o.membreId()).orElseThrow()
+                .identite().orElseThrow()).get(0);
+        assertNull(fonds.version(proprietaire));
+
+        fonds.definir(proprietaire, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3});
+        String premiere = fonds.version(proprietaire);
+        assertNotNull(premiere);
+        assertEquals("image/jpeg", fonds.fond(proprietaire).orElseThrow().typeMime());
+
+        fonds.definir(proprietaire, new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 9});
+        assertEquals("image/png", fonds.fond(proprietaire).orElseThrow().typeMime());
+        assertEquals(9, fonds.fond(proprietaire).orElseThrow().contenu().length);
+
+        fonds.retirer(proprietaire);
+        assertTrue(fonds.fond(proprietaire).isEmpty());
+        assertNull(fonds.version(proprietaire));
     }
 }

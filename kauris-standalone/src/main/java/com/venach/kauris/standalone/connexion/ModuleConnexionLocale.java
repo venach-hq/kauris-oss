@@ -1,5 +1,6 @@
 package com.venach.kauris.standalone.connexion;
 
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ public class ModuleConnexionLocale implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Mon compte", "/compte"));
+        return List.of(new EntreeMenu("Mon compte", "/compte", null, CategorieModule.ORGANISATION, "#475569",
+                "compte"));
     }
 }

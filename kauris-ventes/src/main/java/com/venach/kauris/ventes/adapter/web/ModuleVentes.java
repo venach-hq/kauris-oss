@@ -1,5 +1,6 @@
 package com.venach.kauris.ventes.adapter.web;
 
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
@@ -40,7 +41,9 @@ public class ModuleVentes implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Ventes", VentesController.PAGE, PermissionsVentes.CONSULTER),
-                new EntreeMenu("Caisse", "/caisse", PermissionsVentes.CAISSE));
+        return List.of(new EntreeMenu("Ventes", VentesController.PAGE, PermissionsVentes.CONSULTER,
+                        CategorieModule.VENTES, "#1D4ED8", "ventes"),
+                new EntreeMenu("Caisse", "/caisse", PermissionsVentes.CAISSE, CategorieModule.VENTES,
+                        "#0E7490", "caisse"));
     }
 }

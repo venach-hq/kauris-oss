@@ -1,5 +1,6 @@
 package com.venach.kauris.flotte.adapter.web;
 
+import com.venach.kauris.kernel.module.CategorieModule;
 import com.venach.kauris.kernel.module.EntreeMenu;
 import com.venach.kauris.kernel.module.ModuleKauris;
 import com.venach.kauris.kernel.module.Permission;
@@ -41,6 +42,7 @@ public class ModuleFlotte implements ModuleKauris {
 
     @Override
     public List<EntreeMenu> menu() {
-        return List.of(new EntreeMenu("Flotte", FlotteController.PAGE, PermissionsFlotte.CONSULTER));
+        return List.of(new EntreeMenu("Flotte", FlotteController.PAGE, PermissionsFlotte.CONSULTER,
+                CategorieModule.ACTIVITES, "#BE123C", "flotte"));
     }
 }

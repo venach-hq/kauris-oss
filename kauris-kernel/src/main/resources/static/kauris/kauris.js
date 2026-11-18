@@ -74,3 +74,45 @@
 
     ouvrir();
 })();
+
+/*
+ * Images envoyées par un formulaire marqué data-reduire-image="1920" : une photo trop grande est réduite dans le
+ * navigateur (1920 px de large au plus, JPEG) avant l'envoi. Les photos de téléphone passent ainsi sous la limite
+ * du serveur et l'accueil s'affiche vite. Si le navigateur ne sait pas faire, le fichier part tel quel.
+ */
+(function () {
+    'use strict';
+
+    var formulaires = document.querySelectorAll('form[data-reduire-image]');
+    Array.prototype.forEach.call(formulaires, function (formulaire) {
+        formulaire.addEventListener('submit', function (evenement) {
+            var champ = formulaire.querySelector('input[type=file]');
+            var fichier = champ && champ.files && champ.files[0];
+            var largeurMax = parseInt(formulaire.dataset.reduireImage, 10) || 1920;
+            if (formulaire.dataset.reduit === 'oui' || !fichier || !/^image\/(png|jpeg|webp)$/.test(fichier.type)
+                || fichier.size < 600 * 1024 || !window.createImageBitmap || !window.DataTransfer) {
+                return;
+            }
+            evenement.preventDefault();
+            createImageBitmap(fichier).then(function (image) {
+                var echelle = Math.min(1, largeurMax / image.width);
+                var toile = document.createElement('canvas');
+                toile.width = Math.round(image.width * echelle);
+                toile.height = Math.round(image.height * echelle);
+                toile.getContext('2d').drawImage(image, 0, 0, toile.width, toile.height);
+                toile.toBlob(function (reduit) {
+                    if (reduit && reduit.size < fichier.size) {
+                        var transfert = new DataTransfer();
+                        transfert.items.add(new File([reduit], 'fond.jpg', {type: 'image/jpeg'}));
+                        champ.files = transfert.files;
+                    }
+                    formulaire.dataset.reduit = 'oui';
+                    formulaire.submit();
+                }, 'image/jpeg', 0.85);
+            }).catch(function () {
+                formulaire.dataset.reduit = 'oui';
+                formulaire.submit();
+            });
+        });
+    });
+})();

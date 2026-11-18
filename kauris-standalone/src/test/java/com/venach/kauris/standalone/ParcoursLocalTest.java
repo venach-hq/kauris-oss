@@ -400,6 +400,39 @@ class ParcoursLocalTest {
                 .andExpect(content().string(containsString("data:image/png;base64,")))
                 .andExpect(content().string(containsString("/entreprise/apercu.pdf")));
 
+        // Tableau de bord : grands boutons rangés par catégorie, fond par défaut « KAURIS », puis l'image du membre.
+        mvc.perform(get("/").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sur quoi travaillons-nous aujourd’hui")))
+                .andExpect(content().string(containsString("class=\"a-tuile\"")))
+                .andExpect(content().string(containsString("Ventes et clients")))
+                .andExpect(content().string(containsString("--a-couleur: #1D4ED8")))
+                .andExpect(content().string(containsString("/kauris/icones.svg#ventes")))
+                .andExpect(content().string(containsString("a-filigrane")))
+                .andExpect(content().string(not(containsString("/profil/fond?v="))));
+        mvc.perform(get("/kauris/icones.svg")).andExpect(status().isOk());
+        mvc.perform(get("/profil/fond").session(session)).andExpect(status().isNotFound());
+        mvc.perform(multipart("/profil/fond").file(new MockMultipartFile("fichier", "fond.txt", "image/png",
+                        "pas une image".getBytes()))
+                        .session(session).with(csrf()))
+                .andExpect(redirectedUrl("/profil"))
+                .andExpect(flash().attributeExists("erreur"));
+        mvc.perform(multipart("/profil/fond").file(new MockMultipartFile("fichier", "fond.png", "image/png", PNG_1X1))
+                        .session(session).with(csrf()))
+                .andExpect(redirectedUrl("/profil"))
+                .andExpect(flash().attributeExists("succes"));
+        mvc.perform(get("/").session(session)).andExpect(content().string(containsString("/profil/fond?v=")));
+        mvc.perform(get("/profil").session(session)).andExpect(content().string(containsString("Revenir au fond par défaut")));
+        mvc.perform(get("/profil/fond").session(session)).andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"));
+        mvc.perform(post("/profil/fond/retirer").session(session).with(csrf())).andExpect(redirectedUrl("/profil"));
+        mvc.perform(get("/profil/fond").session(session)).andExpect(status().isNotFound());
+        // Toutes les couleurs des boutons gardent le texte blanc lisible (contraste WCAG d'au moins 4,5).
+        for (com.venach.kauris.kernel.module.EntreeMenu e : registre.menu()) {
+            int rgb = Integer.parseInt(e.couleur().substring(1), 16);
+            double l = 0.2126 * canal(rgb >> 16) + 0.7152 * canal(rgb >> 8) + 0.0722 * canal(rgb);
+            assertTrue(1.05 / (l + 0.05) >= 4.5, e.libelle() + " : " + e.couleur());
+        }
+
         // Thème des documents : trois modèles, un personnalisé à l'aperçu sans l'enregistrer, puis enregistré.
         mvc.perform(get("/entreprise/theme").session(session)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Moderne")))
@@ -460,5 +493,10 @@ class ParcoursLocalTest {
         mvc.perform(get("/sans-organisation").session(sessionKofi)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("membre actif")));
         mvc.perform(get("/organisation").session(sessionKofi)).andExpect(redirectedUrl("/sans-organisation"));
+    }
+
+    private static double canal(int valeur) {
+        double c = (valeur & 0xFF) / 255.0;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     }
 }

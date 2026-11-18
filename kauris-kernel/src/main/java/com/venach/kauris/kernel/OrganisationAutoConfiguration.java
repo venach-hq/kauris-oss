@@ -7,6 +7,10 @@ import com.venach.kauris.kernel.organisation.application.port.out.CataloguePermi
 import com.venach.kauris.kernel.organisation.application.port.in.GererRolesUseCase;
 import com.venach.kauris.kernel.organisation.adapter.out.persistence.RolePersonnaliseJpaAdapter;
 import com.venach.kauris.kernel.module.RegistreModules;
+import com.venach.kauris.kernel.accueil.adapter.out.FondAccueilJpaAdapter;
+import com.venach.kauris.kernel.accueil.application.port.in.GererFondAccueilUseCase;
+import com.venach.kauris.kernel.accueil.application.port.out.FondAccueilRepository;
+import com.venach.kauris.kernel.accueil.application.service.FondAccueilService;
 import com.venach.kauris.kernel.entreprise.application.service.EntrepriseService;
 import com.venach.kauris.kernel.entreprise.application.port.out.EntrepriseRepository;
 import com.venach.kauris.kernel.entreprise.application.port.in.GererEntrepriseUseCase;
@@ -174,6 +178,22 @@ public class OrganisationAutoConfiguration {
                                                   OrganisationRepository organisations,
                                                   UniteDeTravail transaction) {
         return new EntrepriseService(entreprises, organisations, transaction);
+    }
+
+    // ------------------------------------------------------------------ image de fond de l'accueil
+
+    @Bean
+    @ConditionalOnMissingBean
+    public FondAccueilRepository fondAccueilRepository(EntityManagerFactory fabrique) {
+        return new FondAccueilJpaAdapter(partage(fabrique));
+    }
+
+    /** Nommé « fondsAccueil » : la page d'accueil le lit directement (« @fondsAccueil.version(…) »). */
+    @Bean
+    @ConditionalOnMissingBean
+    public GererFondAccueilUseCase fondsAccueil(FondAccueilRepository fonds, UniteDeTravail transaction,
+                                                Clock horloge) {
+        return new FondAccueilService(fonds, transaction, horloge);
     }
 
     // ------------------------------------------------------------------ connexion « local »

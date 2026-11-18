@@ -132,6 +132,13 @@ public class InterfaceCommuneAutoConfiguration {
         return new ProfilController(contexte, membres);
     }
 
+    @Bean
+    public com.venach.kauris.kernel.ui.organisation.FondAccueilController fondAccueilController(
+            ContexteCourant contexte,
+            com.venach.kauris.kernel.accueil.application.port.in.GererFondAccueilUseCase fonds) {
+        return new com.venach.kauris.kernel.ui.organisation.FondAccueilController(contexte, fonds);
+    }
+
     // ------------------------------------------------------------------ notifications
 
     @Bean
